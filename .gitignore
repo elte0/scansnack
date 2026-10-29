@@ -13,3 +13,4 @@ ios/.venv/
 ios/logs/
 ios/resources/icon-*.png
 ios/.briefcase/
+.DS_Store
