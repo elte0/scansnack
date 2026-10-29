@@ -53,7 +53,7 @@ eSCL: http://192.168.1.20:8090/eSCL/ScannerCapabilities (ScanSnap iX1500, Scanne
 Bonjour: ScanSnap iX1500 (_uscan._tcp)
 ```
 
-Leave the terminal open while you scan; <kbd>Ctrl</kbd>+<kbd>C</kbd> stops the bridge and the scanner
+Leave the terminal open while you scan; *Ctrl+C* stops the bridge and the scanner
 disappears from the scan dialog. There is no autostart yet.
 
 On the first scan the bridge registers this computer with the scanner (user and profile, the same as
