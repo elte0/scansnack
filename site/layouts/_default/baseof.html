@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {{- $title := partial "title.html" . }}
   <title>{{ if or .IsHome (eq $title site.Title) }}{{ site.Title }}{{ else }}{{ $title }} · {{ site.Title }}{{ end }}</title>
-  <meta name="description" content="{{ site.Params.description }}">
+  <meta name="description" content="{{ .Description | default site.Params.description }}">
   {{- $css := resources.Get "style.css" | minify | fingerprint }}
   <link rel="stylesheet" href="{{ $css.RelPermalink }}">
 </head>
 <body>
   <header class="top">
     <nav>
-      <a class="brand" href="{{ "" | relURL }}">iX1500 protocol</a>
+      <a class="brand" href="{{ "" | relURL }}">{{ site.Title }}</a>
+      <a href="{{ "app/" | relURL }}">App</a>
       <a href="{{ "protocol/" | relURL }}">Protocol</a>
       <a href="{{ "disclaimer/" | relURL }}">Disclaimer</a>
       <a href="{{ site.Params.repo }}">Source code</a>

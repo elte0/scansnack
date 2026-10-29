@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # Website neu bauen (Download-Links)
 
 env:
   TAG: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
@@ -92,3 +93,8 @@ jobs:
           Unofficial project, not affiliated with PFU or Fujitsu. See the [disclaimer](https://github.com/elte0/scansnack/blob/main/docs/disclaimer.md).
           NOTES
           )"
+      - name: Website mit den neuen Download-Links bauen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # auf main, nicht auf dem Tag: die Umgebung github-pages erlaubt nur main
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main

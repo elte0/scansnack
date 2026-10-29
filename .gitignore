@@ -20,3 +20,5 @@ ios/.briefcase/
 site/public/
 site/resources/
 site/.hugo_build.lock
+site/static/screenshots/
+site/data/release.json

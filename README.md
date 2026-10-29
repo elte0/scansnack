@@ -51,8 +51,9 @@ Ready-made apps for macOS (Apple Silicon and Intel), Windows and Linux are on th
 - [Disclaimer](docs/disclaimer.md) – reverse engineering, trademarks, no warranty
 - Structure: hexagonal (`core` ← `ports` ← `adapters` ← `app`), see ADR 0002
 
-The protocol write-up is also published as a small website built with Hugo from `site/`
-(see [site/README.md](site/README.md)).
+The website [elte0.github.io/scansnack](https://elte0.github.io/scansnack/) presents the app (screenshots,
+features, downloads of the latest release) and publishes the protocol write-up. It is built with Hugo from
+`site/` (see [site/README.md](site/README.md)).
 
 ## Development
 

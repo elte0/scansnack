@@ -6,6 +6,8 @@
   --subtle: #f6f8fa;
   --link: #0969da;
   --accent-bg: #ddf4ff;
+  --button-bg: #1f883d;
+  --button-fg: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -16,6 +18,8 @@
     --subtle: #151b23;
     --link: #4493f8;
     --accent-bg: #0c2d6b;
+    --button-bg: #238636;
+    --button-fg: #ffffff;
   }
 }
 * { box-sizing: border-box; }
@@ -57,3 +61,26 @@ th { background: var(--subtle); }
 .source { margin-top: 3rem; font-size: 0.875rem; color: var(--muted); }
 footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 0.875rem; }
 footer p { max-width: 54rem; margin: 0 auto; padding: 1rem; }
+
+/* App-Seite */
+.lead { font-size: 1.2rem; color: var(--muted); margin-top: -0.5rem; }
+.shot { margin: 1.5rem 0; }
+.shot img {
+  display: block; width: 100%; height: auto;
+  border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.shot figcaption { margin-top: 0.5rem; font-size: 0.875rem; color: var(--muted); text-align: center; }
+.shot.small img { max-width: 28rem; margin: 0 auto; }
+.downloads .buttons {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.75rem; margin: 1rem 0;
+}
+.downloads .button {
+  display: flex; flex-direction: column; padding: 0.75rem 1rem; text-decoration: none;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--subtle); color: var(--fg);
+}
+.downloads .button span { font-size: 0.875rem; color: var(--muted); }
+.downloads .button:hover { border-color: var(--link); }
+.downloads .button.mine { background: var(--button-bg); border-color: var(--button-bg); color: var(--button-fg); }
+.downloads .button.mine span { color: var(--button-fg); opacity: 0.85; }
+.downloads .button.missing { opacity: 0.6; }
+.release, .muted { color: var(--muted); }

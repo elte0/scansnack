@@ -1,16 +1,19 @@
 ---
-title: "ScanSnap iX1500 Wi-Fi Protocol"
+title: "ScanSnack"
 ---
 
-An independent write-up of the proprietary Wi-Fi protocol of the **ScanSnap iX1500** document scanner,
-reverse-engineered for interoperability. It is the basis of
-[scansnap-bridge](https://github.com/elte0/scansnack), an open-source client that scans without
-ScanSnap Home and makes the scanner available in the macOS scan dialog via eSCL/AirScan.
+ScanSnack lets you use a **ScanSnap iX1500** document scanner over Wi-Fi without ScanSnap Home. The
+project has two parts:
 
-- [Protocol write-up](protocol.md) – channels, frame layouts, sequences, device states and open
-  questions.
-- [Disclaimer](disclaimer.md) – reverse engineering, trademarks, no affiliation, no warranty.
+- **[The ScanSnack app](app.md)** – a small desktop app for macOS, Windows and Linux that scans, saves
+  every scan as a PDF and lets you tidy up the pages afterwards. [Download it here](app.md#download).
+- **[The protocol write-up](protocol.md)** – an independent description of the proprietary Wi-Fi
+  protocol of the iX1500, reverse-engineered for interoperability: channels, frame layouts, sequences,
+  device states and open questions.
 
-Everything described here was observed on the network or tested against a real device. Anything not
-confirmed is listed as an open question. Raw captures are not published because they may contain
-private data.
+{{< screenshot name="main" alt="ScanSnack main window" >}}
+
+Everything in the protocol write-up was observed on the network or tested against a real device.
+Anything not confirmed is listed as an open question. Raw captures are not published because they may
+contain private data. The source code is on [GitHub](https://github.com/elte0/scansnack) under the MIT
+license; see also the [disclaimer](disclaimer.md) on reverse engineering and trademarks.

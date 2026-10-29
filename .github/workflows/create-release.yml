@@ -66,3 +66,4 @@ jobs:
       tag: ${{ needs.tag.outputs.tag }}
     permissions:
       contents: write
+      actions: write

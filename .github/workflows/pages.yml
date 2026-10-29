@@ -1,4 +1,6 @@
-# Baut die Protokoll-Doku (site/ + docs/) mit Hugo und veröffentlicht sie auf GitHub Pages.
+# Baut die Website (site/ + docs/) mit Hugo und veröffentlicht sie auf GitHub Pages.
+# Bei jedem Build: frische Screenshots der App (tools/screenshots.py) und die Downloads des neuesten Releases
+# (site/data/release.json aus der GitHub-API). release.yml startet diesen Workflow nach jedem Release neu.
 # Voraussetzung: Settings → Pages → Source „GitHub Actions“.
 name: Pages
 
@@ -9,6 +11,9 @@ on:
       - docs/protocol.md
       - docs/disclaimer.md
       - site/**
+      - src/scansnap/adapters/qt/**   # Oberfläche → Screenshots
+      - src/scansnap/core/**
+      - tools/screenshots.py
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -23,12 +28,32 @@ concurrency:
 
 env:
   HUGO_VERSION: 0.147.9
+  UV_PYTHON: "3.14"
+  QT_QPA_PLATFORM: offscreen
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+      - name: Qt-Systembibliotheken und Schrift
+        run: >
+          sudo apt-get update -q && sudo apt-get install -y -q
+          libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3 fonts-inter
+      - name: Screenshots der App
+        run: uv run --extra app python tools/screenshots.py
+      - name: Neuestes Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p site/data
+          if gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$RUNNER_TEMP/release.json"; then
+            mv "$RUNNER_TEMP/release.json" site/data/release.json
+            jq -r '"Release: \(.tag_name), \(.assets | length) Dateien"' site/data/release.json
+          else
+            echo "Noch kein Release: die Seite verlinkt nur die Release-Übersicht."
+          fi
       - name: Install Hugo
         run: |
           curl -sSL -o "${RUNNER_TEMP}/hugo.tar.gz" \

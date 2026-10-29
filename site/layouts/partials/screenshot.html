@@ -1,0 +1,12 @@
+{{- /* Screenshot der App (hell + dunkel), erzeugt von tools/screenshots.py. Fehlt das Bild (lokaler Build
+     ohne das Skript), entfällt die Abbildung. */ -}}
+{{- $base := printf "screenshots/%s" .name -}}
+{{- if fileExists (printf "static/%s-light.png" $base) }}
+<figure class="shot{{ with .class }} {{ . }}{{ end }}">
+  <picture>
+    <source srcset="{{ printf "%s-dark.png" $base | relURL }}" media="(prefers-color-scheme: dark)">
+    <img src="{{ printf "%s-light.png" $base | relURL }}" alt="{{ .alt }}" loading="lazy">
+  </picture>
+  {{- with .caption }}<figcaption>{{ . }}</figcaption>{{ end }}
+</figure>
+{{- end }}

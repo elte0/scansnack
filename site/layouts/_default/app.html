@@ -1,0 +1,9 @@
+{{ define "main" }}
+<article class="app">
+  <h1>{{ .Title }}</h1>
+  <p class="lead">{{ .Description }}</p>
+  {{ partial "screenshot.html" (dict "name" "main" "alt" "ScanSnack main window: profiles and scan button, the list of scanned documents and the pages of the selected document") }}
+  {{ partial "downloads.html" . }}
+  {{ .Content }}
+</article>
+{{ end }}
