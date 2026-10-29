@@ -61,6 +61,9 @@ jobs:
     if: inputs.tag != '' || startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG }}
       - uses: actions/download-artifact@v7
         with:
           path: dist
@@ -68,13 +71,20 @@ jobs:
       # Prüfsummen für die Update-Prüfung der App (zusätzlich zu GitHubs eigenem digest pro Asset)
       - name: SHA256SUMS
         run: cd dist && sha256sum ScanSnack-* > SHA256SUMS && cat SHA256SUMS
-      - name: GitHub-Release anlegen
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # Release-Notes: Abschnitt der Version aus CHANGELOG.md (von Create Release angelegt);
+      # fehlt er (Tag von Hand ohne Changelog), erzeugt GitHub die Notes aus den Pull Requests.
+      - name: Release-Notes aus CHANGELOG.md
         run: |
-          ls -l dist
-          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --title "ScanSnack ${TAG#v}" --generate-notes --notes "$(cat <<'NOTES'
+          if python3 tools/changelog.py notes "${TAG#v}" > "$RUNNER_TEMP/notes.md"; then
+            echo "GENERATE=" >> "$GITHUB_ENV"
+            printf '\nAll changes: [CHANGELOG.md](%s/blob/%s/CHANGELOG.md)\n\n' \
+              "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$TAG" >> "$RUNNER_TEMP/notes.md"
+          else
+            echo "::warning::Kein Abschnitt ${TAG#v} in CHANGELOG.md, Notes werden aus den Pull Requests erzeugt"
+            : > "$RUNNER_TEMP/notes.md"
+            echo "GENERATE=--generate-notes" >> "$GITHUB_ENV"
+          fi
+          cat >> "$RUNNER_TEMP/notes.md" <<'NOTES'
           ## Downloads
 
           | System | File |
@@ -95,7 +105,15 @@ jobs:
 
           Unofficial project, not affiliated with PFU or Fujitsu. See the [disclaimer](https://github.com/elte0/scansnack/blob/main/docs/disclaimer.md).
           NOTES
-          )"
+          cat "$RUNNER_TEMP/notes.md"
+      - name: GitHub-Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l dist
+          # shellcheck disable=SC2086  # $GENERATE ist leer oder genau eine Option
+          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "ScanSnack ${TAG#v}" $GENERATE --notes-file "$RUNNER_TEMP/notes.md"
       - name: Website mit den neuen Download-Links bauen
         env:
           GH_TOKEN: ${{ github.token }}

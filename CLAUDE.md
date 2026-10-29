@@ -9,6 +9,7 @@ Overview: `README.md`, apps: `docs/apps.md`.
 - [Architecture](#architecture-hexagonal-adr-0002)
 - [Reverse engineering](#reverse-engineering)
 - [Decisions](#decisions)
+- [Feature list and changelog](#feature-list-and-changelog)
 - [Checks](#checks)
 - [Documentation site](#documentation-site)
 - [Conventions](#conventions)
@@ -48,21 +49,44 @@ src/scansnap/
 ADRs in MADR format under `docs/adr/NNNN-title.md`. Never silently override an existing ADR; if a
 decision needs to change, write a new ADR that supersedes the old one.
 
+## Feature list and changelog
+
+Part of every change, in the same commit – not a follow-up and not only when asked:
+
+- **Changelog:** every change a user, a packager or a reader of the protocol docs would notice gets an
+  entry under `## [Unreleased]` in `CHANGELOG.md` ([Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+  groups `### Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`; create the group if it is
+  missing). One line per change, in English, written for users: what changed, not which file. Pure
+  refactoring, tests and CI tweaks need no entry; such a PR gets the label `no changelog`.
+- **Never edit released sections or write a version heading by hand.** *Create Release* turns
+  *Unreleased* into `## [X.Y.Z] - date` (`tools/bump_version.py` → `tools/changelog.py release`) and
+  uses the section as the release notes; it refuses to release an empty *Unreleased*.
+- **Feature list:** the only list of app features is the "Features" section of `site/content/app.md`
+  (the README only links to it). Whenever a change adds, changes or removes a user-visible feature
+  (an `Added`/`Changed`/`Removed` changelog entry about the app), update that list in the same commit:
+  add a bullet, reword it or delete it, in the style of the existing bullets. Do not copy the list
+  anywhere else.
+- Before finishing, check the diff: app code changed → changelog entry (or a reason for `no changelog`);
+  user-visible feature changed → feature list updated. CI (`.github/workflows/changelog.yml`) fails a PR
+  that changes `src/`, `packaging/` or `ios/src/` without touching `CHANGELOG.md`.
+
 ## Checks
 
 ```sh
 tools/check.sh    # ruff check . && ruff format --check . && pyright (strict) && lint-imports && pytest
 ```
 
-A task is only done when all checks are green. Pre-commit hook: `git config core.hooksPath .githooks`.
+A task is only done when all checks are green and the changelog and feature list are up to date
+(see above). Pre-commit hook: `git config core.hooksPath .githooks`.
 
 ## Documentation site
 
-Hugo site "ScanSnack" in `site/`; it mounts `docs/protocol.md` and `docs/disclaimer.md` as content, so
-the docs stay the only source. The app page `site/content/app.md` lists the app's features: update it
-whenever a user-visible feature changes. Its screenshots (`tools/screenshots.py`) and download links (latest
-release) are generated in the Pages build. Build locally: `hugo --source site`. Deployment:
-`.github/workflows/pages.yml` (push to `main`, after every release, GitHub Pages with source "GitHub Actions").
+Hugo site "ScanSnack" in `site/`; it mounts `docs/protocol.md`, `docs/disclaimer.md` and `CHANGELOG.md`
+(page "Changelog") as content, so those files stay the only source. The app page `site/content/app.md`
+holds the feature list (see [Feature list and changelog](#feature-list-and-changelog)). Its screenshots
+(`tools/screenshots.py`) and download links (latest release) are generated in the Pages build. Build
+locally: `hugo --source site`. Deployment: `.github/workflows/pages.yml` (push to `main`, after every
+release, GitHub Pages with source "GitHub Actions"; pull requests only build).
 
 ## Conventions
 

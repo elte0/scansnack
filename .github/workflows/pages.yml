@@ -10,10 +10,19 @@ on:
     paths:
       - docs/protocol.md
       - docs/disclaimer.md
+      - CHANGELOG.md
       - site/**
       - src/scansnap/adapters/qt/**   # Oberfläche → Screenshots
       - src/scansnap/core/**
       - tools/screenshots.py
+      - .github/workflows/pages.yml
+  # bei Pull Requests nur bauen (prüft Layout und Mounts), nicht veröffentlichen
+  pull_request:
+    paths:
+      - docs/protocol.md
+      - docs/disclaimer.md
+      - CHANGELOG.md
+      - site/**
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -23,7 +32,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
   cancel-in-progress: false
 
 env:
@@ -71,6 +80,7 @@ jobs:
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

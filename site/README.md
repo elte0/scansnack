@@ -4,9 +4,9 @@ A minimal [Hugo](https://gohugo.io/) site, "ScanSnack", that presents the app an
 write-up on GitHub Pages.
 
 > **Summary.** Apart from the home page and the app page (`content/app.md`) the site has no content of
-> its own: it mounts `docs/protocol.md` and `docs/disclaimer.md` (see `hugo.toml`), so `docs/` stays the
-> single source. Screenshots and download links of the app page are generated at build time, so they
-> follow the code and the latest release. No theme, no external dependencies.
+> its own: it mounts `docs/protocol.md`, `docs/disclaimer.md` and `CHANGELOG.md` (see `hugo.toml`), so
+> those files stay the single source. Screenshots and download links of the app page are generated at
+> build time, so they follow the code and the latest release. No theme, no external dependencies.
 
 ## Contents
 
@@ -31,7 +31,8 @@ a link to the releases page instead of download buttons (see [App page](#app-pag
 ## Deployment
 
 `.github/workflows/pages.yml` builds the site and deploys it to GitHub Pages on every push to `main`
-that touches the site or the mounted docs, or when started manually.
+that touches the site or the mounted docs, or when started manually. Pull requests that touch them only
+build the site, so a broken layout or mount shows up before the merge.
 In the repository settings, Pages → Source must be set to "GitHub Actions".
 After every release, `.github/workflows/release.yml` starts the Pages workflow on `main` again, so the
 download buttons point to the new version within minutes.
@@ -39,8 +40,9 @@ download buttons point to the new version within minutes.
 ## App page
 
 `content/app.md` (layout `layouts/_default/app.html`) holds the text: features and getting started.
-Keep the feature list in step with the app when a feature is added or changed. Generated during the
-Pages build, never committed (`.gitignore`):
+Its feature list is the only one in the repository (the README links to it): every change that adds,
+changes or removes a user-visible feature updates it in the same commit, next to the `CHANGELOG.md`
+entry. Generated during the Pages build, never committed (`.gitignore`):
 
 | File | Source |
 |---|---|
@@ -54,7 +56,7 @@ or the screenshot script changes. The page highlights the buttons for the visito
 
 | Path | Purpose |
 |---|---|
-| `hugo.toml` | configuration and the mounts from `docs/` |
+| `hugo.toml` | configuration and the mounts from `docs/` and `CHANGELOG.md` (page `/changelog/`) |
 | `content/_index.md` | home page |
 | `content/app.md` | app page: features, getting started, platforms for the download buttons |
 | `layouts/` | page templates (single page, home, app page, title from the first heading), partials for screenshots and downloads, shortcode `screenshot` |

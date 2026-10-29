@@ -20,8 +20,8 @@ protocol, an eSCL/AirScan bridge for the macOS scan dialog, a desktop app (PySid
 
 - **Protocol client** for discovery, pairing, profiles and duplex scanning over Wi-Fi.
 - **eSCL/AirScan bridge**: the scanner shows up in the macOS scan dialog (Image Capture, Preview).
-- **Desktop app "ScanSnack"**: choose a profile, scan, review pages, save as PDF, react to the scan
-  button on the touch panel, update itself from GitHub Releases with one click.
+- **Desktop app "ScanSnack"**: scans over Wi-Fi and saves every scan as a PDF. Its features are listed
+  on the [app page](site/content/app.md) ([website](https://elte0.github.io/scansnack/app/)).
 - **iOS app** built on the same Python core.
 
 ## Usage
@@ -48,6 +48,7 @@ Ready-made apps for macOS (Apple Silicon and Intel), Windows and Linux are on th
 - [Protocol](docs/protocol.md) – the Wi-Fi protocol (single source of truth), including open questions
 - [Architecture decisions](docs/adr/README.md) – architecture and protocol decisions (ADRs)
 - [Apps](docs/apps.md) – desktop and iOS app, eSCL bridge, packaging, releases
+- [Changelog](CHANGELOG.md) – what changed in each version
 - [Disclaimer](docs/disclaimer.md) – reverse engineering, trademarks, no warranty
 - Structure: hexagonal (`core` ← `ports` ← `adapters` ← `app`), see ADR 0002
 

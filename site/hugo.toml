@@ -1,4 +1,5 @@
-# Hugo-Seite: App-Vorstellung und Protokoll-Doku. Inhalt kommt aus docs/ (einzige Quelle), siehe Mounts.
+# Hugo-Seite: App-Vorstellung, Protokoll-Doku, Changelog. Inhalt kommt aus docs/ und CHANGELOG.md (einzige
+# Quelle), siehe Mounts.
 baseURL = "https://elte0.github.io/scansnack/"
 languageCode = "en"
 title = "ScanSnack"
@@ -29,3 +30,6 @@ enableRobotsTXT = false
     source = "../docs"
     target = "content"
     includeFiles = ["protocol.md", "disclaimer.md"]
+  [[module.mounts]]
+    source = "../CHANGELOG.md"
+    target = "content/changelog.md"

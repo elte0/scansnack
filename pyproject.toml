@@ -37,7 +37,7 @@ packages = ["src/scansnap"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "tests"]
+pythonpath = ["src", "tests", "tools"]
 
 [tool.ruff]
 line-length = 120
@@ -49,13 +49,13 @@ select = ["E", "W", "F", "I", "UP", "B", "BLE", "PERF", "FURB", "PYI", "RUF"]
 ignore = ["RUF001", "RUF002", "RUF003"]   # deutsche Typografie („“, –, ×)
 
 [tool.ruff.lint.isort]
-known-first-party = ["scansnap", "scansnack", "mock_scanner", "helpers"]
+known-first-party = ["scansnap", "scansnack", "mock_scanner", "helpers", "changelog"]
 
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.11"
 include = ["src", "tests", "tools"]
-extraPaths = ["src", "tests"]
+extraPaths = ["src", "tests", "tools"]
 venvPath = "."
 venv = ".venv"
 
