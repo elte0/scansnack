@@ -4,7 +4,7 @@
 [tool.briefcase]
 project_name = "ScanSnack"
 bundle = "com.elte0"            # + App-Name → com.elte0.scansnack
-version = "0.1.0"
+version = "0.2.0"
 author = "elte0"
 author_email = "elte0@posteo.de"
 license = "LicenseRef-Proprietary"
