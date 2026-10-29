@@ -1,4 +1,8 @@
-# PyInstaller-Spec für ScanSnack.app – Build: packaging/build_mac.sh
+# PyInstaller-Spec für ScanSnack – Build: uv run python tools/build_app.py
+#   macOS:   dist/ScanSnack.app (Architektur des laufenden Pythons: arm64 oder x86_64)
+#   Windows: dist/ScanSnack/ScanSnack.exe
+#   Linux:   dist/ScanSnack/ScanSnack
+import sys
 import tomllib
 from pathlib import Path
 
@@ -26,23 +30,35 @@ a = Analysis(
     excludes=QT_EXCLUDES + ["tkinter", "zeroconf", "pytest"],
 )
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="ScanSnack", console=False, argv_emulation=False)
-coll = COLLECT(exe, a.binaries, a.datas, name="ScanSnack")
-app = BUNDLE(
-    coll,
-    name="ScanSnack.app",
-    icon=str(ROOT / "packaging" / "ScanSnack.icns"),
-    bundle_identifier="com.elte0.scansnack",
-    version=VERSION,
-    info_plist={
-        "CFBundleDisplayName": "ScanSnack",
-        "CFBundleShortVersionString": VERSION,
-        "CFBundleVersion": VERSION,
-        "NSPrincipalClass": "NSApplication",           # Retina-Darstellung
-        "NSHighResolutionCapable": True,
-        "LSMinimumSystemVersion": "13.0",
-        # Seit macOS 15 Pflicht für Zugriffe ins lokale Netz (Scanner per UDP/TCP)
-        "NSLocalNetworkUsageDescription": "ScanSnack connects to your scanner over the local network.",
-        "LSApplicationCategoryType": "public.app-category.productivity",
-    },
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name="ScanSnack",
+    console=False,
+    argv_emulation=False,
+    icon=str(ROOT / "packaging" / "ScanSnack.ico") if sys.platform == "win32" else None,
 )
+coll = COLLECT(exe, a.binaries, a.datas, name="ScanSnack")
+
+# Windows und Linux: der Ordner dist/ScanSnack ist das Ergebnis; nur macOS bekommt ein .app-Bundle
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name="ScanSnack.app",
+        icon=str(ROOT / "packaging" / "ScanSnack.icns"),
+        bundle_identifier="com.elte0.scansnack",
+        version=VERSION,
+        info_plist={
+            "CFBundleDisplayName": "ScanSnack",
+            "CFBundleShortVersionString": VERSION,
+            "CFBundleVersion": VERSION,
+            "NSPrincipalClass": "NSApplication",           # Retina-Darstellung
+            "NSHighResolutionCapable": True,
+            "LSMinimumSystemVersion": "13.0",
+            # Seit macOS 15 Pflicht für Zugriffe ins lokale Netz (Scanner per UDP/TCP)
+            "NSLocalNetworkUsageDescription": "ScanSnack connects to your scanner over the local network.",
+            "LSApplicationCategoryType": "public.app-category.productivity",
+        },
+    )

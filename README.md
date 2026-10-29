@@ -37,11 +37,17 @@ uv run --extra app scansnap-app                # desktop app
 Broadcast discovery is unreliable, so pass the scanner's IP address with `--ip`.
 The host identity (host ID, user ID, MAC) is stored in `~/.config/scansnap-bridge/identity.json`.
 
+## Download
+
+Ready-made apps for macOS (Apple Silicon and Intel), Windows and Linux are on the
+[Releases](https://github.com/elte0/scansnack/releases) page. To build one yourself:
+`uv run --extra app python tools/build_app.py` (see [Apps](docs/apps.md#executables-and-releases)).
+
 ## Documentation
 
 - [Protocol](docs/protocol.md) – the Wi-Fi protocol (single source of truth), including open questions
 - [Architecture decisions](docs/adr/README.md) – architecture and protocol decisions (ADRs)
-- [Apps](docs/apps.md) – desktop and iOS app, eSCL bridge, packaging
+- [Apps](docs/apps.md) – desktop and iOS app, eSCL bridge, packaging, releases
 - [Disclaimer](docs/disclaimer.md) – reverse engineering, trademarks, no warranty
 - Structure: hexagonal (`core` ← `ports` ← `adapters` ← `app`), see ADR 0002
 
