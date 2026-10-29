@@ -87,12 +87,18 @@ checks that both match).
 
 - `Create Release` (`.github/workflows/create-release.yml`, started manually on `main`, choose
   patch/minor/major): `tools/check.sh` → `tools/bump_version.py` → commit "Version X.Y.Z" + tag `vX.Y.Z`
-  → push → calls `Release`.
+  → push → calls `Release`. The bump also turns the *Unreleased* section of `CHANGELOG.md` into
+  `## [X.Y.Z] - date` (`tools/changelog.py release`) and stops if *Unreleased* has no entries.
 - `Release` (`.github/workflows/release.yml`): for every tag `v*.*.*` (also one pushed by hand) builds on
   macos-latest (arm64), macos-15-intel, windows-latest and ubuntu-22.04, then creates a GitHub release
-  with all packages. Checks that the tag matches the version. Tags pushed by a workflow with
+  with all packages. Checks that the tag matches the version. The release notes are the version's
+  section of `CHANGELOG.md` (`tools/changelog.py notes`) plus the download table; a tag without a
+  changelog section falls back to GitHub's generated notes. Tags pushed by a workflow with
   `GITHUB_TOKEN` do not trigger workflows, so `Create Release` calls the release workflow directly
   (`workflow_call`).
+- `Changelog` (`.github/workflows/changelog.yml`): a pull request that changes `src/`, `packaging/` or
+  `ios/src/` fails unless it also changes `CHANGELOG.md`; the label `no changelog` skips the check (for
+  refactoring or tests).
 - If `main` is protected, `github-actions[bot]` must be allowed to push (or use a PAT as a secret).
 
 **Signing (optional, needs secrets):** macOS: import a Developer ID certificate (p12 + password) into a

@@ -46,6 +46,8 @@ described in the [protocol write-up](protocol.md).
   on GitHub. The source code is on
   [GitHub](https://github.com/elte0/scansnack).
 
+What changed in each version is listed in the [changelog](changelog.md).
+
 > ScanSnack is an early version. It is developed and tested on macOS; the Windows and Linux builds are
 > made automatically and have not been tested with a scanner yet. Only the iX1500 is supported.
 

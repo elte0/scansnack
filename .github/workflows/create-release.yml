@@ -1,5 +1,6 @@
 # Manuell starten (Actions → Create Release → Run workflow): prüft main, erhöht die Version
-# (Major/Minor/Patch, tools/bump_version.py), committet, pusht Tag vX.Y.Z und baut das Release.
+# (Major/Minor/Patch, tools/bump_version.py), macht aus „Unreleased“ in CHANGELOG.md die neue Version,
+# committet, pusht Tag vX.Y.Z und baut das Release (Notes aus CHANGELOG.md).
 name: Create Release
 
 on:
