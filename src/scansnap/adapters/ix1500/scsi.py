@@ -1,6 +1,6 @@
 """Scan-Kanal (TCP 53218): SCSI-Kommandos, getunnelt über eine dauerhafte Verbindung.
 
-Request/Response-Layout und C2-Status: docs/protocol.md, Abschnitt „Scan-Kanal“.
+Request/Response-Layout und C2-Status: docs/protocol.md, Abschnitt „Scan channel (TCP 53218, SCSI tunnel)“.
 """
 
 from __future__ import annotations

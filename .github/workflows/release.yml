@@ -73,20 +73,22 @@ jobs:
             --title "ScanSnack ${TAG#v}" --generate-notes --notes "$(cat <<'NOTES'
           ## Downloads
 
-          | System | Datei |
+          | System | File |
           |---|---|
           | macOS (Apple Silicon) | `ScanSnack-*-macos-arm64.dmg` |
           | macOS (Intel) | `ScanSnack-*-macos-x86_64.dmg` |
-          | Windows 10/11 (64 Bit) | `ScanSnack-*-windows-x86_64.zip` |
+          | Windows 10/11 (64-bit) | `ScanSnack-*-windows-x86_64.zip` |
           | Linux (x86_64) | `ScanSnack-*-linux-x86_64.tar.gz` |
 
-          Die Builds sind nicht von Apple bzw. Microsoft signiert:
+          The builds are not signed by Apple or Microsoft:
 
-          - **macOS:** DMG öffnen, ScanSnack nach „Programme“ ziehen. Beim ersten Start blockiert macOS die App;
-            unter Systemeinstellungen → Datenschutz & Sicherheit „Dennoch öffnen“ wählen
-            (oder `xattr -dr com.apple.quarantine /Applications/ScanSnack.app`).
-          - **Windows:** ZIP entpacken, `ScanSnack\ScanSnack.exe` starten; bei SmartScreen „Weitere Informationen“ → „Trotzdem ausführen“.
-          - **Linux:** entpacken, `ScanSnack/ScanSnack` starten. Braucht die üblichen Qt-Systembibliotheken
-            (z. B. `libxcb-cursor0`, `libegl1`). Menüeintrag: `scansnack.desktop` und `scansnack.png` liegen bei.
+          - **macOS:** open the DMG and drag ScanSnack to Applications. macOS blocks the first launch;
+            choose "Open Anyway" under System Settings → Privacy & Security
+            (or run `xattr -dr com.apple.quarantine /Applications/ScanSnack.app`).
+          - **Windows:** unzip and start `ScanSnack\ScanSnack.exe`; at the SmartScreen prompt choose "More info" → "Run anyway".
+          - **Linux:** unpack and start `ScanSnack/ScanSnack`. Needs the usual Qt system libraries
+            (e.g. `libxcb-cursor0`, `libegl1`). `scansnack.desktop` and `scansnack.png` are included for a menu entry.
+
+          Unofficial project, not affiliated with PFU or Fujitsu. See the [disclaimer](https://github.com/elte0/scansnack/blob/main/docs/disclaimer.md).
           NOTES
           )"

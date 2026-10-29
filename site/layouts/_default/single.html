@@ -1,0 +1,8 @@
+{{ define "main" }}
+<article>
+  {{ .Content }}
+  {{- with .File }}
+  <p class="source"><a href="{{ site.Params.repo }}/blob/main/docs/{{ .Path }}">View this page on GitHub</a></p>
+  {{- end }}
+</article>
+{{ end }}

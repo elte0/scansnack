@@ -1,6 +1,6 @@
 """UDP-Discovery und Heartbeat (Scanner lauscht auf 52217).
 
-Layout von Probe und Antwort: docs/protocol.md, Abschnitt „Discovery und Heartbeat“.
+Layout von Probe und Antwort: docs/protocol.md, Abschnitt „Discovery and heartbeat (UDP 52217)“.
 """
 
 from __future__ import annotations

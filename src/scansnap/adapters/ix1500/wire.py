@@ -1,6 +1,6 @@
 """Framing des ScanSnap-WLAN-Protokolls: ``u32 length | b"ssNR"`` + Header.
 
-Layout: docs/protocol.md, Abschnitt „Framing (TCP)“.
+Layout: docs/protocol.md, Abschnitt „TCP framing“.
 """
 
 from __future__ import annotations

@@ -17,3 +17,6 @@ ios/logs/
 ios/resources/icon-*.png
 ios/.briefcase/
 .DS_Store
+site/public/
+site/resources/
+site/.hugo_build.lock

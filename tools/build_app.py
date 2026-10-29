@@ -85,7 +85,7 @@ def pack() -> Path:
         dmg.unlink(missing_ok=True)
         with tempfile.TemporaryDirectory() as stage:
             shutil.copytree(DIST / f"{NAME}.app", Path(stage) / f"{NAME}.app", symlinks=True)
-            (Path(stage) / "Programme").symlink_to("/Applications")
+            (Path(stage) / "Applications").symlink_to("/Applications")
             run(
                 "hdiutil", "create", "-volname", NAME, "-srcfolder", stage, "-fs", "HFS+", "-format", "UDZO", "-ov", dmg
             )
