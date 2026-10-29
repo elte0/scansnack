@@ -7,6 +7,12 @@ dpi, die Tests erzeugen daraus synthetische JPEGs.
 
     python tools/make_fixtures.py captures/ tests/fixtures/captures/ --scanner-ip 192.168.178.29
 
+Anonymisierung: ``captures/anonymize.json`` (gitignored) bildet echte Werte auf gleich lange
+Ersatzwerte ab, z. B. ``{"MacBook Pro von Leander": "MacBook Pro von Example"}``. Ersetzt wird im
+zusammengesetzten Datenstrom vor dem Zerlegen in Frames, daher bleiben Längenfelder gültig. Hex-Werte
+(Host-ID, MAC) werden zusätzlich als Rohbytes ersetzt, weil sie im Protokoll in beiden Formen vorkommen.
+Ohne Abbildung bricht das Skript ab, außer mit ``--no-anonymize``.
+
 Mitschnitte nie von Hand „passend machen“, damit ein Test grün wird – neu erzeugen.
 
 Benötigt tshark und Pillow.
@@ -24,6 +30,29 @@ from pathlib import Path
 from typing import Any
 
 from PIL import Image
+
+Replacements = list[tuple[bytes, bytes]]
+_replacements: Replacements = []
+
+
+def load_replacements(mapping: dict[str, str]) -> Replacements:
+    """Textform und – bei Hex-Werten – Rohbytes je Eintrag; gleiche Länge erzwingen (Frame-Längen)."""
+    res: Replacements = []
+    for real, fake in mapping.items():
+        if len(real) != len(fake):
+            raise SystemExit(f"anonymize.json: {real!r} und {fake!r} müssen gleich lang sein")
+        res.append((real.encode(), fake.encode()))
+        try:
+            res.append((bytes.fromhex(real), bytes.fromhex(fake)))
+        except ValueError:
+            pass
+    return res
+
+
+def anonymize(data: bytes, replacements: Replacements) -> bytes:
+    for real, fake in replacements:
+        data = data.replace(real, fake)
+    return data
 
 
 def tcp_streams(pcap: Path, port: int, scanner_ip: str) -> dict[int, dict[str, bytes]]:
@@ -53,7 +82,10 @@ def tcp_streams(pcap: Path, port: int, scanner_ip: str) -> dict[int, dict[str, b
     for line in filter(None, out.split("\n")):
         st, src, seq, payload = line.split("\t")
         segs[int(st)]["S" if src == scanner_ip else "C"][int(seq)] = bytes.fromhex(payload)
-    return {st: {d: b"".join(v[d][k] for k in sorted(v[d])) for d in "CS"} for st, v in segs.items()}
+    return {
+        st: {d: anonymize(b"".join(v[d][k] for k in sorted(v[d])), _replacements) for d in "CS"}
+        for st, v in segs.items()
+    }
 
 
 def frames(buf: bytes) -> list[bytes]:
@@ -122,7 +154,7 @@ def control_fixture(pcap: Path, scanner_ip: str) -> dict[str, Any]:
         text=True,
         check=True,
     ).stdout
-    return {"calls": calls, "discovery_reply": out.split("\n")[0]}
+    return {"calls": calls, "discovery_reply": anonymize(bytes.fromhex(out.split("\n")[0]), _replacements).hex()}
 
 
 def main() -> None:
@@ -130,7 +162,14 @@ def main() -> None:
     p.add_argument("captures", type=Path)
     p.add_argument("out", type=Path)
     p.add_argument("--scanner-ip", required=True)
+    p.add_argument("--anonymize", type=Path, help="Abbildung echt → Ersatz (Standard: <captures>/anonymize.json)")
+    p.add_argument("--no-anonymize", action="store_true", help="Fixtures mit echten Gerätedaten (nicht committen)")
     a = p.parse_args()
+    mapping_file: Path = a.anonymize or a.captures / "anonymize.json"
+    if not a.no_anonymize:
+        if not mapping_file.exists():
+            raise SystemExit(f"{mapping_file} fehlt – ohne Anonymisierung nur mit --no-anonymize")
+        _replacements[:] = load_replacements(json.loads(mapping_file.read_text()))
     a.out.mkdir(parents=True, exist_ok=True)
     for pcap in sorted(a.captures.glob("*.pcap*")):
         fx = control_fixture(pcap, a.scanner_ip) if "pairing" in pcap.stem else scan_fixture(pcap, a.scanner_ip)

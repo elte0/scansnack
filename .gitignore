@@ -2,7 +2,10 @@ __pycache__/
 .venv/
 *.pcap
 *.pcapng
+*.cap
 captures/
+anonymize.json
+users_backup*.json
 scans/
 ssh-identity.json
 *.log
