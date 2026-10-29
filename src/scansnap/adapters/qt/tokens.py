@@ -1,0 +1,73 @@
+"""Primer-Farb-Tokens (GitHub-Designsystem) ohne Qt – gemeinsam für Desktop- (``primer``) und iOS-App.
+
+Werte aus @primer/primitives 11.10.0 (dist/css/functional/themes/light.css, dark.css), Namen wie dort.
+"""
+
+TOKENS = {
+    "light": {
+        "bgColor-default": "#ffffff",
+        "bgColor-muted": "#f6f8fa",
+        "bgColor-emphasis": "#25292e",
+        "bgColor-accent-emphasis": "#0969da",
+        "bgColor-accent-muted": "#ddf4ff",
+        "bgColor-disabled": "#eff2f5",
+        "fgColor-default": "#1f2328",
+        "fgColor-muted": "#59636e",
+        "fgColor-disabled": "#818b98",
+        "fgColor-accent": "#0969da",
+        "fgColor-danger": "#d1242f",
+        "fgColor-onEmphasis": "#ffffff",
+        "borderColor-default": "#d1d9e0",
+        "borderColor-emphasis": "#818b98",
+        "borderColor-disabled": "#818b981a",
+        "borderColor-translucent": "#1f232826",
+        "control-bgColor-rest": "#f6f8fa",
+        "control-bgColor-hover": "#eff2f5",
+        "control-bgColor-active": "#e6eaef",
+        "control-fgColor-rest": "#25292e",
+        "control-transparent-bgColor-hover": "#818b981a",
+        "control-transparent-bgColor-active": "#818b9826",
+        "control-checked-bgColor-hover": "#0860ca",
+        "controlTrack-bgColor-rest": "#e6eaef",
+        "button-primary-bgColor-rest": "#1f883d",
+        "button-primary-bgColor-hover": "#1c8139",
+        "button-primary-bgColor-active": "#197935",
+        "button-primary-bgColor-disabled": "#95d8a6",
+        "button-primary-fgColor-disabled": "#ffffffcc",
+    },
+    "dark": {
+        "bgColor-default": "#0d1117",
+        "bgColor-muted": "#151b23",
+        "bgColor-emphasis": "#3d444d",
+        "bgColor-accent-emphasis": "#1f6feb",
+        "bgColor-accent-muted": "#388bfd1a",
+        "bgColor-disabled": "#212830",
+        "fgColor-default": "#f0f6fc",
+        "fgColor-muted": "#9198a1",
+        "fgColor-disabled": "#656c76",
+        "fgColor-accent": "#4493f8",
+        "fgColor-danger": "#f85149",
+        "fgColor-onEmphasis": "#ffffff",
+        "borderColor-default": "#3d444d",
+        "borderColor-emphasis": "#656c76",
+        "borderColor-disabled": "#656c761a",
+        "borderColor-translucent": "#ffffff26",
+        "control-bgColor-rest": "#212830",
+        "control-bgColor-hover": "#262c36",
+        "control-bgColor-active": "#2a313c",
+        "control-fgColor-rest": "#f0f6fc",
+        "control-transparent-bgColor-hover": "#656c7633",
+        "control-transparent-bgColor-active": "#656c7640",
+        "control-checked-bgColor-hover": "#2a7aef",
+        "controlTrack-bgColor-rest": "#010409",
+        "button-primary-bgColor-rest": "#238636",
+        "button-primary-bgColor-hover": "#29903b",
+        "button-primary-bgColor-active": "#2e9a40",
+        "button-primary-bgColor-disabled": "#105823",
+        "button-primary-fgColor-disabled": "#ffffff66",
+    },
+}
+
+# borderRadius-small/medium, control-medium-paddingBlock/-Inline (px)
+RADIUS_SMALL, RADIUS_MEDIUM = 3, 6
+PAD_BLOCK, PAD_INLINE = 6, 12

@@ -5,7 +5,9 @@
 Bildinhalte landen nicht in den Fixtures; von den Bildern bleiben nur Maße und
 dpi, die Tests erzeugen daraus synthetische JPEGs.
 
-    python tools/make_fixtures.py captures/ tests/fixtures/ --scanner-ip 192.168.178.29
+    python tools/make_fixtures.py captures/ tests/fixtures/captures/ --scanner-ip 192.168.178.29
+
+Mitschnitte nie von Hand „passend machen“, damit ein Test grün wird – neu erzeugen.
 
 Benötigt tshark und Pillow.
 """
@@ -19,15 +21,34 @@ import json
 import struct
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from PIL import Image
 
 
 def tcp_streams(pcap: Path, port: int, scanner_ip: str) -> dict[int, dict[str, bytes]]:
     out = subprocess.run(
-        ["tshark", "-r", str(pcap), "-Y", f"ip.addr=={scanner_ip} && tcp.port=={port} && tcp.len>0",
-         "-T", "fields", "-e", "tcp.stream", "-e", "ip.src", "-e", "tcp.seq", "-e", "tcp.payload"],
-        capture_output=True, text=True, check=True).stdout
+        [
+            "tshark",
+            "-r",
+            str(pcap),
+            "-Y",
+            f"ip.addr=={scanner_ip} && tcp.port=={port} && tcp.len>0",
+            "-T",
+            "fields",
+            "-e",
+            "tcp.stream",
+            "-e",
+            "ip.src",
+            "-e",
+            "tcp.seq",
+            "-e",
+            "tcp.payload",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
     segs: dict[int, dict[str, dict[int, bytes]]] = collections.defaultdict(lambda: {"C": {}, "S": {}})
     for line in filter(None, out.split("\n")):
         st, src, seq, payload = line.split("\t")
@@ -36,11 +57,12 @@ def tcp_streams(pcap: Path, port: int, scanner_ip: str) -> dict[int, dict[str, b
 
 
 def frames(buf: bytes) -> list[bytes]:
-    res, i = [], 0
+    res: list[bytes] = []
+    i = 0
     while i + 8 <= len(buf):
         n = struct.unpack_from(">I", buf, i)[0]
-        assert buf[i + 4:i + 8] == b"ssNR"
-        res.append(buf[i:i + n])
+        assert buf[i + 4 : i + 8] == b"ssNR"
+        res.append(buf[i : i + n])
         i += n
     return res
 
@@ -49,40 +71,57 @@ def pairs(stream: dict[str, bytes]) -> list[tuple[bytes, bytes]]:
     c, s = frames(stream["C"]), frames(stream["S"])
     if s and len(s[0]) == 16 and len(s) > len(c):
         s = s[1:]
-    return list(zip(c, s))
+    return list(zip(c, s, strict=False))  # Antworten können fehlen (0x12)
 
 
-def scan_fixture(pcap: Path, scanner_ip: str) -> dict:
-    exchanges, images, c2 = [], collections.defaultdict(list), None
+def scan_fixture(pcap: Path, scanner_ip: str) -> dict[str, Any]:
+    exchanges: list[dict[str, Any]] = []
+    images: dict[int, list[bytes]] = collections.defaultdict(list)
+    c2: str | None = None
     for stream in tcp_streams(pcap, 53218, scanner_ip).values():
         for req, resp in pairs(stream):
             cdb_len, in_len = struct.unpack_from(">II", req, 32)
-            cdb, out = req[48:48 + cdb_len], req[64:]
+            cdb, out = req[48 : 48 + cdb_len], req[64:]
             status, data = struct.unpack_from(">I", resp, 12)[0], resp[40:]
             if cdb[0] == 0xC2:
                 c2 = c2 or data.hex()
                 continue
-            if cdb[0] == 0x28 and cdb[2] == 0:          # Bilddaten: nur Maße behalten
+            if cdb[0] == 0x28 and cdb[2] == 0:  # Bilddaten: nur Maße behalten
                 images[data[0]].append(data[2:])
                 continue
-            exchanges.append({"cdb": cdb.hex(), "out": out.hex(), "in_len": in_len,
-                              "status": status, "data": data.hex()})
-    sides = []
+            exchanges.append(
+                {"cdb": cdb.hex(), "out": out.hex(), "in_len": in_len, "status": status, "data": data.hex()}
+            )
+    sides: list[dict[str, Any]] = []
     for side in sorted(images):
         im = Image.open(io.BytesIO(b"".join(images[side])))
         sides.append({"side": side, "width": im.width, "height": im.height, "dpi": im.info.get("dpi", (0, 0))[1]})
     return {"exchanges": exchanges, "c2_response": c2, "pages": [{"sides": sides}]}
 
 
-def control_fixture(pcap: Path, scanner_ip: str) -> dict:
-    calls = []
+def control_fixture(pcap: Path, scanner_ip: str) -> dict[str, Any]:
+    calls: list[dict[str, Any]] = []
     for stream in tcp_streams(pcap, 53219, scanner_ip).values():
         for req, resp in pairs(stream):
-            calls.append({"command": struct.unpack_from(">I", req, 8)[0],
-                          "request_body": req[32:].hex(), "response": resp.hex()})
+            calls.append(
+                {"command": struct.unpack_from(">I", req, 8)[0], "request_body": req[32:].hex(), "response": resp.hex()}
+            )
     out = subprocess.run(
-        ["tshark", "-r", str(pcap), "-Y", f"udp.port==52217 && ip.src=={scanner_ip} && udp.length>100",
-         "-T", "fields", "-e", "udp.payload"], capture_output=True, text=True, check=True).stdout
+        [
+            "tshark",
+            "-r",
+            str(pcap),
+            "-Y",
+            f"udp.port==52217 && ip.src=={scanner_ip} && udp.length>100",
+            "-T",
+            "fields",
+            "-e",
+            "udp.payload",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
     return {"calls": calls, "discovery_reply": out.split("\n")[0]}
 
 

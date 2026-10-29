@@ -1,6 +1,6 @@
 """Erzeugt das App-Icon (packaging/ScanSnap.icns): Blatt, das in einen Scanner läuft.
 
-    uv run python tools/make_icon.py
+uv run python tools/make_icon.py
 """
 
 from __future__ import annotations
@@ -23,7 +23,9 @@ def draw() -> Image.Image:
     top, bottom = (64, 140, 255), (20, 70, 200)
     for y in range(S):
         t = y / (S - 1)
-        ImageDraw.Draw(bg).line([(0, y), (S, y)], fill=tuple(int(a + (b - a) * t) for a, b in zip(top, bottom)) + (255,))
+        ImageDraw.Draw(bg).line(
+            [(0, y), (S, y)], fill=(*(int(a + (b - a) * t) for a, b in zip(top, bottom, strict=True)), 255)
+        )
     mask = Image.new("L", (S, S))
     ImageDraw.Draw(mask).rounded_rectangle((100, 100, 924, 924), radius=185, fill=255)
     shadow = Image.new("RGBA", (S, S))
@@ -38,8 +40,8 @@ def draw() -> Image.Image:
         d.rounded_rectangle((372, y, 652 - (90 if i % 3 == 2 else 0), y + 20), radius=10, fill=(150, 170, 200, 255))
     # Scanner-Körper
     d.rounded_rectangle((210, 580, 814, 800), radius=60, fill=(36, 40, 52, 255))
-    d.rounded_rectangle((250, 610, 774, 650), radius=20, fill=(14, 16, 22, 255))       # Einzugsschlitz
-    d.rounded_rectangle((640, 712, 760, 744), radius=16, fill=(90, 210, 140, 255))     # Statuslicht
+    d.rounded_rectangle((250, 610, 774, 650), radius=20, fill=(14, 16, 22, 255))  # Einzugsschlitz
+    d.rounded_rectangle((640, 712, 760, 744), radius=16, fill=(90, 210, 140, 255))  # Statuslicht
     return im
 
 

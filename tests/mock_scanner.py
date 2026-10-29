@@ -17,9 +17,9 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from scansnap import wire
+from scansnap.adapters.ix1500 import wire
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = Path(__file__).parent / "fixtures" / "captures"
 
 
 def synthetic_jpeg(width: int, height: int, dpi: int, label: str) -> bytes:
@@ -44,20 +44,27 @@ class MockScanner:
         self.info = next(bytes.fromhex(e["data"]) for e in fx["exchanges"] if e["cdb"][:6] == "280080")
         dims = {s["side"]: s for s in fx["pages"][0]["sides"]}
         self.sheets = [
-            {side: synthetic_jpeg(d["width"], d["height"], d["dpi"], f"sheet {n} side {side}") for side, d in dims.items()}
+            {
+                side: synthetic_jpeg(d["width"], d["height"], d["dpi"], f"sheet {n} side {side}")
+                for side, d in dims.items()
+            }
             for n in range(sheets)
         ]
         self.received: list[tuple[bytes, bytes]] = []
         self._sheet = -1
         self._pos = {0: 0, 1: 0}
         self._sense = sense()
-        self.jam_at: int | None = None        # Blattnummer, bei der E0 einen Papierstau (3/80/01) meldet
+        self.jam_at: int | None = None  # Blattnummer, bei der E0 einen Papierstau (3/80/01) meldet
         self.srv = socket.create_server(("127.0.0.1", 0))
         self.port = self.srv.getsockname()[1]
         threading.Thread(target=self._serve, daemon=True).start()
 
     def close(self) -> None:
         self.srv.close()
+
+    def refill(self) -> None:
+        """Dieselben Blätter wieder in den Einzug legen."""
+        self._sheet = -1
 
     def _serve(self) -> None:
         try:
@@ -72,7 +79,7 @@ class MockScanner:
                 except wire.ProtocolError:
                     return
                 cdb_len, in_len, out_len = struct.unpack_from(">III", req, 32)
-                cdb, out = req[48:48 + cdb_len], req[64:]
+                cdb, out = req[48 : 48 + cdb_len], req[64:]
                 if out_len != len(out):
                     raise AssertionError(f"out length field {out_len} != {len(out)} for {cdb.hex()}")
                 self.received.append((cdb, out))
@@ -100,7 +107,7 @@ class MockScanner:
             side, chunk = cdb[10], cdb[11]
             img = self.sheets[self._sheet][side]
             room = in_len - 2
-            part = img[self._pos[side]:self._pos[side] + room]
+            part = img[self._pos[side] : self._pos[side] + room]
             self._pos[side] += len(part)
             payload = bytes([side, chunk]) + part
             if self._pos[side] >= len(img):

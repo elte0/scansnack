@@ -1,35 +1,29 @@
 # scansnap-bridge
 
-WLAN-Client für den ScanSnap iX1500, nachgebaut aus Mitschnitten von ScanSnap Home.
-Grundlage für eine eSCL/AirScan-Bridge (folgt).
+ScanSnap iX1500 per WLAN ohne ScanSnap Home: eigener Client für das proprietäre Protokoll,
+eSCL/AirScan-Bridge fürs macOS-Scanfenster, Desktop-App (PySide6) und iOS-App (BeeWare).
 
 ## Nutzung
 
 ```
 uv sync
-uv run scansnap discover
-uv run scansnap pair                         # Handshake wie ScanSnap Home
-uv run scansnap scan --mode gray --dpi 150 --duplex --out scans/
-uv run scansnap scan --no-pair ...           # testen, ob es ohne Handshake geht
+uv run scansnap --ip 192.168.178.29 claim        # eigenen Benutzer + Profil eintragen, dann am Panel wählen
+uv run scansnap --ip 192.168.178.29 scan --mode color --dpi 300 --out scans/
+uv run scansnap --ip 192.168.178.29 serve        # eSCL-Server + Bonjour fürs macOS-Scanfenster
+uv run --extra app scansnap-app                  # Desktop-App
 ```
 
 Die Host-Identität (Host-ID, User-ID, MAC) liegt in `~/.config/scansnap-bridge/identity.json`.
 
-## Stand
+## Dokumentation
 
-| Teil | Status |
-|---|---|
-| Framing, Discovery, Steuerkanal, SCSI-Tunnel | gegen Captures getestet |
-| Parameterblöcke gray/150 und color/600 | byte-identisch zu den Captures |
-| andere dpi/Modi | Felder abgeleitet, nicht belegt (Warnung im CLI) |
-| Zuschnitt auf tatsächliche Seitenlänge | offen (Bildinfo wird gelesen) |
+- `docs/protocol.md` – das Protokoll (Single Source of Truth), inkl. offener Fragen
+- `docs/adr/` – Architektur- und Protokollentscheidungen
+- `docs/apps.md` – Desktop- und iOS-App, Packaging
+- Aufbau: hexagonal (`core` ← `ports` ← `adapters` ← `app`), siehe ADR 0002
 
-## Tests
+## Checks
 
-`uv run pytest` – ein Mock-Scanner spielt die Fixtures ab und erzeugt synthetische Bilder.
-
-Fixtures neu erzeugen (Rohcaptures liegen nicht im Repo):
-
-```
-uv run python tools/make_fixtures.py captures/ tests/fixtures/ --scanner-ip <IP>
-```
+`tools/check.sh` (ruff, pyright strict, import-linter, pytest). Als Pre-commit-Hook:
+`git config core.hooksPath .githooks`. Tests brauchen kein Gerät: ein Fake-Scanner spielt die
+Mitschnitte unter `tests/fixtures/captures/` ab.

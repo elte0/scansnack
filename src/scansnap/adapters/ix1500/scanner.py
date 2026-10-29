@@ -1,0 +1,120 @@
+"""Scan-Sequenz D5, D8, E9, D4, 03, (E0, 28-Reads, 28-Info)*, D6 auf dem Scan-Kanal.
+
+Ablauf und Parameterblöcke: docs/protocol.md, Abschnitt „Scan-Sequenz“.
+"""
+
+from __future__ import annotations
+
+import struct
+from collections.abc import Iterator
+
+from ...core.errors import FeedError, NoPaper
+from ...core.model import SCAN_HEIGHT_1200, SCAN_WIDTH_1200, ImageInfo, ScanSettings, Sheet
+from .scsi import CHECK_CONDITION, ScsiChannel, ScsiError, Sense
+
+# Kombinationen, deren Parameterblöcke 1:1 aus Captures stammen, mit der Read-Länge aus dem Capture
+VERIFIED: dict[tuple[str, int], int] = {("gray", 150): 0x300000, ("color", 600): 0x20000}
+
+_MODE_TEMPLATE = bytes.fromhex(
+    "00030101d000c18080808080800000000000000000000000000000000000003000100096009605810500000028d0000044dc04"
+).ljust(80, b"\0")
+
+
+def is_verified(settings: ScanSettings) -> bool:
+    return (settings.mode, settings.dpi) in VERIFIED
+
+
+def read_len(settings: ScanSettings) -> int:
+    # UNVERIFIED: 0x20000 für Kombinationen ohne Capture (übernommen von color/600)
+    return VERIFIED.get((settings.mode, settings.dpi), 0x20000)
+
+
+def window_block(settings: ScanSettings) -> bytes:
+    """E9-Datenblock (32 B)."""
+    dpi = settings.dpi
+    return (struct.pack(">HHII", dpi, dpi, SCAN_WIDTH_1200, SCAN_HEIGHT_1200) + b"\x05").ljust(32, b"\0")
+
+
+def mode_block(settings: ScanSettings) -> bytes:
+    """D4-Datenblock (80 B)."""
+    # UNVERIFIED: außer gray/150 und color/600 abgeleitet (Byte 13 Farbe, 34–37 dpi, 40 Modus);
+    # color/300 wird live akzeptiert, obwohl ScanSnap Home dort andere Bytes 10/13/40 sendet.
+    b = bytearray(_MODE_TEMPLATE)
+    b[13] = 0x80 if settings.mode == "color" else 0x00
+    struct.pack_into(">HH", b, 34, settings.dpi, settings.dpi)
+    b[40] = 0x0A if settings.mode == "color" else 0x05
+    return bytes(b)
+
+
+def parse_image_info(d: bytes) -> ImageInfo:
+    w, hmax, _w2, h, dx, dy = struct.unpack_from(">IIIIHH", d)
+    return ImageInfo(w, hmax, h, dx, dy)
+
+
+def _sense_error(msg: str, sense: Sense) -> Exception:
+    reason = sense.medium_error
+    return FeedError(reason, str(sense)) if reason else ScsiError(msg, sense)
+
+
+def _read_cdb(side: int, chunk: int, length: int) -> bytes:
+    return bytes([0x28, 0, 0, 2, 0, 0x80 if side else 0]) + length.to_bytes(3, "big") + bytes([0, side, chunk])
+
+
+def _info_cdb(side: int) -> bytes:
+    return bytes([0x28, 0, 0x80, 0, 0, 0x80 if side else 0, 0, 0, 0x20, 0, side, 0])
+
+
+class Scanner:
+    """Scan-Sequenz auf einem offenen Scan-Kanal."""
+
+    def __init__(self, channel: ScsiChannel):
+        self.ch = channel
+
+    def _read_page(self, read_len: int) -> tuple[list[bytes], int]:
+        parts: list[list[bytes]] = [[], []]
+        done = [False, False]
+        chunk = [0, 0]
+        last = 0
+        while not all(done):
+            for side in (0, 1):
+                if done[side]:
+                    continue
+                r = self.ch.command(_read_cdb(side, chunk[side], read_len), in_len=read_len)
+                if r.data[:2] != bytes([side, chunk[side]]):
+                    raise ScsiError(f"unexpected chunk header {r.data[:2].hex()} for side {side}")
+                parts[side].append(r.data[2:])
+                chunk[side] += 1
+                if r.status == CHECK_CONDITION:
+                    sense = self.ch.request_sense()
+                    if not sense.eom:
+                        raise _sense_error("read failed", sense)
+                    done[side], last = True, side
+                elif r.status:
+                    raise ScsiError(f"read status {r.status}")
+        return [b"".join(p) for p in parts], last
+
+    def scan(self, settings: ScanSettings) -> Iterator[Sheet]:
+        """Scannt alle Blätter im Einzug. Wirft NoPaper, wenn der Einzug leer ist."""
+        ch = self.ch
+        ch.checked(bytes.fromhex("d50000010808"), out=b"\0" * 8, in_len=8)
+        try:
+            ch.checked(bytes.fromhex("d80000000000"))
+            ch.checked(bytes.fromhex("e9000000000000200000"), out=window_block(settings))
+            ch.checked(bytes.fromhex("d40000005000"), out=mode_block(settings))
+            ch.request_sense()
+            pages = 0
+            while True:
+                r = ch.command(bytes.fromhex("e00000000000"))
+                if r.status == CHECK_CONDITION:
+                    sense = ch.request_sense()
+                    if sense.no_paper:
+                        if pages == 0:
+                            raise NoPaper("no paper in feeder")
+                        return
+                    raise _sense_error("feed failed", sense)
+                (front, back), last = self._read_page(read_len(settings))
+                info = parse_image_info(ch.checked(_info_cdb(last), in_len=0x20).data)
+                pages += 1
+                yield Sheet(front, back if settings.duplex else None, info)
+        finally:
+            ch.command(bytes.fromhex("d60000000000"))
