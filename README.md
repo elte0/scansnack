@@ -21,7 +21,7 @@ protocol, an eSCL/AirScan bridge for the macOS scan dialog, a desktop app (PySid
 - **Protocol client** for discovery, pairing, profiles and duplex scanning over Wi-Fi.
 - **eSCL/AirScan bridge**: the scanner shows up in the macOS scan dialog (Image Capture, Preview).
 - **Desktop app "ScanSnack"**: choose a profile, scan, review pages, save as PDF, react to the scan
-  button on the touch panel.
+  button on the touch panel, update itself from GitHub Releases with one click.
 - **iOS app** built on the same Python core.
 
 ## Usage

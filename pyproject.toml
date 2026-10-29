@@ -87,4 +87,6 @@ modules = [
     "scansnap.adapters.escl",
     "scansnap.adapters.library",
     "scansnap.adapters.qt",
+    "scansnap.adapters.github",
+    "scansnap.adapters.selfupdate",
 ]

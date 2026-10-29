@@ -59,6 +59,7 @@ from ...core.model import FoundScanner, ScanSettings
 from ...ports.output import OutputPort
 from ...ports.scanner import ScannerLocator, ScannerPort
 from . import primer
+from .updates import UpdateChecker, Updates
 
 APP_NAME = "ScanSnack"
 PREVIOUS_APP_NAME = "ScanSnap"  # bis 2026-10: Datenordner unter diesem Namen
@@ -318,7 +319,7 @@ class MainWindow(QMainWindow):
     request_connect = Signal()
     reachable_checked = Signal(bool)  # Ergebnis der Prüfung beim Start (aus einem Hintergrund-Thread)
 
-    def __init__(self, library: OutputPort, locator: ScannerLocator):
+    def __init__(self, library: OutputPort, locator: ScannerLocator, updates: Updates | None = None):
         super().__init__()
         self.settings = QSettings("scansnap-bridge", "app")
         self.setWindowTitle(APP_NAME)
@@ -464,6 +465,18 @@ class MainWindow(QMainWindow):
         self.act_forget = self._action("Remove from List", None, self.forget, bar)
         menu = self.menuBar().addMenu("Scanner")
         menu.addAction(self._action("Connect Scanner …", "Ctrl+K", lambda: self.ask_scanner()))
+        self.updates = updates
+        self.update_checker: UpdateChecker | None = None
+        if updates is not None:
+            self.update_checker = checker = UpdateChecker(self, updates, self.settings, self.restart_for_update)
+            help_menu = self.menuBar().addMenu("Help")
+            check = self._action("Check for Updates …", None, lambda: checker.check(manual=True))
+            check.setMenuRole(QAction.MenuRole.ApplicationSpecificRole)  # macOS: ins App-Menü
+            help_menu.addAction(check)
+            auto = QAction("Check for Updates on Start", self, checkable=True)
+            auto.setChecked(checker.check_on_start)
+            auto.toggled.connect(checker.set_check_on_start)
+            help_menu.addAction(auto)
         self.pages.itemSelectionChanged.connect(self._update)
 
         self.statusBar().showMessage("Ready.")
@@ -909,6 +922,23 @@ class MainWindow(QMainWindow):
         self.docs.pop(doc.key, None)
         self._select(self.drafts[0] if self.drafts else None)
 
+    def check_updates_on_start(self) -> None:
+        checker = self.update_checker
+        if checker is not None and self.updates is not None and self.updates.check_on_start and checker.check_on_start:
+            checker.check()
+
+    def restart_for_update(self, staged: Path) -> None:
+        """Neue Version ist entpackt: App schließen (fragt bei ungespeicherten Änderungen), Helfer starten."""
+        assert self.updates is not None
+        if not self.close():
+            self.statusBar().showMessage("Update postponed: ScanSnack was not closed.")
+            return
+        try:
+            self.updates.installer.restart_into(staged)
+        except OSError as e:
+            QMessageBox.warning(None, "Software Update", f"Could not start the update: {e}")
+        QApplication.quit()
+
     def unsaved(self) -> list[str]:
         return [d.name for d in self.drafts if d.pages] + [
             d.name for d in self.docs.values() if d.entry is not None and d.dirty
@@ -949,6 +979,7 @@ def run(
     make_output: Callable[[Path], OutputPort],
     ip: str | None = None,
     qt_args: list[str] | None = None,
+    updates: Updates | None = None,
 ) -> int:
     """Startet die Oberfläche. ``make_output`` bekommt das App-Datenverzeichnis und liefert die Ablage."""
     app = QApplication([sys.argv[0], *(qt_args or [])])
@@ -957,7 +988,8 @@ def run(
     if ip:
         QSettings("scansnap-bridge", "app").setValue("ip", ip)
     primer.apply()
-    window = MainWindow(make_output(data_dir()), locator)
+    window = MainWindow(make_output(data_dir()), locator, updates)
     window.show()
     QTimer.singleShot(200, window.check_scanner)
+    QTimer.singleShot(1500, window.check_updates_on_start)
     return app.exec()

@@ -25,12 +25,12 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+from scansnap.core.update import arch_name, os_name, package_name, parse_version
+
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 PACKAGING = ROOT / "packaging"
 NAME = "ScanSnack"
-
-ARCHES = {"amd64": "x86_64", "x86_64": "x86_64", "arm64": "arm64", "aarch64": "arm64"}
 
 DESKTOP_ENTRY = """[Desktop Entry]
 Type=Application
@@ -45,15 +45,6 @@ Terminal=false
 
 def version() -> str:
     return str(tomllib.loads((ROOT / "pyproject.toml").read_text("utf-8"))["project"]["version"])
-
-
-def os_name() -> str:
-    return {"darwin": "macos", "win32": "windows"}.get(sys.platform, "linux")
-
-
-def arch() -> str:
-    machine = platform.machine().lower()
-    return ARCHES.get(machine, machine)
 
 
 def run(*cmd: str | Path) -> None:
@@ -79,9 +70,13 @@ def build() -> Path:
 
 
 def pack() -> Path:
-    base = DIST / f"{NAME}-{version()}-{os_name()}-{arch()}"
+    # Paketname aus core.update: danach sucht die Update-Prüfung der App im Release
+    ver = parse_version(version())
+    assert ver is not None, version()
+    file = DIST / package_name(ver, os_name(sys.platform), arch_name(platform.machine()))
+    base = DIST / file.name.removesuffix(".zip").removesuffix(".tar.gz")
     if sys.platform == "darwin":
-        dmg = base.parent / f"{base.name}.dmg"  # nicht with_suffix: die Version enthält Punkte
+        dmg = file
         dmg.unlink(missing_ok=True)
         with tempfile.TemporaryDirectory() as stage:
             shutil.copytree(DIST / f"{NAME}.app", Path(stage) / f"{NAME}.app", symlinks=True)

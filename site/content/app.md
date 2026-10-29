@@ -39,7 +39,11 @@ described in the [protocol write-up](protocol.md).
 - **Clear help for paper problems** – paper jam, double feed, open cover and similar errors come with a
   hint on what to do.
 - **Light and dark mode** – follows the system setting.
-- **Open source** – MIT license, no telemetry. The source code is on
+- **Updates with one click** – on start the app checks GitHub for a new release and offers to install it;
+  it then restarts as the new version. *Later* asks again next time, *Skip This Version* waits for the
+  next one, and the check can be turned off in the *Help* menu.
+- **Open source** – MIT license, no telemetry; the only request besides the scanner is the update check
+  on GitHub. The source code is on
   [GitHub](https://github.com/elte0/scansnack).
 
 > ScanSnack is an early version. It is developed and tested on macOS; the Windows and Linux builds are

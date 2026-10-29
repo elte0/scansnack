@@ -64,6 +64,21 @@ Code: `packaging/`, `tools/build_app.py`.
 - Tested: Mac locally; all four targets build and pass `--selftest` in GitHub Actions; the Linux build
   also starts offscreen. Windows, Intel Mac and Linux have not been tried with the scanner.
 
+**Auto-update** (ADR 0005): `core/update.py` (versions, package names, checksums), `ports/updates.py`
+(`ReleaseSource`, `Installer`), `adapters/github` (GitHub Releases API), `adapters/selfupdate`
+(download, verify, unpack, helper script that swaps the app and restarts it), `adapters/qt/updates.py`
+(dialog). About 1.5 s after start the built app checks the latest release in the background; offline it
+stays silent. Dialog: *Install and Restart* / *Later* (ask again next start) / *Skip This Version*.
+*Help → Check for Updates …* checks by hand (also from source, where installing is replaced by a link
+to the release page); *Check for Updates on Start* switches the check off.
+
+- The release workflow attaches `SHA256SUMS`; the app prefers GitHub's per-asset `digest`. No checksum,
+  no one-click install.
+- One-click install needs write access to the folder that holds the app. Otherwise (macOS App
+  Translocation, running from the DMG, read-only folder) the dialog offers the release page instead.
+- Tested: unit tests (including the real `sh` helper swapping a fake app) and an update of a real Linux
+  build; the macOS DMG path and the Windows PowerShell helper are not yet tried on a real system.
+
 **Version:** the only source is `[project] version` in `pyproject.toml` (major.minor.patch). The spec and
 `uv.lock` read it; `tools/bump_version.py` also updates `ios/pyproject.toml` (`tests/test_version.py`
 checks that both match).

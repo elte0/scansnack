@@ -6,7 +6,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_data_files, copy_metadata
 
 ROOT = Path(SPECPATH).parent
 VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
@@ -26,7 +26,8 @@ QT_EXCLUDES = [f"PySide6.{m}" for m in (
 a = Analysis(
     [str(ROOT / "packaging" / "launch_app.py")],
     pathex=[str(ROOT / "src")],
-    datas=collect_data_files("scansnap"),          # profile_template.json (für claim)
+    # profile_template.json (für claim); Paket-Metadaten: Versionsnummer für die Update-Prüfung
+    datas=collect_data_files("scansnap") + copy_metadata("scansnap-bridge"),
     excludes=QT_EXCLUDES + ["tkinter", "zeroconf", "pytest"],
 )
 pyz = PYZ(a.pure)
