@@ -1,4 +1,4 @@
-# Desktop- und iOS-App
+# Desktop- und iOS-App „ScanSnack“
 
 Entscheidungen: ADR 0003 (PySide6), ADR 0004 (BeeWare). Protokoll: `docs/protocol.md`.
 
@@ -8,7 +8,7 @@ Start: `uv run --extra app scansnap-app [--ip …]`. Oberfläche auf Englisch, C
 
 - Aufbau: links Profile + Optionen (Double-sided, Remove blank pages, Remove background) + Scan;
   Mitte Dokumentliste („New Scan“ + gespeicherte PDFs, bleibt über Neustarts: `adapters/library`,
-  Index `library.json` + `thumbs/` im App-Datenverzeichnis); rechts Seiten (drehen/löschen/sortieren),
+  Index `library.json` + `thumbs/` im App-Datenverzeichnis `…/scansnap-bridge/ScanSnack`, ein alter Ordner `ScanSnap` wird beim Start übernommen); rechts Seiten (drehen/löschen/sortieren),
   Name, Ordner, Speichern. Gespeicherte Dokumente lassen sich weiter bearbeiten („Save Changes“ schreibt
   das PDF neu, Umbenennen benennt die Datei um). Seiten werden aus den eigenen PDFs zurückgelesen.
 - Verbindung: `ScanWorker` im eigenen `QThread`, Gerät über `ports.scanner.ScannerLocator`; dauerhafte
@@ -29,9 +29,9 @@ Start: `uv run --extra app scansnap-app [--ip …]`. Oberfläche auf Englisch, C
 
 ### Mac-Bundle (`packaging/`)
 
-`packaging/build_mac.sh` → `dist/ScanSnap.app` + `dist/ScanSnap-<ver>.dmg`; `ScanSnap.spec` (Qt-Module
+`packaging/build_mac.sh` → `dist/ScanSnack.app` + `dist/ScanSnack-<ver>.dmg`; `ScanSnack.spec` (Qt-Module
 ausgeschlossen, Info.plist inkl. `NSLocalNetworkUsageDescription`), Icon aus `tools/make_icon.py`.
-Build prüft Signatur + `ScanSnap --selftest` (Paketdaten, JPEG, PDF). arm64, ad hoc signiert (andere Macs:
+Build prüft Signatur + `ScanSnack --selftest` (Paketdaten, JPEG, PDF). arm64, ad hoc signiert (andere Macs:
 Rechtsklick → Öffnen), ~107 MB, DMG ~46 MB. Beim ersten Start fragt macOS nach Zugriff aufs lokale Netz.
 
 ## eSCL-Bridge (`adapters/escl`, Start: `scansnap serve [--port 8090] [--name …]`)
@@ -52,7 +52,8 @@ Die iOS-App ist ihr eigener Composition Root (nutzt ix1500- und library-Adapter 
   Scan öffnet die Seitenansicht. `theme.py` nimmt die Tokens aus `scansnap.adapters.qt.tokens`.
   Jeder Bildschirm wird per `render()` aus dem Zustand gebaut, auch beim Hell/Dunkel-Wechsel.
 - Identität-Name `scansnap-iphone` → am Touchpanel als Benutzer wählen. PDFs in `Documents` (in „Dateien“
-  sichtbar), Rest in `Library/Application Support/ScanSnap`.
+  sichtbar), Rest in `Library/Application Support/ScanSnack`
+  (der Ordner `ScanSnap` von vor der Umbenennung wird beim Start übernommen).
 - Toga-Fallen: `toga.App` hat schon `documents` u. a. (eigene Attribute nicht so nennen); Labels brechen
   nicht um; Farben mit Alpha nur als `rgb(...)`-Objekt; `margin` ist Außenabstand; in verdeckten Tabs feste
   Breite setzen.

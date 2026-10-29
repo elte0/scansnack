@@ -8,7 +8,7 @@ ssh-identity.json
 *.log
 build/
 dist/
-packaging/ScanSnap.iconset/
+packaging/ScanSnack.iconset/
 ios/.venv/
 ios/logs/
 ios/resources/icon-*.png

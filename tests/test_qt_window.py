@@ -260,6 +260,18 @@ def test_unreachable_scanner_at_start_opens_dialog(tmp_path: Path, monkeypatch: 
         w.close()
 
 
+def test_data_dir_of_previous_app_name_is_adopted(tmp_path: Path) -> None:
+    old = tmp_path / "ScanSnap"
+    old.mkdir()
+    (old / "library.json").write_text("{}")
+    new = tmp_path / "ScanSnack"
+    app_main.adopt_previous(new, "ScanSnap")
+    assert (new / "library.json").exists() and not old.exists()
+    old.mkdir()  # neuer Ordner existiert schon: nichts überschreiben
+    app_main.adopt_previous(new, "ScanSnap")
+    assert old.exists()
+
+
 def test_selftest() -> None:
     from scansnap.app.desktop import selftest
 

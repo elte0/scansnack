@@ -1,4 +1,4 @@
-"""Erzeugt das App-Icon (packaging/ScanSnap.icns): Blatt, das in einen Scanner läuft.
+"""Erzeugt das App-Icon (packaging/ScanSnack.icns): Blatt, das in einen Scanner läuft.
 
 uv run python tools/make_icon.py
 """
@@ -47,17 +47,17 @@ def draw() -> Image.Image:
 
 def main() -> None:
     icon = draw()
-    iconset = OUT / "ScanSnap.iconset"
+    iconset = OUT / "ScanSnack.iconset"
     iconset.mkdir(parents=True, exist_ok=True)
     for size in (16, 32, 128, 256, 512):
         for scale in (1, 2):
             px = size * scale
             name = f"icon_{size}x{size}{'@2x' if scale == 2 else ''}.png"
             icon.resize((px, px), Image.Resampling.LANCZOS).save(iconset / name)
-    icon.save(OUT / "ScanSnap.png")
+    icon.save(OUT / "ScanSnack.png")
     if sys.platform == "darwin":
-        subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(OUT / "ScanSnap.icns")], check=True)
-        print(OUT / "ScanSnap.icns")
+        subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(OUT / "ScanSnack.icns")], check=True)
+        print(OUT / "ScanSnack.icns")
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ if [[ ! -x .venv/bin/briefcase ]]; then
 fi
 
 # Icons/Startbild aus dem Mac-Icon
-ICON=../packaging/ScanSnap.png
+ICON=../packaging/ScanSnack.png
 mkdir -p resources
 for s in 20 29 40 58 60 76 80 87 120 152 167 180 640 1024; do
   [[ resources/icon-$s.png -nt $ICON ]] || sips -z $s $s $ICON --out resources/icon-$s.png >/dev/null
@@ -26,17 +26,19 @@ for s in 1280 1920; do        # Startbildschirm: Icon mittig auf Weiß
   [[ resources/icon-$s.png -nt $ICON ]] || sips -p $s $s --padColor FFFFFF $ICON --out resources/icon-$s.png >/dev/null
 done
 
+# Nach der Umbenennung (ScanSnap → ScanSnack) heißt das Xcode-Projekt anders: neu erzeugen
+[[ -d $PROJECT && ! -d $PROJECT/ScanSnack.xcodeproj ]] && rm -rf $PROJECT
 if [[ -d $PROJECT ]]; then
   .venv/bin/briefcase update iOS -r --update-resources --no-input
 else
   .venv/bin/briefcase create iOS --no-input
 fi
 
-xcodebuild -project $PROJECT/ScanSnap.xcodeproj -scheme ScanSnap -configuration Debug \
+xcodebuild -project $PROJECT/ScanSnack.xcodeproj -scheme ScanSnack -configuration Debug \
   -destination 'generic/platform=iOS' -derivedDataPath build/derived \
   -allowProvisioningUpdates DEVELOPMENT_TEAM=$TEAM CODE_SIGN_STYLE=Automatic \
   -quiet build
-APP=build/derived/Build/Products/Debug-iphoneos/ScanSnap.app
+APP=build/derived/Build/Products/Debug-iphoneos/ScanSnack.app
 codesign --verify --strict $APP
 
 if [[ -z ${1:-} ]]; then           # laut devicectl ist nur die JSON-Ausgabe stabil

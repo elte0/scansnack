@@ -60,6 +60,8 @@ from ...ports.output import OutputPort
 from ...ports.scanner import ScannerLocator, ScannerPort
 from . import primer
 
+APP_NAME = "ScanSnack"
+PREVIOUS_APP_NAME = "ScanSnap"  # bis 2026-10: Datenordner unter diesem Namen
 PAGE_ROLE = Qt.ItemDataRole.UserRole
 THUMB = 220
 DOC_THUMB = 56
@@ -319,7 +321,7 @@ class MainWindow(QMainWindow):
     def __init__(self, library: OutputPort, locator: ScannerLocator):
         super().__init__()
         self.settings = QSettings("scansnap-bridge", "app")
-        self.setWindowTitle("ScanSnap")
+        self.setWindowTitle(APP_NAME)
         self.resize(1240, 760)
         self.library = library
         self.locator = locator
@@ -930,7 +932,16 @@ class MainWindow(QMainWindow):
 
 def data_dir() -> Path:
     """Ablage für App-Daten (Dokumentliste, Vorschaubilder); braucht eine laufende QApplication."""
-    return Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
+    path = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
+    adopt_previous(path, PREVIOUS_APP_NAME)
+    return path
+
+
+def adopt_previous(path: Path, previous_name: str) -> None:
+    """Übernimmt den Datenordner der App unter ihrem alten Namen, solange es noch keinen neuen gibt."""
+    old = path.with_name(previous_name)
+    if not path.exists() and old.is_dir():
+        old.rename(path)
 
 
 def run(
@@ -941,7 +952,7 @@ def run(
 ) -> int:
     """Startet die Oberfläche. ``make_output`` bekommt das App-Datenverzeichnis und liefert die Ablage."""
     app = QApplication([sys.argv[0], *(qt_args or [])])
-    app.setApplicationName("ScanSnap")
+    app.setApplicationName(APP_NAME)
     app.setOrganizationName("scansnap-bridge")
     if ip:
         QSettings("scansnap-bridge", "app").setValue("ip", ip)

@@ -1,4 +1,4 @@
-# PyInstaller-Spec für ScanSnap.app – Build: packaging/build_mac.sh
+# PyInstaller-Spec für ScanSnack.app – Build: packaging/build_mac.sh
 import tomllib
 from pathlib import Path
 
@@ -26,23 +26,23 @@ a = Analysis(
     excludes=QT_EXCLUDES + ["tkinter", "zeroconf", "pytest"],
 )
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="ScanSnap", console=False, argv_emulation=False)
-coll = COLLECT(exe, a.binaries, a.datas, name="ScanSnap")
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="ScanSnack", console=False, argv_emulation=False)
+coll = COLLECT(exe, a.binaries, a.datas, name="ScanSnack")
 app = BUNDLE(
     coll,
-    name="ScanSnap.app",
-    icon=str(ROOT / "packaging" / "ScanSnap.icns"),
+    name="ScanSnack.app",
+    icon=str(ROOT / "packaging" / "ScanSnack.icns"),
     bundle_identifier="com.elte0.scansnap-bridge",
     version=VERSION,
     info_plist={
-        "CFBundleDisplayName": "ScanSnap",
+        "CFBundleDisplayName": "ScanSnack",
         "CFBundleShortVersionString": VERSION,
         "CFBundleVersion": VERSION,
         "NSPrincipalClass": "NSApplication",           # Retina-Darstellung
         "NSHighResolutionCapable": True,
         "LSMinimumSystemVersion": "13.0",
         # Seit macOS 15 Pflicht für Zugriffe ins lokale Netz (Scanner per UDP/TCP)
-        "NSLocalNetworkUsageDescription": "ScanSnap connects to your scanner over the local network.",
+        "NSLocalNetworkUsageDescription": "ScanSnack connects to your scanner over the local network.",
         "LSApplicationCategoryType": "public.app-category.productivity",
     },
 )
