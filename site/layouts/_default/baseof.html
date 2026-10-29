@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="{{ site.LanguageCode }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{- $title := partial "title.html" . }}
+  <title>{{ if or .IsHome (eq $title site.Title) }}{{ site.Title }}{{ else }}{{ $title }} · {{ site.Title }}{{ end }}</title>
+  <meta name="description" content="{{ site.Params.description }}">
+  {{- $css := resources.Get "style.css" | minify | fingerprint }}
+  <link rel="stylesheet" href="{{ $css.RelPermalink }}">
+</head>
+<body>
+  <header class="top">
+    <nav>
+      <a class="brand" href="{{ "" | relURL }}">iX1500 protocol</a>
+      <a href="{{ "protocol/" | relURL }}">Protocol</a>
+      <a href="{{ "disclaimer/" | relURL }}">Disclaimer</a>
+      <a href="{{ site.Params.repo }}">Source code</a>
+    </nav>
+  </header>
+  <main>
+    {{ block "main" . }}{{ end }}
+  </main>
+  <footer>
+    <p>Unofficial, independent project. Not affiliated with or endorsed by PFU Limited or Fujitsu Limited.
+    ScanSnap is a trademark of PFU Limited. See the <a href="{{ "disclaimer/" | relURL }}">disclaimer</a>.</p>
+  </footer>
+</body>
+</html>

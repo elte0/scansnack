@@ -1,75 +1,105 @@
-# Desktop- und iOS-App „ScanSnack“
+# ScanSnack desktop and iOS apps
 
-Entscheidungen: ADR 0003 (PySide6), ADR 0004 (BeeWare). Protokoll: `docs/protocol.md`.
+> **Summary.** "ScanSnack" is the user-facing app on top of the protocol client: a PySide6 desktop app
+> (built as a Mac bundle) and an iOS app built with BeeWare. In addition, the eSCL bridge makes the
+> scanner available in the macOS scan dialog. This page describes how each of them is built, how they
+> behave, and what has been tested so far.
 
-## Desktop-App (`adapters/qt`, Start: `app/desktop.py`)
+Decisions: ADR 0003 (PySide6), ADR 0004 (BeeWare). Protocol: [protocol](protocol.md).
 
-Start: `uv run --extra app scansnap-app [--ip …]`. Oberfläche auf Englisch, Code-Kommentare auf Deutsch.
+## Contents
 
-- Aufbau: links Profile + Optionen (Double-sided, Remove blank pages, Remove background) + Scan;
-  Mitte Dokumentliste („New Scan“ + gespeicherte PDFs, bleibt über Neustarts: `adapters/library`,
-  Index `library.json` + `thumbs/` im App-Datenverzeichnis `…/scansnap-bridge/ScanSnack`, ein alter Ordner `ScanSnap` wird beim Start übernommen); rechts Seiten (drehen/löschen/sortieren),
-  Name, Ordner, Speichern. Gespeicherte Dokumente lassen sich weiter bearbeiten („Save Changes“ schreibt
-  das PDF neu, Umbenennen benennt die Datei um). Seiten werden aus den eigenen PDFs zurückgelesen.
-- Verbindung: `ScanWorker` im eigenen `QThread`, Gerät über `ports.scanner.ScannerLocator`; dauerhafte
-  Sitzung schon beim Start, Neuaufbau alle 20 s (sonst kommt die Scan-Taste nicht an). Die Scan-Taste
-  startet einen Scan mit den Einstellungen links.
-- Start: ohne gespeicherte oder erreichbare IP erscheint zuerst „Connect Scanner“ (IP eingeben oder
-  „Search Network“; Suche und Prüfung im Hintergrund). Verbindungsfehler beim Scan öffnen ihn ebenfalls.
-- Jeder Scan-Vorgang ist ein eigenes Dokument und wird **sofort nach dem Scan gespeichert** (Nutzerwunsch),
-  Name „Scan JJJJ-MM-TT HH.MM“, Ordner „Save to“, optional öffnen – auch die Seiten vor einem Papierstau.
-  Scheitert das Speichern, bleibt der Entwurf für „Save as PDF“ stehen. Scan ohne Seiten verschwindet.
-- „Remove background“: `core.images.whiten` – Papierfarbe je Kanal (85.-Perzentil) → Weiß; dunkles Papier
-  (< 150) bleibt unverändert. Läuft im selben Re-Encode wie Zuschnitt/Drehung.
-- Papierfehler: `core.errors.FeedError(reason)`, Hinweistexte in `core.document.FEED_HELP`.
-- Design: Primer (GitHub), Tokens aus @primer/primitives 11.10.0 in `adapters/qt/tokens.py` (Qt-frei,
-  auch für iOS), `primer.py` setzt QPalette + Stylesheet, Fusion, Hell/Dunkel folgt dem System live.
-  Default-Knopf = Primary (grün), gedämpfter Text per `muted`-Property.
-- Falle: QListWidget im IconMode sortiert beim Ziehen nicht um → `PageList.dropEvent` sortiert selbst.
+- [Desktop app](#desktop-app)
+  - [Mac bundle](#mac-bundle)
+- [eSCL bridge](#escl-bridge)
+- [iOS app](#ios-app)
+- [Status and next steps](#status-and-next-steps)
 
-### Mac-Bundle (`packaging/`)
+## Desktop app
 
-Bundle-ID `com.elte0.scansnack`. `packaging/build_mac.sh` → `dist/ScanSnack.app` + `dist/ScanSnack-<ver>.dmg`; `ScanSnack.spec` (Qt-Module
-ausgeschlossen, Info.plist inkl. `NSLocalNetworkUsageDescription`), Icon aus `tools/make_icon.py`.
-Build prüft Signatur + `ScanSnack --selftest` (Paketdaten, JPEG, PDF). arm64, ad hoc signiert (andere Macs:
-Rechtsklick → Öffnen), ~107 MB, DMG ~46 MB. Beim ersten Start fragt macOS nach Zugriff aufs lokale Netz.
+Code: `adapters/qt`, entry point `app/desktop.py`. Start: `uv run --extra app scansnap-app [--ip …]`.
+User interface in English, code comments in German.
 
-## eSCL-Bridge (`adapters/escl`, Start: `scansnap serve [--port 8090] [--name …]`)
+- Layout: on the left profiles + options (Double-sided, Remove blank pages, Remove background) + Scan;
+  in the middle the document list ("New Scan" + saved PDFs; persists across restarts: `adapters/library`,
+  index `library.json` + `thumbs/` in the app data directory `…/scansnap-bridge/ScanSnack`; an old
+  `ScanSnap` folder is migrated on start); on the right the pages (rotate/delete/reorder), name, folder,
+  save. Saved documents can still be edited ("Save Changes" rewrites the PDF, renaming renames the
+  file). Pages are read back from our own PDFs.
+- Connection: `ScanWorker` in its own `QThread`, device via `ports.scanner.ScannerLocator`; a persistent
+  session is opened right at start-up and re-established every 20 s (otherwise the scan button events do
+  not arrive). The scan button starts a scan with the settings on the left.
+- Start-up: without a saved or reachable IP, "Connect Scanner" appears first (enter an IP or
+  "Search Network"; search and check run in the background). Connection errors during a scan open it as
+  well.
+- Every scan run is a document of its own and is **saved immediately after the scan** (user
+  requirement), named "Scan YYYY-MM-DD HH.MM", into the "Save to" folder, optionally opened – including
+  the pages scanned before a paper jam. If saving fails, the draft stays available for "Save as PDF".
+  A scan without pages disappears.
+- "Remove background": `core.images.whiten` – paper colour per channel (85th percentile) → white; dark
+  paper (< 150) is left unchanged. Runs in the same re-encode as cropping/rotation.
+- Paper errors: `core.errors.FeedError(reason)`, help texts in `core.document.FEED_HELP`.
+- Design: Primer (GitHub), tokens from @primer/primitives 11.10.0 in `adapters/qt/tokens.py` (Qt-free,
+  also used on iOS); `primer.py` sets QPalette + stylesheet, Fusion style, light/dark follows the system
+  live. Default button = primary (green), muted text via the `muted` property.
+- Pitfall: a QListWidget in IconMode does not reorder on drag → `PageList.dropEvent` reorders itself.
 
-- Nur Einzug (ADF), JPEG/PDF; Bonjour `_uscan._tcp` via zeroconf. Auto-`claim`, wenn das eigene Profil fehlt.
-- macOS „Schwarzweiß“ = `ColorMode=Grayscale8` → gray-D4 (JPEG trotzdem 3 Kanäle, siehe protocol.md).
-- Zuschnitt + Drehung in `Device.scan` (`core.images.process`, ein Re-Encode mit gleichen qtables);
-  A4-Test 210×298 mm im macOS-Scanfenster bestätigt. `--no-crop` schaltet ab; dunkles Papier → kein Zuschnitt.
-- Papierfehler → Job Aborted / `MediaJam`.
+### Mac bundle
 
-## iOS-App (`ios/`)
+Code: `packaging/`. Bundle ID `com.elte0.scansnack`.
 
-Bundle-ID `com.elte0.scansnack` (Briefcase: `bundle` + App-Name; der App-Name ist zugleich der Modulname,
-daher das Paket `ios/src/scansnack`).
+- `packaging/build_mac.sh` → `dist/ScanSnack.app` + `dist/ScanSnack-<ver>.dmg`.
+- `ScanSnack.spec`: Qt modules excluded, Info.plist including `NSLocalNetworkUsageDescription`; icon from
+  `tools/make_icon.py`.
+- The build checks the signature and runs `ScanSnack --selftest` (package data, JPEG, PDF).
+- arm64, ad-hoc signed (on other Macs: right-click → Open), ~107 MB, DMG ~46 MB. On first launch macOS
+  asks for local network access.
 
-BeeWare: Briefcase 0.4.7, Toga 0.5.7, Python 3.14, Pillow-iOS-Wheel. Kern per Symlink `ios/src/scansnap`.
-Die iOS-App ist ihr eigener Composition Root (nutzt ix1500- und library-Adapter direkt).
+## eSCL bridge
 
-- `ios/src/scansnack/app.py`: Tabs „Scan“ (Profilliste, Optionen, Scan; dauerhafte Sitzung, Scan-Taste)
-  und „Documents“, Seitenansicht (Delete/Share, UIActivityViewController via rubicon), Scanner-IP. Nach dem
-  Scan öffnet die Seitenansicht. `theme.py` nimmt die Tokens aus `scansnap.adapters.qt.tokens`.
-  Jeder Bildschirm wird per `render()` aus dem Zustand gebaut, auch beim Hell/Dunkel-Wechsel.
-- Identität-Name `scansnap-iphone` → am Touchpanel als Benutzer wählen. PDFs in `Documents` (in „Dateien“
-  sichtbar), Rest in `Library/Application Support/ScanSnack`.
-- Toga-Fallen: `toga.App` hat schon `documents` u. a. (eigene Attribute nicht so nennen); Labels brechen
-  nicht um; Farben mit Alpha nur als `rgb(...)`-Objekt; `margin` ist Außenabstand; in verdeckten Tabs feste
-  Breite setzen.
-- Bauen + aufs iPhone: `ios/build_ios.sh` (Briefcase braucht Homebrew-Python, uv-Python scheitert an
-  libpython). Simulator: `cd ios && .venv/bin/briefcase run iOS -d <Sim-UDID>`.
-- Auf dem iPhone 16e installiert und gestartet (2026-10-29, Team 2BCANYGFHU). Mit dem Scanner noch nicht getestet.
+Code: `adapters/escl`. Start: `scansnap serve [--port 8090] [--name …]`.
 
-## Stand und nächste Schritte
+- Feeder (ADF) only, JPEG/PDF; Bonjour `_uscan._tcp` via zeroconf. Runs `claim` automatically if our
+  own profile is missing.
+- macOS "Black & White" = `ColorMode=Grayscale8` → gray D4 (the JPEG still has 3 channels, see
+  [protocol](protocol.md#open-questions)).
+- Cropping + rotation in `Device.scan` (`core.images.process`, one re-encode with the same quantisation
+  tables); A4 test 210×298 mm confirmed in the macOS scan dialog. `--no-crop` turns it off; dark paper →
+  no cropping.
+- Paper errors → job Aborted / `MediaJam`.
 
-- Desktop-App: nur mit Tests (offscreen) geprüft, noch nicht live mit dem Scanner (weder aus Quellen noch als .app).
-- iOS: nach dem Umbau auf `core/ports/adapters` nur Importe angepasst, nicht neu gebaut.
+## iOS app
 
-1. App live testen, Feedback einarbeiten.
-2. Scan-Taste in der App live testen.
-3. Graustufen als 1-Kanal-JPEG; Zuschnitt mit Quittung/Visitenkarte/farbigem Papier testen.
+Code: `ios/`. Bundle ID `com.elte0.scansnack` (Briefcase: `bundle` + app name; the app name is also the
+module name, hence the package `ios/src/scansnack`).
 
-Keine Priorität: Docker/Server, Profile.
+BeeWare: Briefcase 0.4.7, Toga 0.5.7, Python 3.14, Pillow iOS wheel. Core included via the symlink
+`ios/src/scansnap`. The iOS app is its own composition root (uses the ix1500 and library adapters
+directly).
+
+- `ios/src/scansnack/app.py`: tabs "Scan" (profile list, options, scan; persistent session, scan
+  button) and "Documents", page view (Delete/Share, UIActivityViewController via rubicon), scanner IP.
+  After a scan, the page view opens. `theme.py` takes its tokens from `scansnap.adapters.qt.tokens`.
+  Every screen is rebuilt from state via `render()`, also when switching light/dark.
+- Identity name `scansnap-iphone` → select it as the user on the touch panel. PDFs go to `Documents`
+  (visible in the Files app), everything else to `Library/Application Support/ScanSnack`.
+- Toga pitfalls: `toga.App` already has `documents` and other attributes (don't use those names for
+  your own attributes); labels do not wrap; colours with alpha only as an `rgb(...)` object; `margin` is
+  the outer spacing; set a fixed width in hidden tabs.
+- Build and install on the iPhone: `ios/build_ios.sh` (Briefcase needs Homebrew Python; uv's Python
+  fails because of libpython). Simulator: `cd ios && .venv/bin/briefcase run iOS -d <simulator UDID>`.
+- Installed and launched on an iPhone 16e (2026-10-29, team 2BCANYGFHU). Not yet tested with the scanner.
+
+## Status and next steps
+
+- Desktop app: only checked by tests (offscreen), not yet live with the scanner (neither from source nor
+  as .app).
+- iOS: after the restructuring into `core/ports/adapters` only the imports were adjusted; not rebuilt.
+
+Next steps:
+
+1. Test the app live, incorporate feedback.
+2. Test the scan button in the app live.
+3. Grayscale as 1-channel JPEG; test cropping with receipts, business cards and coloured paper.
+
+Not a priority: Docker/server, profiles.

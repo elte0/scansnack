@@ -1,6 +1,6 @@
 """Scan-Sequenz D5, D8, E9, D4, 03, (E0, 28-Reads, 28-Info)*, D6 auf dem Scan-Kanal.
 
-Ablauf und Parameterblöcke: docs/protocol.md, Abschnitt „Scan-Sequenz“.
+Ablauf und Parameterblöcke: docs/protocol.md, Abschnitt „Scan sequence“.
 """
 
 from __future__ import annotations

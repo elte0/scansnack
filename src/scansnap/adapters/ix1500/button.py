@@ -1,6 +1,6 @@
 """Scan-Taste am Touchpanel: UDP-Meldung an ``host_port`` des ausgewählten Hosts.
 
-Layout: docs/protocol.md, Abschnitt „Scan-Taste am Touchpanel“. Ausgewertet wird nur die UDP-Meldung
+Layout: docs/protocol.md, Abschnitt „Scan button on the touch panel“. Ausgewertet wird nur die UDP-Meldung
 (C2 kann den kurzen Puls verpassen).
 """
 

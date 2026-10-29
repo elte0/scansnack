@@ -1,0 +1,8 @@
+{{- /* Seiten aus docs/ haben kein Front Matter: Titel aus der ersten Überschrift nehmen. */ -}}
+{{- $t := .Title -}}
+{{- if not $t -}}
+  {{- with findRE `<h1[^>]*>(?s:.*?)</h1>` .Content 1 -}}
+    {{- $t = index . 0 | plainify | htmlUnescape -}}
+  {{- end -}}
+{{- end -}}
+{{- return $t -}}

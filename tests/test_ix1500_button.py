@@ -1,4 +1,4 @@
-"""Scan-Taste am Touchpanel: UDP-Meldung an host_port (Live-Capture 2026-10-29, panel_scan2.pcap)."""
+"""Scan-Taste am Touchpanel: UDP-Meldung an host_port (privater Live-Capture vom 2026-10-29, nicht veröffentlicht)."""
 
 import socket
 import threading

@@ -1,13 +1,14 @@
 # Architecture Decision Records
 
-Format: [MADR](https://adr.github.io/madr/). Dateiname `NNNN-titel.md`, fortlaufend nummeriert.
+Architecture and protocol decisions of the project, in [MADR](https://adr.github.io/madr/) format.
+File name `NNNN-title.md`, numbered consecutively.
 
-Bestehende ADRs werden nicht stillschweigend unterlaufen: Soll sich eine Entscheidung ändern, legt ein
-neuer ADR die neue Entscheidung fest und setzt den alten auf „ersetzt durch NNNN“.
+Existing ADRs are never silently overridden: if a decision is to change, a new ADR records the new
+decision and sets the old one to "superseded by NNNN".
 
-| Nr. | Titel | Status |
+| No. | Title | Status |
 |---|---|---|
-| [0001](0001-escl-bridge-statt-macos-treiber.md) | eSCL-Bridge statt nativem macOS-Treiber | akzeptiert |
-| [0002](0002-hexagonale-architektur.md) | Hexagonale Architektur mit erzwungenen Import-Regeln | akzeptiert |
-| [0003](0003-desktop-app-mit-pyside6.md) | Desktop-App in Python mit PySide6 | akzeptiert |
-| [0004](0004-ios-app-mit-beeware.md) | iOS-App mit BeeWare/Toga statt PySide6 | akzeptiert |
+| [0001](0001-escl-bridge-instead-of-macos-driver.md) | eSCL bridge instead of a native macOS driver | accepted |
+| [0002](0002-hexagonal-architecture.md) | Hexagonal architecture with enforced import rules | accepted |
+| [0003](0003-desktop-app-with-pyside6.md) | Desktop app in Python with PySide6 | accepted |
+| [0004](0004-ios-app-with-beeware.md) | iOS app with BeeWare/Toga instead of PySide6 | accepted |
