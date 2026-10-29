@@ -65,6 +65,9 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      # Prüfsummen für die Update-Prüfung der App (zusätzlich zu GitHubs eigenem digest pro Asset)
+      - name: SHA256SUMS
+        run: cd dist && sha256sum ScanSnack-* > SHA256SUMS && cat SHA256SUMS
       - name: GitHub-Release anlegen
         env:
           GH_TOKEN: ${{ github.token }}

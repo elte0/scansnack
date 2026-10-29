@@ -18,8 +18,9 @@ Overview: `README.md`, apps: `docs/apps.md`.
 ```
 src/scansnap/
   core/      domain: ScanSettings, Sheet, ScanPage, Entry, errors, image post-processing, PDF
-  ports/     typing.Protocol: ScannerPort, ScannerLocator, OutputPort
-  adapters/  ix1500/ (Wi-Fi protocol), escl/ (eSCL + Bonjour), library/ (PDF storage), qt/ (GUI)
+  ports/     typing.Protocol: ScannerPort, ScannerLocator, OutputPort, ReleaseSource, Installer
+  adapters/  ix1500/ (Wi-Fi protocol), escl/ (eSCL + Bonjour), library/ (PDF storage), qt/ (GUI),
+             github/ (release check), selfupdate/ (install update + restart, ADR 0005)
   app/       composition root: cli.py, desktop.py – the only place that creates concrete adapters
 ```
 
