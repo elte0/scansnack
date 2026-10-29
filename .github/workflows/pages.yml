@@ -1,0 +1,55 @@
+# Baut die Protokoll-Doku (site/ + docs/) mit Hugo und veröffentlicht sie auf GitHub Pages.
+# Voraussetzung: Settings → Pages → Source „GitHub Actions“.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/protocol.md
+      - docs/disclaimer.md
+      - site/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  HUGO_VERSION: 0.147.9
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Hugo
+        run: |
+          curl -sSL -o "${RUNNER_TEMP}/hugo.tar.gz" \
+            "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.tar.gz"
+          tar -xzf "${RUNNER_TEMP}/hugo.tar.gz" -C "${RUNNER_TEMP}" hugo
+      - id: pages
+        uses: actions/configure-pages@v5
+      - name: Build
+        run: >
+          "${RUNNER_TEMP}/hugo" --source site --minify --panicOnWarning
+          --baseURL "${{ steps.pages.outputs.base_url }}/"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

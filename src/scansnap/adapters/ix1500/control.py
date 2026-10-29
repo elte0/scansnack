@@ -1,6 +1,6 @@
 """Steuerkanal (TCP 53219). Pro Kommando eine eigene TCP-Verbindung.
 
-Kommandos, JSON-Layout und Statuswerte: docs/protocol.md, Abschnitt „Steuerkanal“.
+Kommandos, JSON-Layout und Statuswerte: docs/protocol.md, Abschnitt „Control channel (TCP 53219)“.
 """
 
 from __future__ import annotations

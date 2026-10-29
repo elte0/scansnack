@@ -1,29 +1,59 @@
 # scansnap-bridge
 
-ScanSnap iX1500 per WLAN ohne ScanSnap Home: eigener Client für das proprietäre Protokoll,
-eSCL/AirScan-Bridge fürs macOS-Scanfenster, Desktop-App (PySide6) und iOS-App (BeeWare).
+Use the ScanSnap iX1500 over Wi-Fi without ScanSnap Home: an independent client for its proprietary
+protocol, an eSCL/AirScan bridge for the macOS scan dialog, a desktop app (PySide6) and an iOS app
+(BeeWare).
 
-## Nutzung
+> **Unofficial project.** Not affiliated with or endorsed by PFU or Fujitsu. ScanSnap is a trademark of
+> PFU Limited. The protocol was reverse-engineered for interoperability. See the
+> [disclaimer](docs/disclaimer.md).
 
-```
+## Contents
+
+- [Features](#features)
+- [Usage](#usage)
+- [Documentation](#documentation)
+- [Development](#development)
+- [License](#license)
+
+## Features
+
+- **Protocol client** for discovery, pairing, profiles and duplex scanning over Wi-Fi.
+- **eSCL/AirScan bridge**: the scanner shows up in the macOS scan dialog (Image Capture, Preview).
+- **Desktop app "ScanSnack"**: choose a profile, scan, review pages, save as PDF, react to the scan
+  button on the touch panel.
+- **iOS app** built on the same Python core.
+
+## Usage
+
+```sh
 uv sync
-uv run scansnap --ip 192.168.178.29 claim        # eigenen Benutzer + Profil eintragen, dann am Panel wählen
-uv run scansnap --ip 192.168.178.29 scan --mode color --dpi 300 --out scans/
-uv run scansnap --ip 192.168.178.29 serve        # eSCL-Server + Bonjour fürs macOS-Scanfenster
-uv run --extra app scansnap-app                  # Desktop-App
+uv run scansnap --ip <scanner-ip> claim        # create our own user + profile, then select it on the panel
+uv run scansnap --ip <scanner-ip> scan --mode color --dpi 300 --out scans/
+uv run scansnap --ip <scanner-ip> serve        # eSCL server + Bonjour for the macOS scan dialog
+uv run --extra app scansnap-app                # desktop app
 ```
 
-Die Host-Identität (Host-ID, User-ID, MAC) liegt in `~/.config/scansnap-bridge/identity.json`.
+Broadcast discovery is unreliable, so pass the scanner's IP address with `--ip`.
+The host identity (host ID, user ID, MAC) is stored in `~/.config/scansnap-bridge/identity.json`.
 
-## Dokumentation
+## Documentation
 
-- `docs/protocol.md` – das Protokoll (Single Source of Truth), inkl. offener Fragen
-- `docs/adr/` – Architektur- und Protokollentscheidungen
-- `docs/apps.md` – Desktop- und iOS-App, Packaging
-- Aufbau: hexagonal (`core` ← `ports` ← `adapters` ← `app`), siehe ADR 0002
+- [Protocol](docs/protocol.md) – the Wi-Fi protocol (single source of truth), including open questions
+- [Architecture decisions](docs/adr/README.md) – architecture and protocol decisions (ADRs)
+- [Apps](docs/apps.md) – desktop and iOS app, eSCL bridge, packaging
+- [Disclaimer](docs/disclaimer.md) – reverse engineering, trademarks, no warranty
+- Structure: hexagonal (`core` ← `ports` ← `adapters` ← `app`), see ADR 0002
 
-## Checks
+The protocol write-up is also published as a small website built with Hugo from `site/`
+(see [site/README.md](site/README.md)).
 
-`tools/check.sh` (ruff, pyright strict, import-linter, pytest). Als Pre-commit-Hook:
-`git config core.hooksPath .githooks`. Tests brauchen kein Gerät: ein Fake-Scanner spielt die
-Mitschnitte unter `tests/fixtures/captures/` ab.
+## Development
+
+`tools/check.sh` runs all checks (ruff, pyright strict, import-linter, pytest). To run them as a
+pre-commit hook: `git config core.hooksPath .githooks`. The tests need no device: a fake scanner
+replays the anonymised captures in `tests/fixtures/captures/`.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
