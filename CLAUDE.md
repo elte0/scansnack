@@ -57,9 +57,11 @@ A task is only done when all checks are green. Pre-commit hook: `git config core
 
 ## Documentation site
 
-Hugo site in `site/`; it mounts `docs/protocol.md` and `docs/disclaimer.md` as content, so the docs
-stay the only source. Build locally: `hugo --source site`. Deployment: `.github/workflows/pages.yml`
-(push to `main`, GitHub Pages with source "GitHub Actions").
+Hugo site "ScanSnack" in `site/`; it mounts `docs/protocol.md` and `docs/disclaimer.md` as content, so
+the docs stay the only source. The app page `site/content/app.md` lists the app's features: update it
+whenever a user-visible feature changes. Its screenshots (`tools/screenshots.py`) and download links (latest
+release) are generated in the Pages build. Build locally: `hugo --source site`. Deployment:
+`.github/workflows/pages.yml` (push to `main`, after every release, GitHub Pages with source "GitHub Actions").
 
 ## Conventions
 

@@ -1,0 +1,40 @@
+{{- /* Download-Knöpfe für das neueste Release. data/release.json schreibt der Pages-Workflow beim Build
+     (GitHub-API, releases/latest); lokal fehlt sie meist, dann gibt es nur den Link zur Release-Seite. */ -}}
+{{- $rel := site.Data.release -}}
+{{- $all := printf "%s/releases" site.Params.repo -}}
+<section class="downloads" id="download">
+  <h2>Download</h2>
+  {{- if and $rel $rel.assets }}
+  <p class="release">
+    <a href="{{ $rel.html_url }}">{{ $rel.name | default $rel.tag_name }}</a>
+    · released {{ time.Format "January 2, 2006" $rel.published_at }}
+  </p>
+  <div class="buttons">
+    {{- range .Params.platforms }}
+      {{- $p := . }}
+      {{- $asset := false }}
+      {{- range $rel.assets }}{{ if strings.HasSuffix .name $p.suffix }}{{ $asset = . }}{{ end }}{{ end }}
+      {{- if $asset }}
+    <a class="button" data-os="{{ lower $p.name }}" href="{{ $asset.browser_download_url }}">
+      <strong>{{ $p.name }}</strong><span>{{ $p.detail }} · {{ printf "%.0f" (div (float $asset.size) 1048576) }} MB</span>
+    </a>
+      {{- else }}
+    <a class="button missing" data-os="{{ lower $p.name }}" href="{{ $rel.html_url }}">
+      <strong>{{ $p.name }}</strong><span>{{ $p.detail }} · not in this release</span>
+    </a>
+      {{- end }}
+    {{- end }}
+  </div>
+  <p class="muted">Older versions and release notes: <a href="{{ $all }}">all releases</a>.</p>
+  {{- else }}
+  <p>There is no release yet. Builds for macOS, Windows and Linux will appear here and on the
+  <a href="{{ $all }}">releases page</a> as soon as the first version is published.</p>
+  {{- end }}
+</section>
+<script>
+  // Knöpfe fürs eigene System hervorheben
+  (function () {
+    var ua = navigator.userAgent, os = /Mac/.test(ua) ? "macos" : /Win/.test(ua) ? "windows" : /Linux|X11/.test(ua) ? "linux" : "";
+    document.querySelectorAll('.downloads .button[data-os="' + os + '"]').forEach(function (b) { b.classList.add("mine"); });
+  })();
+</script>

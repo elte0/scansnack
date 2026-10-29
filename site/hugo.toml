@@ -1,13 +1,13 @@
-# Hugo-Seite für die Protokoll-Doku. Inhalt kommt aus docs/ (einzige Quelle), siehe Mounts.
+# Hugo-Seite: App-Vorstellung und Protokoll-Doku. Inhalt kommt aus docs/ (einzige Quelle), siehe Mounts.
 baseURL = "https://elte0.github.io/scansnack/"
 languageCode = "en"
-title = "ScanSnap iX1500 Wi-Fi Protocol"
+title = "ScanSnack"
 disableKinds = ["taxonomy", "term", "RSS", "sitemap", "section"]
 enableRobotsTXT = false
 
 [params]
   repo = "https://github.com/elte0/scansnack"
-  description = "An independent write-up of the ScanSnap iX1500 Wi-Fi protocol, reverse-engineered for interoperability."
+  description = "ScanSnack: scan with a ScanSnap iX1500 over Wi-Fi without ScanSnap Home, and an independent write-up of its protocol."
 
 [markup.goldmark.renderHooks.link]
   # .md-Links aus docs/ auf die Seiten der Website umschreiben
