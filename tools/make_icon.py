@@ -1,4 +1,6 @@
-"""Erzeugt das App-Icon (packaging/ScanSnack.icns): Blatt, das in einen Scanner läuft.
+"""Erzeugt die App-Icons (packaging/ScanSnack.icns/.ico/.png): Blatt, das in einen Scanner läuft.
+
+.icns nur auf macOS (iconutil), .ico (Windows) und .png (Linux) überall.
 
 uv run python tools/make_icon.py
 """
@@ -55,6 +57,7 @@ def main() -> None:
             name = f"icon_{size}x{size}{'@2x' if scale == 2 else ''}.png"
             icon.resize((px, px), Image.Resampling.LANCZOS).save(iconset / name)
     icon.save(OUT / "ScanSnack.png")
+    icon.save(OUT / "ScanSnack.ico", sizes=[(n, n) for n in (16, 24, 32, 48, 64, 128, 256)])
     if sys.platform == "darwin":
         subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(OUT / "ScanSnack.icns")], check=True)
         print(OUT / "ScanSnack.icns")

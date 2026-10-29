@@ -27,12 +27,41 @@ Start: `uv run --extra app scansnap-app [--ip …]`. Oberfläche auf Englisch, C
   Default-Knopf = Primary (grün), gedämpfter Text per `muted`-Property.
 - Falle: QListWidget im IconMode sortiert beim Ziehen nicht um → `PageList.dropEvent` sortiert selbst.
 
-### Mac-Bundle (`packaging/`)
+### Executables und Releases (`packaging/`, `tools/build_app.py`)
 
-Bundle-ID `com.elte0.scansnack`. `packaging/build_mac.sh` → `dist/ScanSnack.app` + `dist/ScanSnack-<ver>.dmg`; `ScanSnack.spec` (Qt-Module
-ausgeschlossen, Info.plist inkl. `NSLocalNetworkUsageDescription`), Icon aus `tools/make_icon.py`.
-Build prüft Signatur + `ScanSnack --selftest` (Paketdaten, JPEG, PDF). arm64, ad hoc signiert (andere Macs:
-Rechtsklick → Öffnen), ~107 MB, DMG ~46 MB. Beim ersten Start fragt macOS nach Zugriff aufs lokale Netz.
+Build fürs laufende System: `uv run --extra app python tools/build_app.py` (`--no-pack`: nur App;
+`packaging/build_mac.sh` ruft dasselbe auf). `ScanSnack.spec` ist plattformübergreifend (Qt-Module
+ausgeschlossen); jeder Build startet die App mit `--selftest` (Paketdaten, JPEG, PDF). Icons aus
+`tools/make_icon.py` (`.icns` nur auf macOS erzeugbar, `.ico`/`.png` überall).
+
+| System | Ergebnis in `dist/` | Hinweise |
+|---|---|---|
+| macOS arm64 / x86_64 | `ScanSnack.app`, `ScanSnack-<ver>-macos-<arch>.dmg` | Bundle-ID `com.elte0.scansnack`, Info.plist inkl. `NSLocalNetworkUsageDescription`, ad hoc signiert, Prüfung per `codesign --verify` |
+| Windows x86_64 | `ScanSnack/ScanSnack.exe`, `ScanSnack-<ver>-windows-x86_64.zip` | ohne Konsole, Icon `ScanSnack.ico` |
+| Linux x86_64 | `ScanSnack/ScanSnack`, `ScanSnack-<ver>-linux-x86_64.tar.gz` | mit `scansnack.desktop` + `scansnack.png`; braucht Qt-Systembibliotheken (`libxcb-cursor0`, `libegl1` …) |
+
+Die Architektur ist die des laufenden Pythons (kein universal2: Pillow liefert getrennte Wheels).
+Mac arm64 ~107 MB, DMG ~46 MB; beim ersten Start fragt macOS nach Zugriff aufs lokale Netz.
+Getestet: Mac (lokal), Linux-Build + Selftest + Start offscreen; Windows und Intel-Mac nur in CI.
+
+**Version:** einzige Quelle `[project] version` in `pyproject.toml` (Major.Minor.Patch). Spec und
+`uv.lock` lesen sie; `ios/pyproject.toml` wird von `tools/bump_version.py` mitgezogen (Test
+`tests/test_version.py` prüft Gleichstand).
+
+**Releases (GitHub Actions):**
+
+- `Create Release` (`.github/workflows/create-release.yml`, manuell auf `main`, Auswahl patch/minor/major):
+  `tools/check.sh` → `tools/bump_version.py` → Commit „Version X.Y.Z“ + Tag `vX.Y.Z` → Push → ruft `Release` auf.
+- `Release` (`.github/workflows/release.yml`): bei jedem Tag `v*.*.*` (auch von Hand gepusht) Builds auf
+  macos-latest (arm64), macos-15-intel, windows-latest, ubuntu-22.04 → GitHub-Release mit allen Paketen.
+  Prüft, dass Tag und Version übereinstimmen. Tags, die ein Workflow mit `GITHUB_TOKEN` pusht, lösen keine
+  Workflows aus – deshalb ruft `Create Release` den Release-Workflow direkt auf (`workflow_call`).
+- Ist `main` per Branch-Schutz gesperrt, muss `github-actions[bot]` pushen dürfen (oder ein PAT als Secret).
+
+**Signatur (optional, braucht Secrets):** macOS: Developer-ID-Zertifikat (p12 + Passwort) in einen
+temporären Keychain importieren, `CODESIGN_IDENTITY` setzen, danach `xcrun notarytool submit --wait` +
+`xcrun stapler staple` (Apple-ID, App-spezifisches Passwort, Team-ID). Windows: Code-Signing-Zertifikat
+bzw. Azure Trusted Signing + `signtool`. Ohne Signatur: macOS „Dennoch öffnen“, Windows SmartScreen.
 
 ## eSCL-Bridge (`adapters/escl`, Start: `scansnap serve [--port 8090] [--name …]`)
 

@@ -15,11 +15,16 @@ uv run --extra app scansnap-app                  # Desktop-App
 
 Die Host-Identität (Host-ID, User-ID, MAC) liegt in `~/.config/scansnap-bridge/identity.json`.
 
+## Download
+
+Fertige Apps für macOS (Apple Silicon/Intel), Windows und Linux unter
+[Releases](https://github.com/elte0/scansnack/releases). Selbst bauen: `uv run --extra app python tools/build_app.py`.
+
 ## Dokumentation
 
 - `docs/protocol.md` – das Protokoll (Single Source of Truth), inkl. offener Fragen
 - `docs/adr/` – Architektur- und Protokollentscheidungen
-- `docs/apps.md` – Desktop- und iOS-App, Packaging
+- `docs/apps.md` – Desktop- und iOS-App, Packaging, Releases
 - Aufbau: hexagonal (`core` ← `ports` ← `adapters` ← `app`), siehe ADR 0002
 
 ## Checks
