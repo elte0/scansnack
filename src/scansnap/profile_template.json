@@ -1,0 +1,126 @@
+{
+  "classification_type": 6,
+  "color_id": 1,
+  "disp_order": 1,
+  "feed": "normal",
+  "feed_select": [
+    "normal",
+    "continuous",
+    "manual"
+  ],
+  "host_address": "",
+  "icon_id": 1,
+  "isScanSnapCloud": false,
+  "operate_limit": 0,
+  "prof_desc": "",
+  "prof_id": "",
+  "prof_name": "scansnap-bridge",
+  "prof_revision": 0,
+  "prof_type": 0,
+  "scan_info": [
+    {
+      "color_mode": "auto",
+      "color_mode_select": [
+        "auto",
+        "color",
+        "gray",
+        "monochrome"
+      ],
+      "doc_type": "document",
+      "long_page": true,
+      "paper_handling": "both",
+      "paper_handling_select": [
+        "both",
+        "single"
+      ],
+      "resolution": "auto",
+      "resolution_select": [
+        "auto",
+        "normal",
+        "fine",
+        "superfine",
+        "excellent"
+      ],
+      "service_name": ""
+    },
+    {
+      "color_mode": "auto",
+      "color_mode_select": [
+        "auto",
+        "color",
+        "gray",
+        "monochrome"
+      ],
+      "doc_type": "card",
+      "long_page": true,
+      "paper_handling": "both",
+      "paper_handling_select": [
+        "both",
+        "single"
+      ],
+      "resolution": "auto",
+      "resolution_select": [
+        "auto",
+        "normal",
+        "fine",
+        "superfine",
+        "excellent"
+      ],
+      "service_name": ""
+    },
+    {
+      "color_mode": "auto",
+      "color_mode_select": [
+        "auto",
+        "color",
+        "gray",
+        "monochrome"
+      ],
+      "doc_type": "receipt",
+      "long_page": true,
+      "paper_handling": "single",
+      "paper_handling_select": [
+        "both",
+        "single"
+      ],
+      "resolution": "auto",
+      "resolution_select": [
+        "auto",
+        "normal",
+        "fine",
+        "superfine",
+        "excellent"
+      ],
+      "service_name": ""
+    },
+    {
+      "color_mode": "auto",
+      "color_mode_select": [
+        "auto",
+        "color",
+        "gray"
+      ],
+      "doc_type": "photo",
+      "long_page": true,
+      "paper_handling": "both",
+      "paper_handling_select": [
+        "both",
+        "single"
+      ],
+      "resolution": "auto",
+      "resolution_select": [
+        "auto",
+        "normal",
+        "fine",
+        "superfine",
+        "excellent"
+      ],
+      "service_name": ""
+    }
+  ],
+  "scan_limit": 0,
+  "sdk_prof": 0,
+  "use_default": false,
+  "user_id": "",
+  "user_name": ""
+}

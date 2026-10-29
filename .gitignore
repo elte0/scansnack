@@ -1,0 +1,11 @@
+__pycache__/
+.venv/
+*.pcap
+*.pcapng
+captures/
+scans/
+ssh-identity.json
+*.log
+build/
+dist/
+packaging/ScanSnap.iconset/
