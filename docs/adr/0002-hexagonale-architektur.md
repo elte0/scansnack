@@ -49,7 +49,7 @@ Regeln:
 Abweichungen gegenüber der Vorlage:
 
 * Zusätzlicher Adapter `library` (Dateiablage), da die Ablage ein eigener Ausgang ist (`OutputPort`).
-* Die iOS-App (`ios/`, eigenes Paket `scansnap_ios`) liegt außerhalb von `scansnap` und ist ihr eigener
+* Die iOS-App (`ios/`, eigenes Paket `scansnack`) liegt außerhalb von `scansnap` und ist ihr eigener
   Composition Root; sie nutzt ix1500- und library-Adapter direkt und die Design-Tokens aus
   `adapters/qt/tokens.py` (Qt-frei). import-linter prüft sie nicht.
 * Die CLI liegt in `app/cli.py`: Sie verdrahtet nicht nur, sondern enthält Experimentierbefehle, die

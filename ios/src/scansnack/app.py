@@ -47,9 +47,6 @@ class ScanSnackApp(toga.App):
     def startup(self) -> None:
         # paths.data ist auf iOS „Documents“ und damit in „Dateien“ sichtbar – dort nur die PDFs
         data = Path.home() / "Library" / "Application Support" / "ScanSnack"
-        old = data.with_name("ScanSnap")  # Datenordner vor der Umbenennung übernehmen
-        if not data.exists() and old.is_dir():
-            old.rename(data)
         data.mkdir(parents=True, exist_ok=True)
         self.docs = Path.home() / "Documents"
         self.settings_file = data / "settings.json"

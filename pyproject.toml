@@ -49,7 +49,7 @@ select = ["E", "W", "F", "I", "UP", "B", "BLE", "PERF", "FURB", "PYI", "RUF"]
 ignore = ["RUF001", "RUF002", "RUF003"]   # deutsche Typografie („“, –, ×)
 
 [tool.ruff.lint.isort]
-known-first-party = ["scansnap", "scansnap_ios", "mock_scanner", "helpers"]
+known-first-party = ["scansnap", "scansnack", "mock_scanner", "helpers"]
 
 [tool.pyright]
 typeCheckingMode = "strict"

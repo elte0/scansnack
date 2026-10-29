@@ -32,7 +32,7 @@ app = BUNDLE(
     coll,
     name="ScanSnack.app",
     icon=str(ROOT / "packaging" / "ScanSnack.icns"),
-    bundle_identifier="com.elte0.scansnap-bridge",
+    bundle_identifier="com.elte0.scansnack",
     version=VERSION,
     info_plist={
         "CFBundleDisplayName": "ScanSnack",

@@ -7,8 +7,8 @@ set -euo pipefail
 cd "${0:A:h}"
 
 TEAM=${TEAM:-2BCANYGFHU}
-BUNDLE=com.elte0.scansnap-ios
-PROJECT=build/scansnap_ios/ios/xcode
+BUNDLE=com.elte0.scansnack
+PROJECT=build/scansnack/ios/xcode
 
 # Briefcase braucht ein „echtes“ Python (uv-Python lässt sich nicht als venv kopieren)
 if [[ ! -x .venv/bin/briefcase ]]; then
@@ -26,8 +26,6 @@ for s in 1280 1920; do        # Startbildschirm: Icon mittig auf Weiß
   [[ resources/icon-$s.png -nt $ICON ]] || sips -p $s $s --padColor FFFFFF $ICON --out resources/icon-$s.png >/dev/null
 done
 
-# Nach der Umbenennung (ScanSnap → ScanSnack) heißt das Xcode-Projekt anders: neu erzeugen
-[[ -d $PROJECT && ! -d $PROJECT/ScanSnack.xcodeproj ]] && rm -rf $PROJECT
 if [[ -d $PROJECT ]]; then
   .venv/bin/briefcase update iOS -r --update-resources --no-input
 else

@@ -3,23 +3,23 @@
 
 [tool.briefcase]
 project_name = "ScanSnack"
-bundle = "com.elte0"
+bundle = "com.elte0"            # + App-Name → com.elte0.scansnack
 version = "0.1.0"
 author = "elte0"
 author_email = "elte0@posteo.de"
 license = "LicenseRef-Proprietary"
 
-[tool.briefcase.app.scansnap_ios]
+[tool.briefcase.app.scansnack]
 formal_name = "ScanSnack"
 description = "Scannen mit dem ScanSnap iX1500 per WLAN"
 icon = "resources/icon"
-sources = ["src/scansnap_ios", "src/scansnap"]
+sources = ["src/scansnack", "src/scansnap"]
 requires = ["pillow>=12"]
 
-[tool.briefcase.app.scansnap_ios.iOS]
+[tool.briefcase.app.scansnack.iOS]
 requires = ["toga-iOS>=0.5", "std-nslog"]
 
-[tool.briefcase.app.scansnap_ios.iOS.info]
+[tool.briefcase.app.scansnack.iOS.info]
 NSLocalNetworkUsageDescription = "ScanSnack connects to your scanner in the local network."
 # PDFs in „Dateien“ → „Auf meinem iPhone“ → „ScanSnack“
 UIFileSharingEnabled = true

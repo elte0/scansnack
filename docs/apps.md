@@ -29,7 +29,7 @@ Start: `uv run --extra app scansnap-app [--ip …]`. Oberfläche auf Englisch, C
 
 ### Mac-Bundle (`packaging/`)
 
-`packaging/build_mac.sh` → `dist/ScanSnack.app` + `dist/ScanSnack-<ver>.dmg`; `ScanSnack.spec` (Qt-Module
+Bundle-ID `com.elte0.scansnack`. `packaging/build_mac.sh` → `dist/ScanSnack.app` + `dist/ScanSnack-<ver>.dmg`; `ScanSnack.spec` (Qt-Module
 ausgeschlossen, Info.plist inkl. `NSLocalNetworkUsageDescription`), Icon aus `tools/make_icon.py`.
 Build prüft Signatur + `ScanSnack --selftest` (Paketdaten, JPEG, PDF). arm64, ad hoc signiert (andere Macs:
 Rechtsklick → Öffnen), ~107 MB, DMG ~46 MB. Beim ersten Start fragt macOS nach Zugriff aufs lokale Netz.
@@ -44,16 +44,18 @@ Rechtsklick → Öffnen), ~107 MB, DMG ~46 MB. Beim ersten Start fragt macOS nac
 
 ## iOS-App (`ios/`)
 
+Bundle-ID `com.elte0.scansnack` (Briefcase: `bundle` + App-Name; der App-Name ist zugleich der Modulname,
+daher das Paket `ios/src/scansnack`).
+
 BeeWare: Briefcase 0.4.7, Toga 0.5.7, Python 3.14, Pillow-iOS-Wheel. Kern per Symlink `ios/src/scansnap`.
 Die iOS-App ist ihr eigener Composition Root (nutzt ix1500- und library-Adapter direkt).
 
-- `ios/src/scansnap_ios/app.py`: Tabs „Scan“ (Profilliste, Optionen, Scan; dauerhafte Sitzung, Scan-Taste)
+- `ios/src/scansnack/app.py`: Tabs „Scan“ (Profilliste, Optionen, Scan; dauerhafte Sitzung, Scan-Taste)
   und „Documents“, Seitenansicht (Delete/Share, UIActivityViewController via rubicon), Scanner-IP. Nach dem
   Scan öffnet die Seitenansicht. `theme.py` nimmt die Tokens aus `scansnap.adapters.qt.tokens`.
   Jeder Bildschirm wird per `render()` aus dem Zustand gebaut, auch beim Hell/Dunkel-Wechsel.
 - Identität-Name `scansnap-iphone` → am Touchpanel als Benutzer wählen. PDFs in `Documents` (in „Dateien“
-  sichtbar), Rest in `Library/Application Support/ScanSnack`
-  (der Ordner `ScanSnap` von vor der Umbenennung wird beim Start übernommen).
+  sichtbar), Rest in `Library/Application Support/ScanSnack`.
 - Toga-Fallen: `toga.App` hat schon `documents` u. a. (eigene Attribute nicht so nennen); Labels brechen
   nicht um; Farben mit Alpha nur als `rgb(...)`-Objekt; `margin` ist Außenabstand; in verdeckten Tabs feste
   Breite setzen.
