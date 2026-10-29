@@ -61,6 +61,16 @@ def fake_sessions(monkeypatch: pytest.MonkeyPatch) -> Iterator[Sessions]:
         m.close()
 
 
+def wait_until(cond: Callable[[], bool], timeout: float = 5.0) -> bool:
+    """Wartet auf einen Zustand der Polling-Threads statt fester Pausen (langsame CI-Runner)."""
+    deadline = time.monotonic() + timeout
+    while not cond():
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(0.01)
+    return True
+
+
 def make_device() -> tuple[device.Device, FakeControl]:
     dev = device.Device("127.0.0.1", IDENT, rotate=False, crop=False, keep_alive=True)
     ctl = dev.ctl = FakeControl()
@@ -78,7 +88,13 @@ def test_keep_alive_reuses_session_and_polls_between_scans(fake_sessions: Sessio
     dev.connect()
     assert len(list(dev.scan(Settings()))) == 1
     assert dev.connected  # nach dem Scan läuft das C2-Polling weiter
-    time.sleep(0.3)  # Polling-Takt nach dem Scan: 250 ms
+
+    # Polling-Takt nach dem Scan: 250 ms; warten, bis nach dem Scan-Ende (D6) ein C2 kam
+    def polled_after_scan() -> bool:
+        ops = [cdb[0] for cdb, _ in mocks[0].received]
+        return 0xC2 in ops[ops.index(0xD6) :]
+
+    assert wait_until(polled_after_scan)
     mocks[0].refill()  # nächstes Blatt in den Einzug
     assert len(list(dev.scan(Settings()))) == 1
     assert len(opened) == 1
@@ -96,8 +112,7 @@ def test_dead_connection_is_rebuilt_before_scan(fake_sessions: Sessions) -> None
     dev.connect()
     mocks[0].close()
     channel(opened[0]).sock.shutdown(2)  # Scanner weg: Polling bricht ab
-    time.sleep(0.05)
-    assert not dev.connected
+    assert wait_until(lambda: not dev.connected)
     assert len(list(dev.scan(Settings()))) == 1
     assert len(opened) == 2
 
