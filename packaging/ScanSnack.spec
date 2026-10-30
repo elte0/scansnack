@@ -9,7 +9,8 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, copy_metadata
 
 ROOT = Path(SPECPATH).parent
-VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+# Explicit UTF-8: on Windows the default encoding is cp1252, and pyproject.toml contains non-ASCII characters
+VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text("utf-8"))["project"]["version"]
 
 # Unused Qt modules: saves more than half of the size
 QT_EXCLUDES = [f"PySide6.{m}" for m in (
