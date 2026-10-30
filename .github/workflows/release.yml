@@ -6,7 +6,6 @@ name: Release
 on:
   push:
     tags: ["v*.*.*"]
-    branches: [claude/project-thread-gchkob]   # TEMPORARY: test builds, will be removed
   workflow_call:
     inputs:
       tag:
