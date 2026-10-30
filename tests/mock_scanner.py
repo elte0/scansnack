@@ -1,9 +1,9 @@
-"""Simulierter iX1500 auf Basis der Fixtures.
+"""Simulated iX1500 based on the fixtures.
 
-Steuerbefehle (D5, E9, D4 …) werden mit den aufgezeichneten Antworten beantwortet
-und mitgeschrieben, damit Tests die gesendeten Parameterblöcke prüfen können.
-Bilddaten simuliert der Mock: synthetische JPEGs in den aufgezeichneten Maßen,
-gestückelt nach der vom Client angeforderten Länge, mit EOM-Sense am Seitenende.
+Control commands (D5, E9, D4 …) are answered with the recorded replies and logged
+so that tests can check the parameter blocks that were sent.
+The mock simulates image data: synthetic JPEGs in the recorded dimensions,
+split into chunks of the length the client requests, with an EOM sense at the end of the page.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ class MockScanner:
         self._sheet = -1
         self._pos = {0: 0, 1: 0}
         self._sense = sense()
-        self.jam_at: int | None = None  # Blattnummer, bei der E0 einen Papierstau (3/80/01) meldet
+        self.jam_at: int | None = None  # sheet number at which E0 reports a paper jam (3/80/01)
         self.srv = socket.create_server(("127.0.0.1", 0))
         self.port = self.srv.getsockname()[1]
         threading.Thread(target=self._serve, daemon=True).start()
@@ -63,7 +63,7 @@ class MockScanner:
         self.srv.close()
 
     def refill(self) -> None:
-        """Dieselben Blätter wieder in den Einzug legen."""
+        """Put the same sheets back into the feeder."""
         self._sheet = -1
 
     def _serve(self) -> None:

@@ -1,7 +1,7 @@
-"""Primer (wie die Desktop-App) für Toga auf iOS: Farben aus ``scansnap.adapters.qt.tokens``, Rest nativ per rubicon.
+"""Primer (as in the desktop app) for Toga on iOS: colors from ``scansnap.adapters.qt.tokens``, the rest via rubicon.
 
-Toga kennt weder Eckenradius noch Rahmen; das setzen die Helfer hier direkt am UIView-Layer. Hell/Dunkel:
-:func:`mode` liest den Systemzustand, die App baut die Oberfläche bei einem Wechsel neu auf.
+Toga knows neither corner radius nor borders; the helpers here set them directly on the UIView layer. Light/dark:
+:func:`mode` reads the system state, the app rebuilds the UI on a switch.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ class Theme:
         self.tokens = TOKENS[scheme]
 
     def __getitem__(self, token: str) -> rgb:
-        """Token als Toga-Farbe (Hex mit Alpha versteht Travertino nicht, daher als Farbobjekt)."""
+        """Token as a Toga color (Travertino does not understand hex with alpha, hence a color object)."""
         return rgb(*self.rgba(token))
 
     def rgba(self, token: str) -> tuple[int, int, int, float]:
@@ -61,7 +61,7 @@ def switch_tint(switch, theme: Theme) -> None:
 
 
 def text_field(widget, theme: Theme) -> None:
-    """TextInput wie Primer: weiß, grauer Rahmen, Innenabstand."""
+    """TextInput like Primer: white, gray border, padding."""
     native = widget._impl.native
     native.borderStyle = 0  # UITextBorderStyleNone
     native.backgroundColor = theme.ui("bgColor-default")
@@ -73,12 +73,12 @@ def text_field(widget, theme: Theme) -> None:
 
 
 def tint_window(window, theme: Theme) -> None:
-    """Akzentfarbe für Navigationsleiste, Tab-Leiste und System-Knöpfe."""
+    """Accent color for the navigation bar, tab bar and system buttons."""
     window._impl.native.tintColor = theme.ui("fgColor-accent")
 
 
 def tab_symbols(tabs, names: list[str]) -> None:
-    """SF-Symbole für die Tab-Leiste (Toga erwartet sonst Bilddateien)."""
+    """SF Symbols for the tab bar (Toga otherwise expects image files)."""
     controllers = tabs._impl.native_controller.viewControllers
     for i, name in enumerate(names):
         controllers.objectAtIndex(i).tabBarItem.image = UIImage.systemImageNamed(name)
@@ -90,18 +90,18 @@ class _TapTarget(NSObject):
         self.callback()
 
 
-_targets: list = []  # Gesten halten ihr Ziel nicht fest
+_targets: list = []  # gestures do not retain their target
 
 
 def _pass_touches(widget) -> None:
-    """Unteransichten (Texte, Bilder) nehmen keine Berührungen an, sonst kommt der Tipp nicht bei der Zeile an."""
+    """Subviews (texts, images) do not accept touches, otherwise the tap does not reach the row."""
     for child in widget.children:
         child._impl.native.userInteractionEnabled = False
         _pass_touches(child)
 
 
 def on_tap(widget, callback: Callable[[], None]) -> None:
-    """Antippen einer Box (Listenzeile) – Toga-Boxen haben keinen eigenen Handler."""
+    """Tapping a box (list row) – Toga boxes have no handler of their own."""
     target = _TapTarget.alloc().init()
     target.callback = callback
     _targets.append(target)

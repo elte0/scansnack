@@ -1,4 +1,4 @@
-"""Kleine Hilfen für Tests."""
+"""Small helpers for tests."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def jpeg(w: int = 40, h: int = 60, color: str | int | tuple[int, int, int] = "wh
 
 
 def pixel(im: Image.Image, xy: tuple[int, int]) -> tuple[int, ...]:
-    """Farbwerte eines Pixels als Tupel (RGB-Bilder)."""
+    """Color values of a pixel as a tuple (RGB images)."""
     value = im.getpixel(xy)
     assert isinstance(value, tuple)
     return value

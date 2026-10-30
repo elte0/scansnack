@@ -1,4 +1,4 @@
-{{- /* Seiten aus docs/ haben kein Front Matter: Titel aus der ersten Überschrift nehmen. */ -}}
+{{- /* Pages from docs/ have no front matter: take the title from the first heading. */ -}}
 {{- $t := .Title -}}
 {{- if not $t -}}
   {{- with findRE `<h1[^>]*>(?s:.*?)</h1>` .Content 1 -}}

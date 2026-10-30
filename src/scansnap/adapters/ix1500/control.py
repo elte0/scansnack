@@ -1,6 +1,6 @@
-"""Steuerkanal (TCP 53219). Pro Kommando eine eigene TCP-Verbindung.
+"""Control channel (TCP 53219). One TCP connection per command.
 
-Kommandos, JSON-Layout und Statuswerte: docs/protocol.md, Abschnitt „Control channel (TCP 53219)“.
+Commands, JSON layout and status values: docs/protocol.md, section "Control channel (TCP 53219)".
 """
 
 from __future__ import annotations
@@ -28,12 +28,12 @@ SUB_SCAN_SETTINGS = 0x0810
 
 @dataclass(frozen=True)
 class HostIdentity:
-    """Wie sich der Host gegenüber dem Scanner ausweist."""
+    """How the host identifies itself to the scanner."""
 
     name: str
-    host_id: str  # 16 Hex-Zeichen, erscheint in Discovery und C2-Status
-    user_id: str  # 32 Hex-Zeichen (Großbuchstaben)
-    mac: bytes  # 6 Byte
+    host_id: str  # 16 hex characters, appears in discovery and C2 status
+    user_id: str  # 32 hex characters (upper case)
+    mac: bytes  # 6 bytes
     host_port: int = 55265
 
     @property
@@ -73,7 +73,7 @@ def json_body(sub: int, payload: Any | None) -> bytes:
 
 
 def parse_json_response(frame: bytes) -> tuple[int, Any]:
-    """Antwort-Layout = Server-Header + JSON-Body-Layout ab Offset 16."""
+    """Response layout = server header + JSON body layout from offset 16."""
     if len(frame) < 22:
         raise wire.ProtocolError(f"error frame {frame.hex()}")
     sub = struct.unpack_from(">H", frame, 20)[0]
@@ -82,16 +82,16 @@ def parse_json_response(frame: bytes) -> tuple[int, Any]:
     n = struct.unpack_from("<I", frame, 32)[0]
     raw = frame[36 : 36 + n]
     if not raw.lstrip().startswith((b"{", b"[")):
-        return sub, struct.unpack_from(">I", frame, 24)[0]  # Quittung: u32 Status an Offset 24
+        return sub, struct.unpack_from(">I", frame, 24)[0]  # acknowledgement: u32 status at offset 24
     return sub, json.loads(raw)
 
 
-# Längere Benutzernamen lehnt der Scanner bei 0x0110 mit 0xffffffff ab (getestet: 30 ok, 31 nicht).
+# The scanner rejects longer user names in 0x0110 with 0xffffffff (tested: 30 ok, 31 not).
 MAX_NAME_LEN = 30
 
 
 def profile_template() -> dict[str, Any]:
-    """Profil „ScanSnap Home“ (color/300, Auto-Erkennung) aus einem Scanner-Export, ohne Namen/IDs/IP."""
+    """Profile "ScanSnap Home" (color/300, auto detection) from a scanner export, without names/IDs/IP."""
     data = files("scansnap.adapters.ix1500").joinpath("profile_template.json").read_text(encoding="utf-8")
     return json.loads(data)
 
@@ -114,19 +114,19 @@ class Control:
         with socket.create_connection((self.ip, self.port), timeout=self.timeout) as s:
             return s.getsockname()[0]
 
-    # --- einfache Kommandos -------------------------------------------------
+    # --- simple commands ----------------------------------------------------
 
     def device_name(self) -> str:
         frame = self._call(0x13)
         return frame[16:80].split(b"\0", 1)[0].decode("ascii", "replace")
 
     def state(self) -> int:
-        # UNVERIFIED: Bedeutung des Werts unbekannt.
+        # UNVERIFIED: meaning of the value unknown.
         return struct.unpack_from(">I", self._call(0x30), 16)[0]
 
     def cmd12(self) -> None:
-        # UNVERIFIED: Bedeutung von 0x12 unbekannt, nur wie im Pairing-Capture gesendet.
-        # Antwortet nicht immer (im Pairing-Capture einmal ohne Antwort) – daher tolerant.
+        # UNVERIFIED: meaning of 0x12 unknown, only sent as in the pairing capture.
+        # Does not always answer (once without an answer in the pairing capture) – hence tolerant.
         try:
             with socket.create_connection((self.ip, self.port), timeout=2.0) as s:
                 wire.read_frame(s)
@@ -139,7 +139,7 @@ class Control:
         frame = self._call(0x11, register_body(self.identity, host_ip, flag, now))
         return struct.unpack_from(">I", frame, 12)[0]
 
-    # --- JSON-Kommandos -----------------------------------------------------
+    # --- JSON commands ------------------------------------------------------
 
     def json_call(self, sub: int, payload: Any | None = None) -> Any:
         rsub, result = parse_json_response(self._call(0x41, json_body(sub, payload)))
@@ -165,14 +165,14 @@ class Control:
         )
 
     def claim(self, host_ip: str) -> dict[str, Any]:
-        """Trägt diesen Host als Benutzer mit eigenem Profil beim Scanner ein.
+        """Registers this host as a user with its own profile on the scanner.
 
-        Nur im Pairing-Zustand (0x11 mit Flag 5) möglich, sonst antwortet der Scanner
-        mit ``fffffffe``. Andere Benutzer und Profile bleiben erhalten; die Auswahl
-        (``select``) lässt sich so nicht umstellen (0xffffffff) – das geht nur am
-        Touchpanel. Nach einem Benutzerwechsel am Panel liefert 0x0100 nur die Profile des
-        gewählten Benutzers; dann ``claim`` erneut ausführen. Zum Schluss wird das Pairing wie im
-        Pairing-Capture mit 0x30 → 0x12 → 0x11 (Flag 0) abgeschlossen.
+        Only possible in the pairing state (0x11 with flag 5), otherwise the scanner replies
+        with ``fffffffe``. Other users and profiles are kept; the selection
+        (``select``) cannot be changed this way (0xffffffff) – that only works on the
+        touch panel. After a user switch on the panel, 0x0100 only returns the profiles of the
+        selected user; then run ``claim`` again. Finally, pairing is completed as in the
+        pairing capture with 0x30 → 0x12 → 0x11 (flag 0).
         """
         current = self.get_users()
         name = self.identity.name[:MAX_NAME_LEN]
@@ -186,7 +186,7 @@ class Control:
             "icon_id": 9,
             "color_id": color_id,
         }
-        # Eigenen Eintrag an seiner Stelle ersetzen: eine umsortierte Liste lehnt der Scanner ab.
+        # Replace our own entry in place: the scanner rejects a reordered list.
         users = [me if u.get("host_id") == self.identity.host_id else u for u in current["conn_user"]["users"]]
         if me not in users:
             users.append(me)
@@ -209,33 +209,33 @@ class Control:
         }
         try:
             self.json_call(SUB_SET_PROFILES, payload)
-            # 0x0610 geht im Pairing-Zustand nicht (fffffffe); das Profil wird vor jedem Scan gewählt.
+            # 0x0610 does not work in the pairing state (fffffffe); the profile is selected before every scan.
             self.announce(host_ip)
         finally:
             self.finish_pairing(host_ip)
         return payload
 
     def finish_pairing(self, host_ip: str) -> int:
-        """Abschluss wie im Pairing-Capture. Ohne ihn bleibt der Scanner im Pairing-Zustand
-        (C2 e1), 0x11 mit Flag 0 liefert dann fffffffc und 0x0610 fffffffe."""
+        """Completion as in the pairing capture. Without it the scanner stays in the pairing state
+        (C2 e1), 0x11 with flag 0 then returns fffffffc and 0x0610 fffffffe."""
         self.state()
         self.cmd12()
         return self.register(host_ip, flag=0)
 
     def select_profile(self, prof_id: str) -> None:
-        """Wählt ein Profil; ScanSnap Home sendet das unmittelbar vor jedem Scan (vor D5)."""
+        """Selects a profile; ScanSnap Home sends this immediately before every scan (before D5)."""
         self.json_call(SUB_SELECT_PROFILE, {"version": 1, "prof_id": prof_id})
 
     def pick_profile(self, host_ip: str) -> dict[str, Any]:
         profiles = self.get_users().get("profiles", [])
         if not profiles:
-            raise RuntimeError("Scanner hat keine Profile.")
+            raise RuntimeError("Scanner has no profiles.")
         own = [p for p in profiles if p.get("user_id") == self.identity.user_id]
         same_ip = [p for p in profiles if p.get("host_address") == host_ip]
         return (own or same_ip or profiles)[0]
 
     def handshake(self) -> str:
-        """Ablauf wie ScanSnap Home beim Koppeln. Liefert die lokale IP."""
+        """Sequence like ScanSnap Home when pairing. Returns the local IP."""
         host_ip = self.local_ip()
         self.device_name()
         self.get_users()
@@ -246,10 +246,10 @@ class Control:
         return host_ip
 
     def connect(self) -> str:
-        """Ablauf wie ScanSnap Home beim App-Start mit bereits gekoppeltem Scanner (Kalt-Capture).
+        """Sequence like ScanSnap Home at app start with an already paired scanner (cold capture).
 
-        Anders als beim Koppeln: kein 0x30/0x12, 0x0210 vor 0x11 und 0x11 mit Flag 0.
-        Danach baut ScanSnap Home den Scan-Kanal neu auf (siehe ``cli``).
+        Unlike pairing: no 0x30/0x12, 0x0210 before 0x11, and 0x11 with flag 0.
+        Afterwards ScanSnap Home opens the scan channel anew (see ``cli``).
         """
         host_ip = self.local_ip()
         self.device_name()

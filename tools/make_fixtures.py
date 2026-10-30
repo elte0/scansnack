@@ -1,21 +1,20 @@
-"""Erzeugt bereinigte Test-Fixtures aus Wireshark-Captures.
+"""Generates cleaned-up test fixtures from Wireshark captures.
 
-Übernommen wird ausschließlich ScanSnap-Protokollverkehr (Scanner-IP, Ports
-52217/53218/53219). Capture-Metadaten, fremder Netzverkehr und die gescannten
-Bildinhalte landen nicht in den Fixtures; von den Bildern bleiben nur Maße und
-dpi, die Tests erzeugen daraus synthetische JPEGs.
+Only ScanSnap protocol traffic is kept (scanner IP, ports 52217/53218/53219). Capture metadata,
+unrelated network traffic and the scanned image content do not end up in the fixtures; of the images
+only the dimensions and dpi remain, and the tests generate synthetic JPEGs from them.
 
     python tools/make_fixtures.py captures/ tests/fixtures/captures/ --scanner-ip 192.168.178.29
 
-Anonymisierung: ``captures/anonymize.json`` (gitignored) bildet echte Werte auf gleich lange
-Ersatzwerte ab, z. B. ``{"MacBook Pro von Leander": "MacBook Pro von Example"}``. Ersetzt wird im
-zusammengesetzten Datenstrom vor dem Zerlegen in Frames, daher bleiben Längenfelder gültig. Hex-Werte
-(Host-ID, MAC) werden zusätzlich als Rohbytes ersetzt, weil sie im Protokoll in beiden Formen vorkommen.
-Ohne Abbildung bricht das Skript ab, außer mit ``--no-anonymize``.
+Anonymization: ``captures/anonymize.json`` (gitignored) maps real values to replacement values of the
+same length, e.g. ``{"Leander's MacBook Pro": "Example's MacBook Pro"}``. The replacement happens in the
+reassembled data stream before it is split into frames, so length fields stay valid. Hex values
+(host ID, MAC) are also replaced as raw bytes because they appear in both forms in the protocol.
+Without a mapping the script stops, unless ``--no-anonymize`` is given.
 
-Mitschnitte nie von Hand „passend machen“, damit ein Test grün wird – neu erzeugen.
+Never "fix up" captures by hand to make a test pass – regenerate them.
 
-Benötigt tshark und Pillow.
+Requires tshark and Pillow.
 """
 
 from __future__ import annotations
@@ -36,11 +35,11 @@ _replacements: Replacements = []
 
 
 def load_replacements(mapping: dict[str, str]) -> Replacements:
-    """Textform und – bei Hex-Werten – Rohbytes je Eintrag; gleiche Länge erzwingen (Frame-Längen)."""
+    """Text form and – for hex values – raw bytes per entry; enforce equal length (frame lengths)."""
     res: Replacements = []
     for real, fake in mapping.items():
         if len(real) != len(fake):
-            raise SystemExit(f"anonymize.json: {real!r} und {fake!r} müssen gleich lang sein")
+            raise SystemExit(f"anonymize.json: {real!r} and {fake!r} must have the same length")
         res.append((real.encode(), fake.encode()))
         try:
             res.append((bytes.fromhex(real), bytes.fromhex(fake)))
@@ -103,7 +102,7 @@ def pairs(stream: dict[str, bytes]) -> list[tuple[bytes, bytes]]:
     c, s = frames(stream["C"]), frames(stream["S"])
     if s and len(s[0]) == 16 and len(s) > len(c):
         s = s[1:]
-    return list(zip(c, s, strict=False))  # Antworten können fehlen (0x12)
+    return list(zip(c, s, strict=False))  # replies can be missing (0x12)
 
 
 def scan_fixture(pcap: Path, scanner_ip: str) -> dict[str, Any]:
@@ -118,7 +117,7 @@ def scan_fixture(pcap: Path, scanner_ip: str) -> dict[str, Any]:
             if cdb[0] == 0xC2:
                 c2 = c2 or data.hex()
                 continue
-            if cdb[0] == 0x28 and cdb[2] == 0:  # Bilddaten: nur Maße behalten
+            if cdb[0] == 0x28 and cdb[2] == 0:  # image data: keep only the dimensions
                 images[data[0]].append(data[2:])
                 continue
             exchanges.append(
@@ -162,13 +161,13 @@ def main() -> None:
     p.add_argument("captures", type=Path)
     p.add_argument("out", type=Path)
     p.add_argument("--scanner-ip", required=True)
-    p.add_argument("--anonymize", type=Path, help="Abbildung echt → Ersatz (Standard: <captures>/anonymize.json)")
-    p.add_argument("--no-anonymize", action="store_true", help="Fixtures mit echten Gerätedaten (nicht committen)")
+    p.add_argument("--anonymize", type=Path, help="mapping real → replacement (default: <captures>/anonymize.json)")
+    p.add_argument("--no-anonymize", action="store_true", help="fixtures with real device data (do not commit)")
     a = p.parse_args()
     mapping_file: Path = a.anonymize or a.captures / "anonymize.json"
     if not a.no_anonymize:
         if not mapping_file.exists():
-            raise SystemExit(f"{mapping_file} fehlt – ohne Anonymisierung nur mit --no-anonymize")
+            raise SystemExit(f"{mapping_file} missing – without anonymization only with --no-anonymize")
         _replacements[:] = load_replacements(json.loads(mapping_file.read_text()))
     a.out.mkdir(parents=True, exist_ok=True)
     for pcap in sorted(a.captures.glob("*.pcap*")):

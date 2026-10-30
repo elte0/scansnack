@@ -1,6 +1,6 @@
-"""Primer-Farb-Tokens (GitHub-Designsystem) ohne Qt – gemeinsam für Desktop- (``primer``) und iOS-App.
+"""Primer color tokens (GitHub design system) without Qt – shared by the desktop (``primer``) and iOS apps.
 
-Werte aus @primer/primitives 11.10.0 (dist/css/functional/themes/light.css, dark.css), Namen wie dort.
+Values from @primer/primitives 11.10.0 (dist/css/functional/themes/light.css, dark.css), names as there.
 """
 
 TOKENS = {

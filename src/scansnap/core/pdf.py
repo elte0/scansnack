@@ -1,4 +1,4 @@
-"""Minimales PDF aus JPEG-Seiten: jede Seite ein unverändert eingebetteter DCT-Stream."""
+"""Minimal PDF from JPEG pages: each page is a DCT stream embedded unchanged."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ _SOF = {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 
 
 
 def jpeg_info(data: bytes) -> tuple[int, int, int]:
-    """Breite, Höhe und Anzahl Farbkanäle aus dem SOF-Marker."""
+    """Width, height and number of color channels from the SOF marker."""
     if data[:2] != b"\xff\xd8":
-        raise ValueError("kein JPEG")
+        raise ValueError("not a JPEG")
     i = 2
     while i + 4 <= len(data):
         if data[i] != 0xFF:
-            raise ValueError("JPEG-Marker erwartet")
+            raise ValueError("JPEG marker expected")
         marker = data[i + 1]
         if marker == 0xFF:
             i += 1
@@ -24,19 +24,19 @@ def jpeg_info(data: bytes) -> tuple[int, int, int]:
             h, w, comps = struct.unpack_from(">HHB", data, i + 5)
             return w, h, comps
         i += 2 + length
-    raise ValueError("kein SOF-Marker gefunden")
+    raise ValueError("no SOF marker found")
 
 
 def jpegs_to_pdf(pages: list[bytes], dpi: int | list[int]) -> bytes:
-    """``dpi`` für alle Seiten oder je Seite (bestimmt die Seitengröße im PDF)."""
+    """``dpi`` for all pages or per page (determines the page size in the PDF)."""
     dpis = dpi if isinstance(dpi, list) else [dpi] * len(pages)
-    objects: list[bytes] = []  # Objekt n steht an Index n-1
+    objects: list[bytes] = []  # object n is at index n-1
 
     def add(body: bytes) -> int:
         objects.append(body)
         return len(objects)
 
-    catalog = add(b"")  # wird unten gefüllt
+    catalog = add(b"")  # filled in below
     tree = add(b"")
     kids: list[int] = []
     for jpeg, page_dpi in zip(pages, dpis, strict=True):

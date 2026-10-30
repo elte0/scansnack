@@ -1,10 +1,10 @@
-"""Tauscht die gebaute App (PyInstaller) gegen eine neue Version aus und startet sie neu.
+"""Replaces the built app (PyInstaller) with a new version and restarts it.
 
-Ablauf: Paket neben die installierte App laden (``.<App>-update/``), SHA-256 prüfen, entpacken (DMG über
-``hdiutil``, ZIP, tar.gz). Dann ein Helfer-Skript (``sh`` bzw. PowerShell) als eigener Prozess: wartet,
-bis die App beendet ist, benennt die alte App um, schiebt die neue an ihre Stelle (bei Fehler zurück),
-räumt auf und startet die neue App. Ein laufendes Programm kann sich unter Windows nicht selbst
-überschreiben, deshalb überall derselbe Weg über den Helfer.
+Flow: download the package next to the installed app (``.<App>-update/``), check SHA-256, unpack (DMG via
+``hdiutil``, ZIP, tar.gz). Then a helper script (``sh`` or PowerShell) as a separate process: it waits
+until the app has quit, renames the old app, moves the new one into its place (back on error),
+cleans up and starts the new app. A running program cannot overwrite itself on Windows,
+hence the same route via the helper everywhere.
 """
 
 from __future__ import annotations
@@ -26,8 +26,8 @@ from typing import IO, cast
 from ...core.update import APP_NAME, Asset, Sha256, arch_name, os_name
 
 CHUNK = 256 * 1024
-WAIT_SECONDS = 120  # so lange wartet der Helfer auf das Ende der alten App
-CREATE_NEW_PROCESS_GROUP = 0x00000200  # Windows-Konstanten (subprocess hat sie nur unter Windows)
+WAIT_SECONDS = 120  # how long the helper waits for the old app to quit
+CREATE_NEW_PROCESS_GROUP = 0x00000200  # Windows constants (subprocess only has them on Windows)
 CREATE_NO_WINDOW = 0x08000000
 
 Opener = Callable[[urllib.request.Request, float], IO[bytes]]
@@ -39,7 +39,7 @@ def _open(request: urllib.request.Request, timeout: float) -> IO[bytes]:
 
 
 def _spawn(cmd: list[str], env: Mapping[str, str]) -> None:
-    """Helfer losgelöst starten: er muss die App überleben."""
+    """Start the helper detached: it must outlive the app."""
     if sys.platform == "win32":
         flags = CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
         subprocess.Popen(cmd, env=dict(env), creationflags=flags, close_fds=True)
@@ -51,8 +51,8 @@ def _spawn(cmd: list[str], env: Mapping[str, str]) -> None:
 
 
 def child_env(environ: Mapping[str, str]) -> dict[str, str]:
-    """Umgebung für Helfer und neue App: ohne die Variablen, die der PyInstaller-Bootloader setzt
-    (sonst hält sich die neue App für einen Unterprozess der alten)."""
+    """Environment for the helper and the new app: without the variables the PyInstaller bootloader sets
+    (otherwise the new app takes itself for a subprocess of the old one)."""
     env = dict(environ)
     env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
     for var in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
@@ -64,14 +64,14 @@ def child_env(environ: Mapping[str, str]) -> dict[str, str]:
 
 
 def _ps(value: str | Path) -> str:
-    """PowerShell-String in einfachen Anführungszeichen."""
+    """PowerShell string in single quotes."""
     return "'" + str(value).replace("'", "''") + "'"
 
 
 def posix_script(pid: int, target: Path, staged: Path, staging: Path, relaunch: str) -> str:
     q = shlex.quote
     return f"""#!/bin/sh
-# ScanSnack-Update: wartet auf das Ende der alten App, tauscht sie aus und startet die neue.
+# ScanSnack update: waits for the old app to quit, replaces it and starts the new one.
 pid={pid}
 target={q(str(target))}
 new={q(str(staged))}
@@ -93,7 +93,7 @@ rm -rf "$staging"
 
 
 def windows_script(pid: int, target: Path, staged: Path, staging: Path, exe: Path) -> str:
-    return f"""# ScanSnack-Update: wartet auf das Ende der alten App, tauscht sie aus und startet die neue.
+    return f"""# ScanSnack update: waits for the old app to quit, replaces it and starts the new one.
 $appPid = {pid}
 $target = {_ps(target)}
 $new = {_ps(staged)}
@@ -118,7 +118,7 @@ Start-Process -FilePath {_ps(exe)}
 
 
 class SelfInstaller:
-    """``Installer`` für die PyInstaller-App: macOS ``ScanSnack.app``, sonst der Ordner ``ScanSnack``."""
+    """``Installer`` for the PyInstaller app: on macOS ``ScanSnack.app``, otherwise the folder ``ScanSnack``."""
 
     def __init__(
         self,
@@ -144,7 +144,7 @@ class SelfInstaller:
 
     @property
     def target(self) -> Path:
-        """Was ausgetauscht wird: das ``.app``-Bundle bzw. der App-Ordner."""
+        """What gets replaced: the ``.app`` bundle or the app folder."""
         if self.os == "macos" and len(self.executable.parents) > 2 and self.executable.parents[2].suffix == ".app":
             return self.executable.parents[2]
         return self.executable.parent
@@ -165,7 +165,7 @@ class SelfInstaller:
             return f"No permission to replace {self.target}."
         return None
 
-    # --- Herunterladen und entpacken ----------------------------------------------------
+    # --- Download and unpack ------------------------------------------------------------
     def prepare(self, asset: Asset, progress: Callable[[int, int], None]) -> Path:
         if not asset.sha256:
             raise ValueError(f"{asset.name}: no checksum published, refusing to install")
@@ -177,7 +177,7 @@ class SelfInstaller:
         new.mkdir()
         self._unpack(archive, new)
         archive.unlink()
-        staged = new / (f"{APP_NAME}.app" if self.os == "macos" else APP_NAME)  # Name im Paket, nicht der lokale
+        staged = new / (f"{APP_NAME}.app" if self.os == "macos" else APP_NAME)  # name in the package, not the local one
         if not (staged / self.executable.relative_to(self.target)).is_file():
             raise ValueError(f"{asset.name}: does not contain {self.executable.relative_to(self.target)}")
         return staged
@@ -199,10 +199,10 @@ class SelfInstaller:
         name = archive.name
         if name.endswith(".zip"):
             with zipfile.ZipFile(archive) as z:
-                z.extractall(dest)  # zipfile entfernt absolute Pfade und „..“
+                z.extractall(dest)  # zipfile strips absolute paths and ".."
         elif name.endswith((".tar.gz", ".tgz")):
             with tarfile.open(archive, "r:gz") as t:
-                t.extractall(dest, filter="data")  # nichts außerhalb von dest, keine Gerätedateien
+                t.extractall(dest, filter="data")  # nothing outside dest, no device files
         elif name.endswith(".dmg"):
             self._unpack_dmg(archive, dest)
         else:
@@ -222,7 +222,7 @@ class SelfInstaller:
             subprocess.run(["hdiutil", "detach", str(mount), "-force"], check=False, capture_output=True)
             mount.rmdir()
 
-    # --- Austauschen und neu starten -----------------------------------------------------
+    # --- Replace and restart ---------------------------------------------------------------
     def restart_into(self, staged: Path) -> None:
         pid = os.getpid()
         env = child_env(self.environ)
@@ -234,7 +234,7 @@ class SelfInstaller:
             self.spawn([*cmd, "-File", str(script)], env)
             return
         if self.os == "macos":
-            # Kein Quarantäne-Attribut (urllib setzt keins), zur Sicherheit trotzdem entfernen
+            # No quarantine attribute (urllib sets none), remove it anyway to be safe
             relaunch = 'xattr -dr com.apple.quarantine "$target" 2>/dev/null\nopen "$target"'
         else:
             exe = shlex.quote(self.executable.relative_to(self.target).as_posix())

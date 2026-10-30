@@ -1,5 +1,5 @@
-# Hugo-Seite: App-Vorstellung, Protokoll-Doku, Changelog. Inhalt kommt aus docs/ und CHANGELOG.md (einzige
-# Quelle), siehe Mounts.
+# Hugo site: app presentation, protocol docs, changelog. Content comes from docs/ and CHANGELOG.md (the only
+# source), see mounts.
 baseURL = "https://elte0.github.io/scansnack/"
 languageCode = "en"
 title = "ScanSnack"
@@ -11,7 +11,7 @@ enableRobotsTXT = false
   description = "ScanSnack: scan with a ScanSnap iX1500 over Wi-Fi without ScanSnap Home, and an independent write-up of its protocol."
 
 [markup.goldmark.renderHooks.link]
-  # .md-Links aus docs/ auf die Seiten der Website umschreiben
+  # Rewrite .md links from docs/ to the pages of the website
   enableDefault = true
 
 [markup.goldmark.parser]

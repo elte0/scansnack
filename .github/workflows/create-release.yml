@@ -1,6 +1,6 @@
-# Manuell starten (Actions → Create Release → Run workflow): prüft main, erhöht die Version
-# (Major/Minor/Patch, tools/bump_version.py), macht aus „Unreleased“ in CHANGELOG.md die neue Version,
-# committet, pusht Tag vX.Y.Z und baut das Release (Notes aus CHANGELOG.md).
+# Start manually (Actions → Create Release → Run workflow): checks main, bumps the version
+# (major/minor/patch, tools/bump_version.py), turns "Unreleased" in CHANGELOG.md into the new version,
+# commits, pushes tag vX.Y.Z and builds the release (notes from CHANGELOG.md).
 name: Create Release
 
 on:
@@ -28,29 +28,29 @@ jobs:
       UV_PYTHON: "3.14"
       QT_QPA_PLATFORM: offscreen
     steps:
-      - name: Nur von main
+      - name: Only from main
         if: github.ref != 'refs/heads/main'
         run: |
-          echo "::error::Create Release nur auf main starten (nicht ${{ github.ref_name }})"
+          echo "::error::Start Create Release on main only (not ${{ github.ref_name }})"
           exit 1
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
-      - name: Qt-Systembibliotheken
+      - name: Qt system libraries
         run: sudo apt-get update -q && sudo apt-get install -y -q libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
       - run: tools/check.sh
-      - name: Version erhöhen
+      - name: Bump version
         id: bump
         run: |
           VERSION=$(uv run --no-sync python tools/bump_version.py "${{ inputs.bump }}")
           TAG="v$VERSION"
           if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            echo "::error::Tag $TAG existiert schon"; exit 1
+            echo "::error::Tag $TAG already exists"; exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "### ScanSnack $VERSION (${{ inputs.bump }})" >> "$GITHUB_STEP_SUMMARY"
-      - name: Commit und Tag pushen
+      - name: Push commit and tag
         env:
           TAG: ${{ steps.bump.outputs.tag }}
         run: |

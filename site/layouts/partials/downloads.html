@@ -1,5 +1,5 @@
-{{- /* Download-Knöpfe für das neueste Release. data/release.json schreibt der Pages-Workflow beim Build
-     (GitHub-API, releases/latest); lokal fehlt sie meist, dann gibt es nur den Link zur Release-Seite. */ -}}
+{{- /* Download buttons for the latest release. The Pages workflow writes data/release.json during the build
+     (GitHub API, releases/latest); locally it is usually missing, and then there is only the link to the releases page. */ -}}
 {{- $rel := site.Data.release -}}
 {{- $all := printf "%s/releases" site.Params.repo -}}
 <section class="downloads" id="download">
@@ -32,7 +32,7 @@
   {{- end }}
 </section>
 <script>
-  // Knöpfe fürs eigene System hervorheben
+  // Highlight the buttons for the visitor's own system
   (function () {
     var ua = navigator.userAgent, os = /Mac/.test(ua) ? "macos" : /Win/.test(ua) ? "windows" : /Linux|X11/.test(ua) ? "linux" : "";
     document.querySelectorAll('.downloads .button[data-os="' + os + '"]').forEach(function (b) { b.classList.add("mine"); });

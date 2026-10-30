@@ -1,1 +1,1 @@
-"""eSCL/AirScan-Server mit Bonjour-Anzeige (ADR 0001)."""
+"""eSCL/AirScan server with Bonjour advertisement (ADR 0001)."""

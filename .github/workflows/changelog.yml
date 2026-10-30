@@ -1,6 +1,6 @@
-# Pull Requests, die die App ändern (src/, packaging/, ios/src/), müssen CHANGELOG.md unter „Unreleased“
-# ergänzen (CLAUDE.md). Für Änderungen ohne Bedeutung für Nutzer (Refactoring, Tests) das Label
-# „no changelog“ setzen; der Check läuft beim Setzen erneut.
+# Pull requests that change the app (src/, packaging/, ios/src/) must add to CHANGELOG.md under "Unreleased"
+# (CLAUDE.md). For changes that do not matter to users (refactoring, tests), set the label
+# "no changelog"; the check runs again when the label is set.
 name: Changelog
 
 on:
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: App geändert → CHANGELOG.md ergänzt?
+      - name: App changed → CHANGELOG.md updated?
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
@@ -23,11 +23,11 @@ jobs:
           changed=$(git diff --name-only "$BASE...$HEAD")
           app=$(echo "$changed" | grep -E '^(src/|packaging/|ios/src/)' || true)
           if [ -z "$app" ]; then
-            echo "Keine Änderung an der App."
+            echo "No change to the app."
           elif echo "$changed" | grep -qx 'CHANGELOG.md'; then
-            echo "CHANGELOG.md ist ergänzt."
+            echo "CHANGELOG.md is updated."
           else
-            echo "::error file=CHANGELOG.md::Die App ändert sich, aber CHANGELOG.md nicht. Eintrag unter [Unreleased] ergänzen oder das Label 'no changelog' setzen."
+            echo "::error file=CHANGELOG.md::The app changes, but CHANGELOG.md does not. Add an entry under [Unreleased] or set the label 'no changelog'."
             echo "$app"
             exit 1
           fi

@@ -2,8 +2,8 @@
 title: "ScanSnack app"
 description: "A small desktop app that scans with a ScanSnap iX1500 over Wi-Fi, without ScanSnap Home."
 layout: app
-# Download-Knöpfe: Dateien des neuesten Releases werden über das Namensende gefunden
-# (Namen aus tools/build_app.py: ScanSnack-<version>-<os>-<arch>.<ext>).
+# Download buttons: the files of the latest release are found by the end of their name
+# (names from tools/build_app.py: ScanSnack-<version>-<os>-<arch>.<ext>).
 platforms:
   - name: macOS
     detail: Apple Silicon (M1 or newer)

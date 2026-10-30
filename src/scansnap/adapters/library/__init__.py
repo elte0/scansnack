@@ -1,1 +1,1 @@
-"""Dokumentablage: PDFs im Dateisystem plus JSON-Index (implementiert ``ports.output.OutputPort``)."""
+"""Document library: PDFs in the file system plus a JSON index (implements ``ports.output.OutputPort``)."""

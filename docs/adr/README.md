@@ -10,6 +10,7 @@ decision and sets the old one to "superseded by NNNN".
 |---|---|---|
 | [0001](0001-escl-bridge-instead-of-macos-driver.md) | eSCL bridge instead of a native macOS driver | accepted |
 | [0002](0002-hexagonal-architecture.md) | Hexagonal architecture with enforced import rules | accepted |
-| [0003](0003-desktop-app-with-pyside6.md) | Desktop app in Python with PySide6 | accepted |
+| [0003](0003-desktop-app-with-pyside6.md) | Desktop app in Python with PySide6 | accepted (comment language superseded by 0006) |
 | [0004](0004-ios-app-with-beeware.md) | iOS app with BeeWare/Toga instead of PySide6 | accepted |
 | [0005](0005-own-updater-on-github-releases.md) | Own small updater on top of GitHub Releases | accepted |
+| [0006](0006-english-as-repository-language.md) | English as the only repository language | accepted |

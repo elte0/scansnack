@@ -1,6 +1,6 @@
-"""Erzeugt die App-Icons (packaging/ScanSnack.icns/.ico/.png): Blatt, das in einen Scanner läuft.
+"""Generates the app icons (packaging/ScanSnack.icns/.ico/.png): a sheet feeding into a scanner.
 
-.icns nur auf macOS (iconutil), .ico (Windows) und .png (Linux) überall.
+.icns only on macOS (iconutil), .ico (Windows) and .png (Linux) everywhere.
 
 uv run python tools/make_icon.py
 """
@@ -20,7 +20,7 @@ S = 1024
 
 def draw() -> Image.Image:
     im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    # Hintergrund: abgerundetes Quadrat im macOS-Raster (824 px Inhalt auf 1024), Verlauf blau
+    # Background: rounded square on the macOS grid (824 px content on 1024), blue gradient
     bg = Image.new("RGBA", (S, S))
     top, bottom = (64, 140, 255), (20, 70, 200)
     for y in range(S):
@@ -36,14 +36,14 @@ def draw() -> Image.Image:
     im.paste(bg, (0, 0), mask)
 
     d = ImageDraw.Draw(im)
-    # Blatt mit Textzeilen
+    # Sheet with text lines
     d.rounded_rectangle((322, 190, 702, 640), radius=22, fill=(255, 255, 255, 255))
     for i, y in enumerate(range(262, 560, 52)):
         d.rounded_rectangle((372, y, 652 - (90 if i % 3 == 2 else 0), y + 20), radius=10, fill=(150, 170, 200, 255))
-    # Scanner-Körper
+    # Scanner body
     d.rounded_rectangle((210, 580, 814, 800), radius=60, fill=(36, 40, 52, 255))
-    d.rounded_rectangle((250, 610, 774, 650), radius=20, fill=(14, 16, 22, 255))  # Einzugsschlitz
-    d.rounded_rectangle((640, 712, 760, 744), radius=16, fill=(90, 210, 140, 255))  # Statuslicht
+    d.rounded_rectangle((250, 610, 774, 650), radius=20, fill=(14, 16, 22, 255))  # feed slot
+    d.rounded_rectangle((640, 712, 760, 744), radius=16, fill=(90, 210, 140, 255))  # status light
     return im
 
 

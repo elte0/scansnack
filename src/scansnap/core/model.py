@@ -1,4 +1,4 @@
-"""Grundtypen eines Scans, unabhängig vom Übertragungsweg."""
+"""Basic types of a scan, independent of the transport."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Literal
 
 Mode = Literal["gray", "color"]
 
-# Scanfeld des iX1500 in 1/1200 Zoll, wie ScanSnap Home es im Fenster-Block (E9) sendet
+# Scan area of the iX1500 in 1/1200 inch, as ScanSnap Home sends it in the window block (E9)
 SCAN_WIDTH_1200 = 0x28D0
 SCAN_HEIGHT_1200 = 0x44DC
 
@@ -21,7 +21,7 @@ class ScanSettings:
 
 @dataclass(frozen=True)
 class ImageInfo:
-    """Bildinfo, die der Scanner nach jeder Seite meldet."""
+    """Image info that the scanner reports after each page."""
 
     width: int
     height_max: int
@@ -32,7 +32,7 @@ class ImageInfo:
 
 @dataclass
 class Sheet:
-    """Ein eingezogenes Blatt: fertige JPEGs; ``back`` ist None bei Simplex."""
+    """One fed sheet: finished JPEGs; ``back`` is None for simplex."""
 
     front: bytes
     back: bytes | None
@@ -41,7 +41,7 @@ class Sheet:
 
 @dataclass(frozen=True)
 class FoundScanner:
-    """Ergebnis der Suche im Netz."""
+    """Result of the network search."""
 
     ip: str
     name: str

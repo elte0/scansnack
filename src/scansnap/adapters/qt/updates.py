@@ -1,7 +1,7 @@
-"""Update-Prüfung beim Start und „Check for Updates …“: Dialog mit Install and Restart / Later / Skip.
+"""Update check at startup and "Check for Updates …": dialog with Install and Restart / Later / Skip.
 
-Abfrage und Download laufen in Hintergrund-Threads; die Ergebnisse kommen per Signal in den GUI-Thread.
-"Later" fragt beim nächsten Start wieder, "Skip This Version" erst bei der nächsten neueren Version.
+Query and download run in background threads; the results reach the GUI thread via signals.
+"Later" asks again at the next start, "Skip This Version" only for the next newer version.
 """
 
 from __future__ import annotations
@@ -35,21 +35,21 @@ AUTO_KEY = "update/check_on_start"
 
 @dataclass(frozen=True)
 class Updates:
-    """Was die App zum Aktualisieren braucht (verdrahtet in ``app/desktop.py``)."""
+    """What the app needs for updating (wired in ``app/desktop.py``)."""
 
     source: ReleaseSource
     installer: Installer
     current: Version
     os: str
     arch: str
-    check_on_start: bool = True  # False: nur über das Menü (z. B. beim Start aus dem Quellcode)
+    check_on_start: bool = True  # False: only via the menu (e.g. when started from source)
 
 
 class UpdateDialog(QDialog):
-    """Neue Version anbieten; installiert auf Wunsch mit Fortschrittsbalken."""
+    """Offer a new version; installs it on request with a progress bar."""
 
     progress = Signal(int, int)
-    prepared = Signal(object, str)  # entpackte App (Path) oder None, Fehlermeldung
+    prepared = Signal(object, str)  # unpacked app (Path) or None, error message
 
     def __init__(self, release: Release, updates: Updates, settings: QSettings, parent: QWidget | None = None):
         super().__init__(parent)
@@ -124,7 +124,7 @@ class UpdateDialog(QDialog):
         def work() -> None:
             try:
                 self.prepared.emit(installer.prepare(asset, self.progress.emit), "")
-            except Exception as e:  # noqa: BLE001 – Fehler gehen als Meldung an die Oberfläche
+            except Exception as e:  # noqa: BLE001 – errors go to the UI as a message
                 traceback.print_exc()
                 self.prepared.emit(None, str(e))
 
@@ -151,9 +151,9 @@ class UpdateDialog(QDialog):
 
 
 class UpdateChecker(QObject):
-    """Fragt die Release-Quelle im Hintergrund ab und zeigt bei Bedarf den Dialog."""
+    """Queries the release source in the background and shows the dialog if needed."""
 
-    checked = Signal(object, str, bool)  # Release | None, Fehlermeldung, von Hand gestartet?
+    checked = Signal(object, str, bool)  # Release | None, error message, started by hand?
 
     def __init__(self, window: QWidget, updates: Updates, settings: QSettings, restart: Callable[[Path], None]):
         super().__init__(window)
@@ -177,7 +177,7 @@ class UpdateChecker(QObject):
         def work() -> None:
             try:
                 self.checked.emit(source.latest(), "", manual)
-            except Exception as e:  # noqa: BLE001 – offline o. Ä.: beim Start still
+            except Exception as e:  # noqa: BLE001 – offline or similar: silent at startup
                 self.checked.emit(None, str(e), manual)
 
         threading.Thread(target=work, daemon=True).start()

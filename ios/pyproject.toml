@@ -1,9 +1,9 @@
-# iOS-App (BeeWare Briefcase + Toga). Der Scanner-Kern kommt per Symlink src/scansnap → ../../src/scansnap.
-# Bauen und aufs iPhone (USB) spielen: ./build_ios.sh
+# iOS app (BeeWare Briefcase + Toga). The scanner core comes in via the symlink src/scansnap → ../../src/scansnap.
+# Build and install on the iPhone (USB): ./build_ios.sh
 
 [tool.briefcase]
 project_name = "ScanSnack"
-bundle = "com.elte0"            # + App-Name → com.elte0.scansnack
+bundle = "com.elte0"            # + app name → com.elte0.scansnack
 version = "0.3.0"
 author = "elte0"
 author_email = "elte0@posteo.de"
@@ -11,7 +11,7 @@ license = "LicenseRef-Proprietary"
 
 [tool.briefcase.app.scansnack]
 formal_name = "ScanSnack"
-description = "Scannen mit dem ScanSnap iX1500 per WLAN"
+description = "Scan with the ScanSnap iX1500 over Wi-Fi"
 icon = "resources/icon"
 sources = ["src/scansnack", "src/scansnap"]
 requires = ["pillow>=12"]
@@ -21,6 +21,6 @@ requires = ["toga-iOS>=0.5", "std-nslog"]
 
 [tool.briefcase.app.scansnack.iOS.info]
 NSLocalNetworkUsageDescription = "ScanSnack connects to your scanner in the local network."
-# PDFs in „Dateien“ → „Auf meinem iPhone“ → „ScanSnack“
+# PDFs in "Files" → "On My iPhone" → "ScanSnack"
 UIFileSharingEnabled = true
 LSSupportsOpeningDocumentsInPlace = true

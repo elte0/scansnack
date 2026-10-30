@@ -1,6 +1,6 @@
-"""UDP-Discovery und Heartbeat (Scanner lauscht auf 52217).
+"""UDP discovery and heartbeat (the scanner listens on 52217).
 
-Layout von Probe und Antwort: docs/protocol.md, Abschnitt „Discovery and heartbeat (UDP 52217)“.
+Layout of probe and reply: docs/protocol.md, section "Discovery and heartbeat (UDP 52217)".
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from .wire import MAGIC
 DISCOVERY_PORT = 52217
 PROBES = ((b"VENS", 0x0010), (MAGIC, 0x0100), (b"V2ss", 0x1000))
 HEARTBEAT_FLAG = 0x1000
-HOST_UDP_PORT = 55264  # Quellport von ScanSnap Home für Probes und Heartbeat
+HOST_UDP_PORT = 55264  # source port of ScanSnap Home for probes and heartbeat
 
 
 @dataclass(frozen=True)
@@ -71,7 +71,7 @@ def local_ip_for(target: str) -> str:
 def discover(
     host_mac: bytes, target: str = "255.255.255.255", timeout: float = 3.0, host_ip: str | None = None
 ) -> list[ScannerInfo]:
-    """Sendet die drei Probe-Varianten und sammelt Antworten bis ``timeout``."""
+    """Sends the three probe variants and collects replies until ``timeout``."""
     host_ip = host_ip or local_ip_for(target if target != "255.255.255.255" else "8.8.8.8")
     found: dict[str, ScannerInfo] = {}
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -93,9 +93,9 @@ def discover(
 
 
 class Heartbeat:
-    """UDP-Keepalive wie ScanSnap Home: ``ssNR`` seq=1, Flag 0x1000 an 52217 alle ~0,5 s.
+    """UDP keepalive like ScanSnap Home: ``ssNR`` seq=1, flag 0x1000 to 52217 every ~0.5 s.
 
-    Der Scanner antwortet (unzuverlässig) mit 12 Byte ``ssNR 8001 0000 0000…``.
+    The scanner replies (unreliably) with 12 bytes ``ssNR 8001 0000 0000…``.
     """
 
     def __init__(

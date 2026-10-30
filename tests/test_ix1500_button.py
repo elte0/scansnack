@@ -1,11 +1,11 @@
-"""Scan-Taste am Touchpanel: UDP-Meldung an host_port (privater Live-Capture vom 2026-10-29, nicht veröffentlicht)."""
+"""Scan button on the touch panel: UDP notification to host_port (private live capture of 2026-10-29, unpublished)."""
 
 import socket
 import threading
 
 from scansnap.adapters.ix1500.button import ButtonListener, Notification, parse_notification
 
-# Wie im Capture (Zähler 0x20)
+# As in the capture (counter 0x20)
 NOTIFY = bytes.fromhex("0000003073734e52000000010000000020000000c0a8b21d020000000002") + b"\0" * 18
 
 
@@ -29,7 +29,7 @@ def test_listener_fires_once_per_press() -> None:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             target = ("127.0.0.1", listener.port)
-            for _ in range(3):  # Scanner wiederholt jede Meldung 3×
+            for _ in range(3):  # the scanner repeats every notification 3×
                 s.sendto(NOTIFY, target)
             s.sendto(NOTIFY[:16] + b"\x21" + NOTIFY[17:], target)
             s.sendto(b"junk", target)

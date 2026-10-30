@@ -1,7 +1,7 @@
-# Baut die Website (site/ + docs/) mit Hugo und veröffentlicht sie auf GitHub Pages.
-# Bei jedem Build: frische Screenshots der App (tools/screenshots.py) und die Downloads des neuesten Releases
-# (site/data/release.json aus der GitHub-API). release.yml startet diesen Workflow nach jedem Release neu.
-# Voraussetzung: Settings → Pages → Source „GitHub Actions“.
+# Builds the website (site/ + docs/) with Hugo and publishes it on GitHub Pages.
+# On every build: fresh screenshots of the app (tools/screenshots.py) and the downloads of the latest release
+# (site/data/release.json from the GitHub API). release.yml restarts this workflow after every release.
+# Requirement: Settings → Pages → Source "GitHub Actions".
 name: Pages
 
 on:
@@ -13,11 +13,11 @@ on:
       - docs/disclaimer.md
       - CHANGELOG.md
       - site/**
-      - src/scansnap/adapters/qt/**   # Oberfläche → Screenshots
+      - src/scansnap/adapters/qt/**   # UI → screenshots
       - src/scansnap/core/**
       - tools/screenshots.py
       - .github/workflows/pages.yml
-  # bei Pull Requests nur bauen (prüft Layout und Mounts), nicht veröffentlichen
+  # on pull requests only build (checks layout and mounts), do not publish
   pull_request:
     paths:
       - docs/protocol.md
@@ -48,22 +48,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v7
-      - name: Qt-Systembibliotheken und Schrift
+      - name: Qt system libraries and font
         run: >
           sudo apt-get update -q && sudo apt-get install -y -q
           libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3 fonts-inter
-      - name: Screenshots der App
+      - name: App screenshots
         run: uv run --extra app python tools/screenshots.py
-      - name: Neuestes Release
+      - name: Latest release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p site/data
           if gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$RUNNER_TEMP/release.json"; then
             mv "$RUNNER_TEMP/release.json" site/data/release.json
-            jq -r '"Release: \(.tag_name), \(.assets | length) Dateien"' site/data/release.json
+            jq -r '"Release: \(.tag_name), \(.assets | length) files"' site/data/release.json
           else
-            echo "Noch kein Release: die Seite verlinkt nur die Release-Übersicht."
+            echo "No release yet: the page only links to the releases overview."
           fi
       - name: Install Hugo
         run: |

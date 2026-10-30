@@ -1,6 +1,6 @@
-# Baut die Desktop-App für macOS (arm64 + Intel), Windows und Linux und hängt sie an ein GitHub-Release.
-# Auslöser: ein Tag vX.Y.Z (von Hand gepusht) oder der Workflow „Create Release“ (ruft diesen auf;
-# Tags, die ein Workflow mit GITHUB_TOKEN pusht, lösen selbst keine Workflows aus).
+# Builds the desktop app for macOS (arm64 + Intel), Windows and Linux and attaches it to a GitHub release.
+# Trigger: a tag vX.Y.Z (pushed by hand) or the workflow "Create Release" (calls this one;
+# tags that a workflow pushes with GITHUB_TOKEN do not trigger workflows themselves).
 name: Release
 
 on:
@@ -15,7 +15,7 @@ on:
 
 permissions:
   contents: write
-  actions: write   # Website neu bauen (Download-Links)
+  actions: write   # rebuild the website (download links)
 
 env:
   TAG: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
@@ -31,7 +31,7 @@ jobs:
           - { os: macos-latest, target: macos-arm64 }
           - { os: macos-15-intel, target: macos-x86_64 }
           - { os: windows-latest, target: windows-x86_64 }
-          - { os: ubuntu-22.04, target: linux-x86_64 }    # ältere glibc → läuft auf mehr Distributionen
+          - { os: ubuntu-22.04, target: linux-x86_64 }    # older glibc → runs on more distributions
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -41,12 +41,12 @@ jobs:
         with:
           ref: ${{ env.TAG }}
       - uses: astral-sh/setup-uv@v7
-      - name: Tag passt zur Version in pyproject.toml
+      - name: Tag matches the version in pyproject.toml
         if: env.TAG != ''
         run: |
           VERSION=$(uv version --short)
-          [ "$TAG" = "v$VERSION" ] || { echo "::error::Tag $TAG passt nicht zu Version $VERSION"; exit 1; }
-      - name: Qt-Systembibliotheken (Linux)
+          [ "$TAG" = "v$VERSION" ] || { echo "::error::Tag $TAG does not match version $VERSION"; exit 1; }
+      - name: Qt system libraries (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -y -q libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
       - run: uv run --extra app python tools/build_app.py
@@ -68,19 +68,19 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      # Prüfsummen für die Update-Prüfung der App (zusätzlich zu GitHubs eigenem digest pro Asset)
+      # Checksums for the app's update check (in addition to GitHub's own digest per asset)
       - name: SHA256SUMS
         run: cd dist && sha256sum ScanSnack-* > SHA256SUMS && cat SHA256SUMS
-      # Release-Notes: Abschnitt der Version aus CHANGELOG.md (von Create Release angelegt);
-      # fehlt er (Tag von Hand ohne Changelog), erzeugt GitHub die Notes aus den Pull Requests.
-      - name: Release-Notes aus CHANGELOG.md
+      # Release notes: the version's section from CHANGELOG.md (created by Create Release);
+      # if it is missing (tag by hand without changelog), GitHub generates the notes from the pull requests.
+      - name: Release notes from CHANGELOG.md
         run: |
           if python3 tools/changelog.py notes "${TAG#v}" > "$RUNNER_TEMP/notes.md"; then
             echo "GENERATE=" >> "$GITHUB_ENV"
             printf '\nAll changes: [CHANGELOG.md](%s/blob/%s/CHANGELOG.md)\n\n' \
               "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$TAG" >> "$RUNNER_TEMP/notes.md"
           else
-            echo "::warning::Kein Abschnitt ${TAG#v} in CHANGELOG.md, Notes werden aus den Pull Requests erzeugt"
+            echo "::warning::No section ${TAG#v} in CHANGELOG.md, notes are generated from the pull requests"
             : > "$RUNNER_TEMP/notes.md"
             echo "GENERATE=--generate-notes" >> "$GITHUB_ENV"
           fi
@@ -106,16 +106,16 @@ jobs:
           Unofficial project, not affiliated with PFU or Fujitsu. See the [disclaimer](https://github.com/elte0/scansnack/blob/main/docs/disclaimer.md).
           NOTES
           cat "$RUNNER_TEMP/notes.md"
-      - name: GitHub-Release anlegen
+      - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -l dist
-          # shellcheck disable=SC2086  # $GENERATE ist leer oder genau eine Option
+          # shellcheck disable=SC2086  # $GENERATE is empty or exactly one option
           gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "ScanSnack ${TAG#v}" $GENERATE --notes-file "$RUNNER_TEMP/notes.md"
-      - name: Website mit den neuen Download-Links bauen
+      - name: Build the website with the new download links
         env:
           GH_TOKEN: ${{ github.token }}
-        # auf main, nicht auf dem Tag: die Umgebung github-pages erlaubt nur main
+        # on main, not on the tag: the github-pages environment only allows main
         run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main

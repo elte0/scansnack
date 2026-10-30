@@ -1,8 +1,8 @@
-"""iPhone-Oberfläche im Primer-Design der Desktop-App: Tabs „Scan“ und „Documents“, Seitenansicht mit Teilen.
+"""iPhone UI in the Primer design of the desktop app: tabs "Scan" and "Documents", page view with sharing.
 
-Wie die Desktop-App: dauerhafte Sitzung (Scan-Taste am Panel), jeder Scan wird sofort als PDF gespeichert.
-PDFs liegen in ``Documents`` (in „Dateien“ sichtbar), Index, Vorschauen und Identität in ``Library``.
-Jeder Bildschirm wird aus dem Zustand neu gebaut (:meth:`render`), auch beim Wechsel Hell/Dunkel.
+Like the desktop app: persistent session (scan button on the panel), every scan is saved as PDF right away.
+PDFs live in ``Documents`` (visible in "Files"), index, thumbnails and identity in ``Library``.
+Every screen is rebuilt from the state (:meth:`render`), also when switching between light and dark.
 """
 
 from __future__ import annotations
@@ -30,8 +30,8 @@ from scansnap.core.model import ScanSettings as Settings
 from . import theme
 from .theme import Theme
 
-RECONNECT_EVERY = 20.0  # wie die Desktop-App: Sitzung halten, sonst kommt die Scan-Taste nicht an
-IDENTITY_NAME = "scansnap-iphone"  # Benutzername am Touchpanel (max. 30 Zeichen)
+RECONNECT_EVERY = 20.0  # like the desktop app: keep the session, otherwise the scan button press does not arrive
+IDENTITY_NAME = "scansnap-iphone"  # user name on the touch panel (max. 30 characters)
 GUTTER = 16
 
 
@@ -45,7 +45,7 @@ def scanner_reachable(ip: str, timeout: float = 2.0) -> bool:
 
 class ScanSnackApp(toga.App):
     def startup(self) -> None:
-        # paths.data ist auf iOS „Documents“ und damit in „Dateien“ sichtbar – dort nur die PDFs
+        # on iOS paths.data is "Documents" and thus visible in "Files" – only the PDFs go there
         data = Path.home() / "Library" / "Application Support" / "ScanSnack"
         data.mkdir(parents=True, exist_ok=True)
         self.docs = Path.home() / "Documents"
@@ -60,7 +60,7 @@ class ScanSnackApp(toga.App):
         self.status_text = ""
         self.connection_state = "not connected"
 
-        # Bildschirm: "main" (Tabs), "scanner" (IP eingeben) oder "document" (Seitenansicht)
+        # screen: "main" (tabs), "scanner" (enter IP) or "document" (page view)
         self.screen = "main" if self.prefs.get("ip") else "scanner"
         self.tab = 0
         self.open_entry: Entry | None = None
@@ -75,7 +75,7 @@ class ScanSnackApp(toga.App):
         self.loop.create_task(self._keep_connected())
         self.loop.create_task(self._follow_appearance())
 
-    # --- Einstellungen ------------------------------------------------------
+    # --- settings -----------------------------------------------------------
 
     def _load_prefs(self) -> dict:
         try:
@@ -87,7 +87,7 @@ class ScanSnackApp(toga.App):
         self.settings_file.write_text(json.dumps(self.prefs))
 
     def _relocate_entries(self) -> None:
-        """Der App-Container wechselt bei Neuinstallation den Pfad; Einträge per Dateiname wiederfinden."""
+        """The app container changes its path on reinstall; find entries again by file name."""
         for e in self.library.entries:
             moved = self.docs / Path(e.path).name
             if not e.exists and moved.exists():
@@ -102,11 +102,11 @@ class ScanSnackApp(toga.App):
         p = PRESETS[self.preset_index]
         return self.prefs.get("options") or [p.duplex, p.skip_blank, p.whiten]
 
-    # --- Bausteine (Primer) -------------------------------------------------
+    # --- building blocks (Primer) -------------------------------------------
 
     def label(self, text: str, *, muted: bool = False, size: int = 15, bold: bool = False, **style) -> toga.Label:
-        """Text in Primer-Farben. Toga macht Labels so breit wie ihr Text; wo er lang werden kann, ``width``
-        setzen, sonst läuft die Seite seitlich über (iOS kürzt dann mit „…“)."""
+        """Text in Primer colors. Toga makes labels as wide as their text; where it can get long, set ``width``,
+        otherwise the page overflows sideways (iOS then truncates with "…")."""
         t = self.theme
         label = toga.Label(
             text,
@@ -122,7 +122,7 @@ class ScanSnackApp(toga.App):
         return label
 
     def button(self, text: str, on_press, kind: str = "default", height: int = 40, **style) -> toga.Button:
-        """Primer-Button: ``default`` (grau), ``primary`` (grün), ``invisible`` (nur Text), ``danger``."""
+        """Primer button: ``default`` (gray), ``primary`` (green), ``invisible`` (text only), ``danger``."""
         t = self.theme
         colors = {
             "default": ("control-bgColor-rest", "control-fgColor-rest", "borderColor-default"),
@@ -148,7 +148,7 @@ class ScanSnackApp(toga.App):
         return b
 
     def card(self, children: list, **style) -> toga.Box:
-        """Weiße Fläche mit Rahmen, wie die Listen der Desktop-App."""
+        """White area with a border, like the lists of the desktop app."""
         box = toga.Box(
             children=children, style=Pack(direction="column", background_color=self.theme["bgColor-default"], **style)
         )
@@ -163,12 +163,12 @@ class ScanSnackApp(toga.App):
         return max(200, int(self.main_window.size.width) - 2 * GUTTER)
 
     def page(self, children: list, *, scroll: bool = True) -> tuple[toga.Widget, toga.Box]:
-        """Bildschirmfläche: Primer-Hintergrund (muted), seitlicher Rand, bei Bedarf scrollbar.
+        """Screen area: Primer background (muted), side margin, scrollable if needed.
 
-        Liefert (Container, Inhalt). Der Rand ist in Pack ein Außenabstand, daher immer eine Hülle darum.
+        Returns (container, content). In Pack the margin is an outer spacing, hence always a wrapper around it.
         """
         bg = self.theme["bgColor-muted"]
-        # feste Breite: in einem gerade nicht sichtbaren Tab rechnet Toga sonst mit der Inhaltsbreite
+        # fixed width: in a tab that is not visible right now Toga otherwise uses the content width
         body = toga.Box(
             children=children,
             style=Pack(direction="column", margin=GUTTER, gap=12, width=self.content_width, background_color=bg),
@@ -177,7 +177,7 @@ class ScanSnackApp(toga.App):
             return toga.ScrollContainer(content=body, horizontal=False, style=Pack(flex=1, background_color=bg)), body
         return toga.Box(children=[body], style=Pack(direction="column", flex=1, background_color=bg)), body
 
-    # --- Aufbau -------------------------------------------------------------
+    # --- layout -------------------------------------------------------------
 
     def render(self) -> None:
         theme.tint_window(self.main_window, self.theme)
@@ -193,7 +193,7 @@ class ScanSnackApp(toga.App):
             self.main_window.content = self._main_screen()
 
     async def _follow_appearance(self) -> None:
-        """Hell/Dunkel folgt dem System (Toga meldet den Wechsel nicht, daher abfragen)."""
+        """Light/dark follows the system (Toga does not report the switch, hence polling)."""
         while True:
             await asyncio.sleep(1.0)
             scheme = theme.mode()
@@ -212,14 +212,14 @@ class ScanSnackApp(toga.App):
     def _tab_selected(self, widget, **kwargs) -> None:
         self.tab = widget.content.index(widget.current_tab)
 
-    # --- Tab „Scan“ ---------------------------------------------------------
+    # --- tab "Scan" ---------------------------------------------------------
 
     def _scan_tab(self) -> toga.Widget:
         t = self.theme
         self.preset_rows: list[toga.Box] = []
         rows = []
         for i, p in enumerate(PRESETS):
-            w = self.content_width - 2 * 4 - 2 * 12 - 2  # Kartenrand, Zeilenabstand, Rahmen
+            w = self.content_width - 2 * 4 - 2 * 12 - 2  # card margin, row spacing, border
             row = toga.Box(
                 children=[self.label(p.name, width=w), self.label(p.summary, muted=True, size=13, width=w)],
                 style=Pack(direction="column", margin=(8, 12), gap=2),
@@ -267,7 +267,7 @@ class ScanSnackApp(toga.App):
         )[0]
 
     def _mark_preset(self) -> None:
-        """Auswahl wie in der Desktop-Liste: blasser Akzent-Hintergrund mit Akzent-Rahmen."""
+        """Selection as in the desktop list: pale accent background with an accent border."""
         t = self.theme
         for i, holder in enumerate(self.preset_rows):
             selected = i == self.preset_index
@@ -312,7 +312,7 @@ class ScanSnackApp(toga.App):
             ip = self.prefs.get("ip", "")
             self.scanner_label.text = f"Scanner {ip}\n{state}" if ip else "No scanner"
 
-    # --- Tab „Documents“ ----------------------------------------------------
+    # --- tab "Documents" ----------------------------------------------------
 
     def _documents_tab(self) -> toga.Widget:
         container, self.documents_body = self.page([])
@@ -325,7 +325,7 @@ class ScanSnackApp(toga.App):
         if not self.library.entries:
             body.add(
                 self.label(
-                    "No documents yet.\nLoad paper into the scanner and press „Scan“.",
+                    "No documents yet.\nLoad paper into the scanner and press “Scan”.",
                     muted=True,
                     width=self.content_width,
                     text_align="center",
@@ -343,7 +343,7 @@ class ScanSnackApp(toga.App):
                 if thumb.exists()
                 else toga.Box(style=Pack(width=40, height=52))
             )
-            w = self.content_width - 2 * 12 - 40 - 2 * 12 - 12  # Ränder, Vorschau, Abstände, Pfeil
+            w = self.content_width - 2 * 12 - 40 - 2 * 12 - 12  # margins, thumbnail, spacing, arrow
             text = toga.Box(
                 children=[
                     self.label(e.name, width=w),
@@ -359,7 +359,7 @@ class ScanSnackApp(toga.App):
             rows.append(row)
         body.add(self.card(rows))
 
-    # --- Seitenansicht ------------------------------------------------------
+    # --- page view ----------------------------------------------------------
 
     def _open_document(self, entry: Entry) -> None:
         self.screen, self.open_entry = "document", entry
@@ -430,7 +430,7 @@ class ScanSnackApp(toga.App):
 
     def _confirm_delete(self, entry: Entry) -> None:
         async def ask() -> None:
-            dialog = toga.ConfirmDialog("Delete document?", f"„{entry.name}“ will be deleted from this iPhone.")
+            dialog = toga.ConfirmDialog("Delete document?", f"“{entry.name}” will be deleted from this iPhone.")
             if await self.main_window.dialog(dialog):
                 self.library.remove(entry)
                 entry.file.unlink(missing_ok=True)
@@ -439,7 +439,7 @@ class ScanSnackApp(toga.App):
         self.loop.create_task(ask())
 
     def share_file(self, path: Path) -> None:
-        """Teilen-Menü von iOS (Mail, Dateien sichern, AirDrop, Drucken …)."""
+        """iOS share sheet (Mail, Save to Files, AirDrop, Print …)."""
         from rubicon.objc import ObjCClass
 
         url = ObjCClass("NSURL").fileURLWithPath(str(path))
@@ -450,7 +450,7 @@ class ScanSnackApp(toga.App):
             popover.sourceView = root.view
         root.presentViewController(vc, animated=True, completion=None)
 
-    # --- Scanner-Bildschirm -------------------------------------------------
+    # --- scanner screen -----------------------------------------------------
 
     def _scanner_screen(self) -> toga.Widget:
         t = self.theme
@@ -515,7 +515,7 @@ class ScanSnackApp(toga.App):
         self._show_main()
         self._connect_in_background()
 
-    # --- Verbindung ---------------------------------------------------------
+    # --- connection ---------------------------------------------------------
 
     def _device(self) -> Device:
         ip = self.prefs["ip"]
@@ -547,8 +547,8 @@ class ScanSnackApp(toga.App):
                 try:
                     if not device.connected:
                         device.connect()
-                except Exception as e:  # noqa: BLE001 – der Scan versucht es erneut
-                    print(f"Verbindung fehlgeschlagen: {e}", file=sys.stderr)
+                except Exception as e:  # noqa: BLE001 – the scan tries again
+                    print(f"Connection failed: {e}", file=sys.stderr)
             self.loop.call_soon_threadsafe(self._update_scanner_label)
 
         threading.Thread(target=run, daemon=True).start()
@@ -559,7 +559,7 @@ class ScanSnackApp(toga.App):
             if not self.scanning:
                 self._connect_in_background()
 
-    # --- Scannen ------------------------------------------------------------
+    # --- scanning -----------------------------------------------------------
 
     def _panel_scan(self) -> None:
         if not self.scanning:
@@ -609,7 +609,7 @@ class ScanSnackApp(toga.App):
                 except OSError as e:
                     traceback.print_exc(file=sys.stderr)
                     error, connection = f"Cannot reach the scanner at {device.ip}:\n{e}", True
-                except Exception as e:  # noqa: BLE001 – Meldung an die Oberfläche
+                except Exception as e:  # noqa: BLE001 – message to the UI
                     traceback.print_exc(file=sys.stderr)
                     error = f"Scan failed: {e}"
             entry, save_error = None, ""
@@ -626,7 +626,7 @@ class ScanSnackApp(toga.App):
 
     def _scan_done(self, entry: Entry | None, count: int, note: str, error: str, connection: bool) -> None:
         self.scanning = False
-        self.status_text = f"Saved „{entry.name}“\n{count} page(s){note}." if entry else ""
+        self.status_text = f"Saved “{entry.name}”\n{count} page(s){note}." if entry else ""
         if self.screen == "main":
             self._mark_scanning()
             self._update_scanner_label()
@@ -637,8 +637,8 @@ class ScanSnackApp(toga.App):
         elif error:
             self.loop.create_task(self.main_window.dialog(toga.InfoDialog("Scan", error)))
         if entry and not error:
-            self._open_document(entry)  # wie die Desktop-App: Seiten gleich zeigen
+            self._open_document(entry)  # like the desktop app: show the pages right away
 
 
 def main() -> ScanSnackApp:
-    return ScanSnackApp()  # Name und Bundle-ID aus den Briefcase-Metadaten
+    return ScanSnackApp()  # name and bundle ID from the Briefcase metadata

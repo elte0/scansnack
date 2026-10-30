@@ -23,7 +23,7 @@ from scansnap.ports.scanner import ScannerPort
 
 
 class FakeLocator:
-    """Kein Netz: Suche findet nichts, Erreichbarkeit fest vorgegeben, ``open`` liefert ``device``."""
+    """No network: the search finds nothing, reachability is fixed, ``open`` returns ``device``."""
 
     def __init__(self, device: ScannerPort | None = None, reachable: bool = True):
         self.device = device
@@ -103,7 +103,7 @@ def saved_entry(doc: app_main.Document | None) -> Entry:
 
 def test_scan_is_saved_immediately_then_edited_and_renamed(window: app_main.MainWindow) -> None:
     scan(window, "red", "green", "blue")
-    assert window.current is not None and window.current.entry is None  # während des Scans: Entwurf
+    assert window.current is not None and window.current.entry is None  # during the scan: draft
     assert window.scan_target is not None
     doc = finish(window)
     entry = saved_entry(doc)
@@ -126,7 +126,7 @@ def test_scan_is_saved_immediately_then_edited_and_renamed(window: app_main.Main
 def test_each_scan_becomes_its_own_document(window: app_main.MainWindow) -> None:
     scan(window, "red", "green")
     first = finish(window)
-    scan(window, "blue")  # nächster Scan-Vorgang
+    scan(window, "blue")  # next scan
     second = finish(window)
     assert first is not second and saved_entry(first).file != saved_entry(second).file
     assert window.documents.count() == 2 and window.current is second and window.pages.count() == 1
@@ -152,7 +152,7 @@ def test_failed_autosave_keeps_draft_for_manual_save(
     no_dialogs(monkeypatch)
     blocker = tmp_path / "not-a-folder"
     blocker.write_text("x")
-    window.folder = blocker  # mkdir schlägt fehl
+    window.folder = blocker  # mkdir fails
     scan(window, "red")
     finish(window)
     assert len(window.drafts) == 1 and window.save_button.text() == "Save as PDF"
@@ -168,7 +168,7 @@ def test_saved_document_survives_restart_and_can_be_edited(window: app_main.Main
     w2 = app_main.MainWindow(Library(tmp_path / "library.json"), FakeLocator())
     try:
         assert w2.documents.count() == 1
-        w2.documents.setCurrentRow(0)  # lädt die Seiten aus dem PDF
+        w2.documents.setCurrentRow(0)  # loads the pages from the PDF
         assert w2.pages.count() == 2 and not w2.save_button.isEnabled()
         w2.pages.item(0).setSelected(True)
         w2.delete_selected()
@@ -194,13 +194,13 @@ def test_move_items_to_end(window: app_main.MainWindow) -> None:
 
 
 class JamDevice:
-    """Liefert ein Blatt mit Inhalt, dann Papierstau."""
+    """Delivers one sheet with content, then a paper jam."""
 
     connected = True
 
     def __init__(self) -> None:
         text_page = Image.new("RGB", (300, 400), "white")
-        ImageDraw.Draw(text_page).rectangle((40, 100, 260, 130), fill="black")  # nicht leer
+        ImageDraw.Draw(text_page).rectangle((40, 100, 260, 130), fill="black")  # not blank
         buf = io.BytesIO()
         text_page.save(buf, "JPEG")
         self.page = buf.getvalue()
@@ -249,7 +249,7 @@ def test_unreachable_scanner_at_start_opens_dialog(tmp_path: Path, monkeypatch: 
     monkeypatch.setattr(w, "ask_scanner", ask)
     try:
         w.worker.ip = "192.0.2.1"
-        w.check_scanner()  # prüft im Hintergrund, Ergebnis kommt per Signal
+        w.check_scanner()  # checks in the background, the result arrives via a signal
         for _ in range(200):
             qapp.processEvents()
             if asked:
@@ -267,7 +267,7 @@ def test_data_dir_of_previous_app_name_is_adopted(tmp_path: Path) -> None:
     new = tmp_path / "ScanSnack"
     app_main.adopt_previous(new, "ScanSnap")
     assert (new / "library.json").exists() and not old.exists()
-    old.mkdir()  # neuer Ordner existiert schon: nichts überschreiben
+    old.mkdir()  # new folder already exists: overwrite nothing
     app_main.adopt_previous(new, "ScanSnap")
     assert old.exists()
 
@@ -289,7 +289,7 @@ def test_primer(window: app_main.MainWindow, monkeypatch: pytest.MonkeyPatch, mo
     qapp = app()
     assert qapp.palette().color(QPalette.ColorRole.Base) == primer.color("bgColor-default", mode)
     assert primer.TOKENS[mode]["button-primary-bgColor-rest"] in qapp.styleSheet()
-    assert "rgba(" in qapp.styleSheet()  # Alpha-Tokens umgerechnet
+    assert "rgba(" in qapp.styleSheet()  # alpha tokens converted
     qapp.setStyleSheet("")
 
 
@@ -300,5 +300,5 @@ def test_panel_button_starts_scan_with_current_settings(window: app_main.MainWin
     window.worker.ip = "127.0.0.1"
     window.duplex.setChecked(True)
     window.panel_scan()
-    window.panel_scan()  # zweiter Druck während des Scans: ignoriert
+    window.panel_scan()  # second press during the scan: ignored
     assert len(requested) == 1 and requested[0].duplex and window.scanning

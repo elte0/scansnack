@@ -19,6 +19,8 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 ### Changed
 
 - The README and the website call the project ScanSnack throughout.
+- The command line, log output and error messages are now in English throughout, as are the code
+  comments and developer docs.
 
 ## [0.3.0] - 2026-10-29
 

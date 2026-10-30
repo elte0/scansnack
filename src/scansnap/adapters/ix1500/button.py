@@ -1,7 +1,7 @@
-"""Scan-Taste am Touchpanel: UDP-Meldung an ``host_port`` des ausgewählten Hosts.
+"""Scan button on the touch panel: UDP notification to ``host_port`` of the selected host.
 
-Layout: docs/protocol.md, Abschnitt „Scan button on the touch panel“. Ausgewertet wird nur die UDP-Meldung
-(C2 kann den kurzen Puls verpassen).
+Layout: docs/protocol.md, section "Scan button on the touch panel". Only the UDP notification is evaluated
+(C2 can miss the short pulse).
 """
 
 from __future__ import annotations
@@ -33,11 +33,11 @@ def parse_notification(data: bytes) -> Notification | None:
     return Notification(data[16], str(ipaddress.IPv4Address(data[20:24])), data[24:30].hex(":"))
 
 
-# UNVERIFIED: wie lange das Panel nach „Scan“ auf den Host wartet, ist unbekannt.
+# UNVERIFIED: how long the panel waits for the host after "Scan" is unknown.
 
 
 class ButtonListener:
-    """Lauscht auf UDP ``port`` und ruft ``callback`` einmal je Tastendruck auf (im Listener-Thread)."""
+    """Listens on UDP ``port`` and calls ``callback`` once per button press (in the listener thread)."""
 
     def __init__(self, scanner_ip: str, port: int, callback: Callable[[Notification], None]):
         self.scanner_ip, self.callback = scanner_ip, callback
@@ -66,13 +66,13 @@ class ButtonListener:
                 continue
             wire.trace("<- udp notify", data)
             note = parse_notification(data)
-            if note is None or note.counter == self._last:  # Wiederholung desselben Drucks
+            if note is None or note.counter == self._last:  # repeat of the same press
                 continue
             self._last = note.counter
             try:
                 self.callback(note)
-            except Exception as e:  # noqa: BLE001 – Listener soll weiterlaufen
-                print(f"Scan-Taste: {e}", file=sys.stderr)
+            except Exception as e:  # noqa: BLE001 – the listener must keep running
+                print(f"Scan button: {e}", file=sys.stderr)
 
     def close(self) -> None:
         self._stop.set()

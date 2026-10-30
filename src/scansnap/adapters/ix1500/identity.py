@@ -1,4 +1,4 @@
-"""Dauerhafte Host-Identität (bleibt über Neustarts gleich, damit der Scanner uns wiedererkennt)."""
+"""Persistent host identity (stays the same across restarts so that the scanner recognizes us)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ DEFAULT_PATH = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) 
 
 def _random_mac() -> bytes:
     b = bytearray(secrets.token_bytes(6))
-    b[0] = (b[0] | 0x02) & 0xFE  # lokal administriert, unicast
+    b[0] = (b[0] | 0x02) & 0xFE  # locally administered, unicast
     return bytes(b)
 
 
@@ -26,7 +26,7 @@ def load_or_create(path: Path = DEFAULT_PATH, name: str | None = None) -> HostId
     node = uuid.getnode()
     mac = node.to_bytes(6, "big") if not (node >> 40) & 1 else _random_mac()
     ident = HostIdentity(
-        # "scansnap-bridge (Mac.fritz.box)" lehnt der Scanner bei 0x0110 mit 0xffffffff ab
+        # the scanner rejects "scansnap-bridge (Mac.fritz.box)" in 0x0110 with 0xffffffff
         name=name or "scansnap-bridge",
         host_id=secrets.token_hex(8),
         user_id=uuid.uuid4().hex.upper(),

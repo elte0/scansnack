@@ -1,7 +1,7 @@
-"""Hauptfenster: Voreinstellung wählen, scannen, Seiten sichten (drehen, löschen, sortieren), als PDF ablegen.
+"""Main window: pick a preset, scan, review pages (rotate, delete, reorder), save as PDF.
 
-Links Voreinstellungen und Scan-Knopf, daneben die Dokumentliste („New Scan“ + gespeicherte PDFs),
-rechts die Seiten des gewählten Dokuments. Oberfläche auf Englisch, Code-Kommentare auf Deutsch.
+On the left presets and the scan button, next to them the document list ("New Scan" + saved PDFs),
+on the right the pages of the selected document.
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ from . import primer
 from .updates import UpdateChecker, Updates
 
 APP_NAME = "ScanSnack"
-PREVIOUS_APP_NAME = "ScanSnap"  # bis 2026-10: Datenordner unter diesem Namen
+PREVIOUS_APP_NAME = "ScanSnap"  # until 2026-10: data folder under this name
 PAGE_ROLE = Qt.ItemDataRole.UserRole
 THUMB = 220
 DOC_THUMB = 56
@@ -70,8 +70,8 @@ RECONNECT_MS = 20_000
 
 
 def _page_icon(thumb_png: bytes, rotation: int, size: int = THUMB) -> QIcon:
-    """Miniatur unten mittig auf quadratischer, transparenter Fläche: Hoch- und Querformat (nach dem Drehen)
-    haben dieselbe Größe, sonst bleibt beim Drehen die alte Darstellung stehen."""
+    """Thumbnail bottom-centered on a square, transparent canvas: portrait and landscape (after rotating)
+    have the same size, otherwise the old rendering stays visible when rotating."""
     pix = QPixmap.fromImage(QImage.fromData(thumb_png)).transformed(
         QTransform().rotate(rotation), Qt.TransformationMode.SmoothTransformation
     )
@@ -80,20 +80,20 @@ def _page_icon(thumb_png: bytes, rotation: int, size: int = THUMB) -> QIcon:
     canvas = QPixmap(size, size)
     canvas.fill(Qt.GlobalColor.transparent)
     painter = QPainter(canvas)
-    painter.drawPixmap((size - pix.width()) // 2, size - pix.height(), pix)  # unten: nah an der Beschriftung
+    painter.drawPixmap((size - pix.width()) // 2, size - pix.height(), pix)  # bottom: close to the label
     painter.end()
     icon = QIcon(canvas)
-    icon.addPixmap(canvas, QIcon.Mode.Selected)  # sonst färbt Qt ausgewählte Miniaturen ein
+    icon.addPixmap(canvas, QIcon.Mode.Selected)  # otherwise Qt tints selected thumbnails
     return icon
 
 
 class ScanWorker(QObject):
-    """Läuft im eigenen Thread; meldet jede Seite einzeln, damit die Vorschau mitwächst."""
+    """Runs in its own thread; reports every page separately so that the preview grows along."""
 
-    page = Signal(object, bytes)  # ScanPage, PNG-Vorschau
+    page = Signal(object, bytes)  # ScanPage, PNG preview
     status = Signal(str)
-    done = Signal(str, bool)  # Fehlermeldung ("" = ok), Verbindungsproblem?
-    button = Signal()  # „Scan“ am Touchpanel gedrückt (aus dem Listener-Thread)
+    done = Signal(str, bool)  # error message ("" = ok), connection problem?
+    button = Signal()  # "Scan" pressed on the touch panel (from the listener thread)
 
     def __init__(self, ip: str, locator: ScannerLocator):
         super().__init__()
@@ -103,7 +103,7 @@ class ScanWorker(QObject):
         self.device_ip = ""
 
     def _device(self) -> ScannerPort:
-        """Dauerhaft verbundenes Gerät zur aktuellen IP (bei IP-Wechsel alte Verbindung trennen)."""
+        """Persistently connected device for the current IP (disconnect the old one when the IP changes)."""
         if self.device is None or self.device_ip != self.ip:
             self.close_connection()
             self.device = self.locator.open(self.ip, on_button=self.button.emit)
@@ -112,8 +112,8 @@ class ScanWorker(QObject):
 
     @Slot()
     def open_connection(self) -> None:
-        """Verbindung schon vor dem ersten Scan aufbauen (und nach Abriss wieder, sonst kommt die Scan-Taste
-        nicht an); Fehler hier sind still, der Scan versucht es erneut."""
+        """Connect before the first scan (and again after a drop, otherwise the scan button press does not
+        arrive); errors here are silent, the scan tries again."""
         if not self.ip:
             return
         try:
@@ -123,7 +123,7 @@ class ScanWorker(QObject):
             device.connect()
             self.status.emit("Connected to the scanner.")
         except Exception as e:  # noqa: BLE001
-            print(f"Verbindung beim Start fehlgeschlagen: {e}", file=sys.stderr)
+            print(f"Connecting at startup failed: {e}", file=sys.stderr)
 
     def close_connection(self) -> None:
         if self.device is not None:
@@ -159,15 +159,15 @@ class ScanWorker(QObject):
         except OSError as e:
             traceback.print_exc(file=sys.stderr)
             self.done.emit(f"Cannot reach the scanner at {self.ip}: {e}", True)
-        except Exception as e:  # noqa: BLE001 – Fehler gehen als Meldung an die Oberfläche
+        except Exception as e:  # noqa: BLE001 – errors go to the UI as a message
             traceback.print_exc(file=sys.stderr)
             self.done.emit(f"Scan failed: {e}", False)
 
 
 class ScannerDialog(QDialog):
-    """Scanner-IP eingeben oder im Netz suchen. Suche und Prüfung laufen im Hintergrund (mit Spinner)."""
+    """Enter the scanner IP or search the network. Search and check run in the background (with a spinner)."""
 
-    finished_task = Signal(str, object)  # Aufgabe ("search"/"check"), Ergebnis
+    finished_task = Signal(str, object)  # task ("search"/"check"), result
 
     def __init__(self, ip: str, locator: ScannerLocator, message: str = "", parent: QWidget | None = None):
         super().__init__(parent)
@@ -180,7 +180,7 @@ class ScannerDialog(QDialog):
         self.search = QPushButton("Search Network")
         self.search.clicked.connect(self._search)
         self.spinner = QProgressBar()
-        self.spinner.setRange(0, 0)  # unbestimmt: animiert
+        self.spinner.setRange(0, 0)  # indeterminate: animated
         self.spinner.setTextVisible(False)
         self.spinner.setMaximumHeight(10)
         self.spinner.hide()
@@ -246,7 +246,7 @@ class ScannerDialog(QDialog):
 
 
 class PageList(QListWidget):
-    """Seitenübersicht. Im Icon-Modus verschiebt Qt beim Ziehen nur die Icons; hier wird wirklich umsortiert."""
+    """Page overview. In icon mode Qt only moves the icons when dragging; here the pages are really reordered."""
 
     reordered = Signal()
 
@@ -268,7 +268,7 @@ class PageList(QListWidget):
             rect = self.visualRect(target)
             row = target.row() + (1 if event.position().x() > rect.center().x() else 0)
         self.move_items(self.selectedItems(), row)
-        event.setDropAction(Qt.DropAction.IgnoreAction)  # sonst entfernt Qt die Quelle
+        event.setDropAction(Qt.DropAction.IgnoreAction)  # otherwise Qt removes the source
         event.accept()
 
 
@@ -296,7 +296,7 @@ class PreviewDialog(QDialog):
 
 
 class Document:
-    """Seiten eines Dokuments in der App: ein ungespeicherter Scan (Entwurf) oder ein gespeichertes PDF."""
+    """Pages of a document in the app: an unsaved scan (draft) or a saved PDF."""
 
     def __init__(self, entry: Entry | None = None):
         self.entry = entry
@@ -317,7 +317,7 @@ class Document:
 class MainWindow(QMainWindow):
     request_scan = Signal(object)
     request_connect = Signal()
-    reachable_checked = Signal(bool)  # Ergebnis der Prüfung beim Start (aus einem Hintergrund-Thread)
+    reachable_checked = Signal(bool)  # result of the check at startup (from a background thread)
 
     def __init__(self, library: OutputPort, locator: ScannerLocator, updates: Updates | None = None):
         super().__init__()
@@ -327,12 +327,12 @@ class MainWindow(QMainWindow):
         self.library = library
         self.locator = locator
         self.docs: dict[str, Document] = {}
-        self.drafts: list[Document] = []  # ungespeicherte Scans, neueste zuerst
+        self.drafts: list[Document] = []  # unsaved scans, newest first
         self.current: Document | None = None
         self.scan_target: Document | None = None
         self.scanning = False
 
-        # --- links: Voreinstellungen und Scan-Knopf --------------------------------
+        # --- left: presets and scan button -----------------------------------------
         self.presets = QListWidget()
         self.presets.setSpacing(3)
         self.presets.setWordWrap(True)
@@ -384,7 +384,7 @@ class MainWindow(QMainWindow):
         left_box.setLayout(left)
         left_box.setFixedWidth(270)
 
-        # --- Dokumentliste ---------------------------------------------------------
+        # --- document list ---------------------------------------------------------
         self.documents = QListWidget()
         self.documents.setIconSize(QSize(DOC_THUMB, DOC_THUMB))
         self.documents.setSpacing(2)
@@ -400,7 +400,7 @@ class MainWindow(QMainWindow):
         doc_box.setLayout(doc_col)
         doc_box.setFixedWidth(270)
 
-        # --- Seiten ----------------------------------------------------------------
+        # --- pages -----------------------------------------------------------------
         self.pages = PageList()
         self.pages.setViewMode(QListWidget.ViewMode.IconMode)
         self.pages.setIconSize(QSize(THUMB, THUMB))
@@ -418,7 +418,7 @@ class MainWindow(QMainWindow):
         self.empty_hint.setProperty("muted", True)
         self.empty_hint.setStyleSheet("font-size: 15px;")
 
-        # --- unten: Ablage ---------------------------------------------------------
+        # --- bottom: saving --------------------------------------------------------
         self.name = QLineEdit()
         self.name.setMinimumWidth(200)
         self.name.textEdited.connect(self.name_edited)
@@ -449,7 +449,7 @@ class MainWindow(QMainWindow):
         main.setLayout(root)
         self.setCentralWidget(main)
 
-        # --- Werkzeugleiste und Menü -----------------------------------------------
+        # --- toolbar and menu ------------------------------------------------------
         bar = QToolBar("Pages")
         bar.setMovable(False)
         self.addToolBar(bar)
@@ -471,7 +471,7 @@ class MainWindow(QMainWindow):
             self.update_checker = checker = UpdateChecker(self, updates, self.settings, self.restart_for_update)
             help_menu = self.menuBar().addMenu("Help")
             check = self._action("Check for Updates …", None, lambda: checker.check(manual=True))
-            check.setMenuRole(QAction.MenuRole.ApplicationSpecificRole)  # macOS: ins App-Menü
+            check.setMenuRole(QAction.MenuRole.ApplicationSpecificRole)  # macOS: into the app menu
             help_menu.addAction(check)
             auto = QAction("Check for Updates on Start", self, checkable=True)
             auto.setChecked(checker.check_on_start)
@@ -482,7 +482,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Ready.")
         self._preset_changed(self.presets.currentRow())
 
-        # --- Scan-Thread ---------------------------------------------------------------
+        # --- scan thread ---------------------------------------------------------------
         self.scan_thread = QThread(self)
         self.worker = ScanWorker(str(self.settings.value("ip", "")), locator)
         self.worker.moveToThread(self.scan_thread)
@@ -499,12 +499,12 @@ class MainWindow(QMainWindow):
         self._fill_documents()
         self._show_document(self.current)
         self._show_scanner()
-        # Sitzung halten: nur dann meldet der Scanner den Druck auf „Scan“ am Touchpanel
+        # Keep the session open: only then does the scanner report a press of "Scan" on the touch panel
         self.reconnect_timer = QTimer(self, interval=RECONNECT_MS)
         self.reconnect_timer.timeout.connect(self._keep_connected)
         self.reconnect_timer.start()
 
-    # --- Hilfen -----------------------------------------------------------------------
+    # --- helpers ----------------------------------------------------------------------
     def _action(
         self, text: str, shortcut: str | None, slot: Callable[[], object], bar: QToolBar | None = None
     ) -> QAction:
@@ -521,7 +521,7 @@ class MainWindow(QMainWindow):
 
     def changeEvent(self, event: QEvent) -> None:
         super().changeEvent(event)
-        # Hell/Dunkel gewechselt: Farben der Einträge neu (erst wenn das Fenster fertig aufgebaut ist)
+        # Light/dark switched: recolor the entries (only once the window is fully built)
         if event.type() == QEvent.Type.PaletteChange and hasattr(self, "worker"):
             self._fill_documents_keep(self.current)
 
@@ -567,7 +567,7 @@ class MainWindow(QMainWindow):
             )
         else:
             self.empty_hint.setText("This document has no pages.")
-        # während eines Scans ist nur das Ziel gesperrt; andere Dokumente bleiben bearbeitbar
+        # during a scan only the target is locked; other documents stay editable
         editable = doc is not None and not missing and not scanning_here
         selected = bool(self._selected())
         for act in (self.act_left, self.act_right, self.act_delete):
@@ -589,7 +589,7 @@ class MainWindow(QMainWindow):
             self.pages.item(i).setText(f"Page {i + 1}")
 
     def _sync_from_view(self) -> None:
-        """Reihenfolge und Inhalt der Seitenansicht ins aktuelle Dokument übernehmen."""
+        """Apply the order and content of the page view to the current document."""
         doc = self.current
         if doc is None:
             return
@@ -605,7 +605,7 @@ class MainWindow(QMainWindow):
         self._refresh_document_item(self.current)
         self._update()
 
-    # --- Dokumentliste -----------------------------------------------------------------
+    # --- document list -----------------------------------------------------------------
     def _document_text(self, doc: Document) -> str:
         if doc.entry is None:
             n = len(doc.pages)
@@ -623,7 +623,7 @@ class MainWindow(QMainWindow):
             return _page_icon(doc.thumbs[0], doc.pages[0].rotation, DOC_THUMB)
         if doc.entry is not None and (thumb := self.library.thumbnail(doc.entry)) is not None:
             return _page_icon(thumb, 0, DOC_THUMB)
-        return _page_icon(b"", 0, DOC_THUMB)  # leere Fläche hält den Text bündig
+        return _page_icon(b"", 0, DOC_THUMB)  # empty canvas keeps the text aligned
 
     def _fill_documents(self) -> None:
         self.documents.blockSignals(True)
@@ -692,7 +692,7 @@ class MainWindow(QMainWindow):
             self.documents.setCurrentRow(-1)
 
     def new_draft(self) -> Document:
-        """Jeder Scan-Vorgang wird ein eigenes Dokument (oben in der Liste)."""
+        """Every scan becomes a document of its own (at the top of the list)."""
         doc = Document()
         self.docs[doc.key] = doc
         self.drafts.insert(0, doc)
@@ -722,8 +722,8 @@ class MainWindow(QMainWindow):
         return True
 
     def check_scanner(self) -> None:
-        """Beim Start: ohne gespeicherte oder erreichbare IP zuerst den Scanner-Dialog zeigen.
-        Die Prüfung läuft im Hintergrund (Netzwerk-I/O nie im GUI-Thread)."""
+        """At startup: without a saved or reachable IP, show the scanner dialog first.
+        The check runs in the background (never network I/O in the GUI thread)."""
         if not self.worker.ip:
             self.ask_scanner("Welcome! Connect your ScanSnap first: enter its IP address or search the network.")
             return
@@ -733,7 +733,7 @@ class MainWindow(QMainWindow):
     @Slot(bool)
     def _reachable_checked(self, ok: bool) -> None:
         if ok:
-            self.request_connect.emit()  # im Hintergrund verbinden, der erste Scan startet dann sofort
+            self.request_connect.emit()  # connect in the background, the first scan then starts right away
         else:
             self.ask_scanner(
                 f"No scanner responds at {self.worker.ip}. Is it switched on? "
@@ -746,7 +746,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def panel_scan(self) -> None:
-        """„Scan“ am Touchpanel: wie der Scan-Knopf, mit den Einstellungen links."""
+        """The "Scan" button on the touch panel: like the Scan button in the window, with the settings on the left."""
         if self.scanning:
             return
         self.statusBar().showMessage("Scan started on the scanner …")
@@ -784,12 +784,12 @@ class MainWindow(QMainWindow):
     def scan_done(self, error: str, connection_problem: bool) -> None:
         self.scanning = False
         target, self.scan_target = self.scan_target, None
-        if target is not None and not target.pages:  # nichts gescannt: Entwurf wieder entfernen
+        if target is not None and not target.pages:  # nothing scanned: remove the draft again
             self._drop_draft(target)
             if self.current is target:
                 self._select(self.drafts[0] if self.drafts else None)
         elif target is not None:
-            # sofort speichern – auch die Seiten vor einem Papierstau
+            # save right away – including the pages before a paper jam
             self._store_draft(
                 target, target.name, select=self.current is target, open_after=self.open_after.isChecked()
             )
@@ -802,7 +802,7 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.warning(self, "Scan", error)
 
-    # --- Seiten -----------------------------------------------------------------------
+    # --- pages ------------------------------------------------------------------------
     def rotate_selected(self, degrees: int) -> None:
         for item in self._selected():
             page: ScanPage = item.data(PAGE_ROLE)
@@ -841,9 +841,9 @@ class MainWindow(QMainWindow):
             self._refresh_document_item(self.current)
             self._update()
 
-    # --- Ablage -----------------------------------------------------------------------
+    # --- saving -----------------------------------------------------------------------
     def _store_draft(self, draft: Document, name: str, *, select: bool, open_after: bool) -> Document | None:
-        """Speichert einen Entwurf als PDF und ersetzt ihn in der Liste durch das gespeicherte Dokument."""
+        """Saves a draft as PDF and replaces it in the list with the saved document."""
         try:
             entry = self.library.add(draft.pages, self.folder, name)
         except (OSError, ValueError) as e:
@@ -855,7 +855,7 @@ class MainWindow(QMainWindow):
             )
             return None
         saved = Document(entry)
-        saved.pages = [ScanPage(p.rendered(), p.dpi) for p in draft.pages]  # Drehungen stecken im PDF
+        saved.pages = [ScanPage(p.rendered(), p.dpi) for p in draft.pages]  # rotations are baked into the PDF
         saved.thumbs = [thumbnail(p.jpeg, THUMB) for p in saved.pages]
         saved.loaded = True
         self.docs[entry.id] = saved
@@ -874,7 +874,7 @@ class MainWindow(QMainWindow):
         if doc is None:
             return
         self._sync_from_view()
-        if doc.entry is None:  # nur wenn das automatische Speichern nach dem Scan fehlschlug
+        if doc.entry is None:  # only if the automatic save after the scan failed
             self._store_draft(doc, self.name.text(), select=True, open_after=False)
             return
         try:
@@ -883,7 +883,7 @@ class MainWindow(QMainWindow):
         except (OSError, ValueError) as e:
             QMessageBox.warning(self, "Save", f"Saving failed: {e}")
             return
-        # Drehungen stecken jetzt im PDF: Seiten wie gespeichert übernehmen
+        # rotations are now baked into the PDF: take the pages as saved
         saved.pages = [ScanPage(p.rendered(), p.dpi) for p in doc.pages]
         saved.thumbs = [thumbnail(p.jpeg, THUMB) for p in saved.pages]
         saved.loaded, saved.dirty, saved.name = True, False, entry.name
@@ -928,7 +928,7 @@ class MainWindow(QMainWindow):
             checker.check()
 
     def restart_for_update(self, staged: Path) -> None:
-        """Neue Version ist entpackt: App schließen (fragt bei ungespeicherten Änderungen), Helfer starten."""
+        """New version is unpacked: close the app (asks about unsaved changes), start the helper."""
         assert self.updates is not None
         if not self.close():
             self.statusBar().showMessage("Update postponed: ScanSnack was not closed.")
@@ -961,14 +961,14 @@ class MainWindow(QMainWindow):
 
 
 def data_dir() -> Path:
-    """Ablage für App-Daten (Dokumentliste, Vorschaubilder); braucht eine laufende QApplication."""
+    """Location for app data (document list, thumbnails); needs a running QApplication."""
     path = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
     adopt_previous(path, PREVIOUS_APP_NAME)
     return path
 
 
 def adopt_previous(path: Path, previous_name: str) -> None:
-    """Übernimmt den Datenordner der App unter ihrem alten Namen, solange es noch keinen neuen gibt."""
+    """Takes over the app's data folder under its old name as long as there is no new one yet."""
     old = path.with_name(previous_name)
     if not path.exists() and old.is_dir():
         old.rename(path)
@@ -981,7 +981,7 @@ def run(
     qt_args: list[str] | None = None,
     updates: Updates | None = None,
 ) -> int:
-    """Startet die Oberfläche. ``make_output`` bekommt das App-Datenverzeichnis und liefert die Ablage."""
+    """Starts the UI. ``make_output`` gets the app data directory and returns the document library."""
     app = QApplication([sys.argv[0], *(qt_args or [])])
     app.setApplicationName(APP_NAME)
     app.setOrganizationName("scansnap-bridge")

@@ -1,4 +1,4 @@
-"""Update-Dialog: Later / Skip This Version / Install and Restart, mit Fake-Quelle und -Installer."""
+"""Update dialog: Later / Skip This Version / Install and Restart, with a fake source and installer."""
 
 from __future__ import annotations
 
@@ -101,15 +101,15 @@ def test_later_asks_again_skip_does_not(settings: QSettings) -> None:
     assert c.dialog is not None
     c.dialog.later_button.click()
     assert c.dialog is None and not restarted
-    c.check()  # nächster Start: wieder gefragt
+    c.check()  # next start: asked again
     wait_for(lambda: c.dialog is not None)
     assert c.dialog is not None
     c.dialog.skip_button.click()
     assert settings.value(SKIP_KEY) == "0.3.0"
     c._checked(make_release(), "", False)  # pyright: ignore[reportPrivateUsage]
-    assert c.dialog is None  # übersprungen
+    assert c.dialog is None  # skipped
     c._checked(make_release(), "", True)  # pyright: ignore[reportPrivateUsage]
-    assert c.dialog is not None  # von Hand geprüft: trotzdem anbieten
+    assert c.dialog is not None  # checked by hand: offer it anyway
     c.dialog.reject()
 
 
@@ -123,7 +123,7 @@ def test_no_update_and_errors(settings: QSettings, monkeypatch: pytest.MonkeyPat
     c = checker(settings, updates(None), [])
     c._checked(None, "offline", False)  # pyright: ignore[reportPrivateUsage]
     c._checked(Release((0, 2, 0), "v0.2.0", "", "", ()), "", False)  # pyright: ignore[reportPrivateUsage]
-    assert not shown and c.dialog is None  # beim Start still
+    assert not shown and c.dialog is None  # silent at startup
     c._checked(None, "offline", True)  # pyright: ignore[reportPrivateUsage]
     c._checked(None, "", True)  # pyright: ignore[reportPrivateUsage]
     assert shown == ["Could not check for updates: offline", "ScanSnack 0.2.0 is the latest version."]

@@ -1,4 +1,4 @@
-"""Version: Major.Minor.Patch, eine Quelle (pyproject.toml), iOS-App zieht mit (tools/bump_version.py)."""
+"""Version: major.minor.patch, one source (pyproject.toml), the iOS app follows (tools/bump_version.py)."""
 
 from __future__ import annotations
 

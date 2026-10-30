@@ -91,6 +91,8 @@ release, GitHub Pages with source "GitHub Actions"; pull requests only build).
 ## Conventions
 
 - Documentation (`*.md`) in English.
-- Replies to the user short and in German. App user interfaces in English, code comments in German.
+- Repository language is English (ADR 0006): code comments, docstrings, CLI/log/error messages, UI texts,
+  tests, scripts, workflows, docs and commit messages. Keep quotations of device output verbatim.
+- Replies to the user short and in German.
 - Live tests: Mac 192.168.178.37, scanner 192.168.178.29, ScanSnap Home quit; broadcast discovery is
   unreliable → use `--ip`.

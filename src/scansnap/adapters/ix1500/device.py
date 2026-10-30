@@ -1,4 +1,4 @@
-"""Ein Scan-Auftrag als Ganzes: Verbinden wie ScanSnap Home, Profil wählen, Blätter liefern."""
+"""A scan job as a whole: connect like ScanSnap Home, select a profile, deliver sheets."""
 
 from __future__ import annotations
 
@@ -17,15 +17,15 @@ from .discovery import HOST_UDP_PORT, Heartbeat
 from .scanner import Scanner
 from .scsi import ScsiChannel
 
-ANNOUNCE_EVERY = 10.0  # ScanSnap Home wiederholt 0x0210 etwa alle 10 s (Kalt-Capture)
+ANNOUNCE_EVERY = 10.0  # ScanSnap Home repeats 0x0210 about every 10 s (cold capture)
 
 
 class Session:
-    """Verbindung wie ScanSnap Home beim App-Start (Kalt-Capture), offen bis :meth:`close`.
+    """Connection like ScanSnap Home at app start (cold capture), open until :meth:`close`.
 
-    Scan-Kanal A mit Init-Sequenz, Steuerkanal 0x13 → 0x0100 → 0x0210 → 0x11 (Flag 0),
-    dann Scan-Kanal B neu aufbauen (nur C2-Polling) und UDP-Heartbeat. Mit ``announce_every``
-    zusätzlich 0x0210 in diesem Abstand; ``lock`` hält das an (während Profilwahl und Scan).
+    Scan channel A with the init sequence, control channel 0x13 → 0x0100 → 0x0210 → 0x11 (flag 0),
+    then open scan channel B anew (C2 polling only) and the UDP heartbeat. With ``announce_every``,
+    additionally 0x0210 at that interval; ``lock`` pauses it (during profile selection and scan).
     """
 
     def __init__(
@@ -56,16 +56,16 @@ class Session:
             host_ip = None
             if self.handshake:
                 host_ip = self.ctl.handshake() if self.pair else self.ctl.connect()
-                print(f"Verbunden (Host {host_ip}, ID {self.ident.host_id})", file=sys.stderr)
+                print(f"Connected (host {host_ip}, ID {self.ident.host_id})", file=sys.stderr)
         finally:
             ch.close()
-        # UNVERIFIED: ob die Pausen (0,2 s vor Kanal B, 1,0 s danach) nötig sind, ist nicht einzeln getestet.
+        # UNVERIFIED: whether the pauses (0.2 s before channel B, 1.0 s after) are needed is not tested individually.
         time.sleep(0.2)
         try:
             self.ch = ScsiChannel(self.ip, self.ident.mac)
             self.ch.hardware_status()
             self.ch.start_polling()
-            # UNVERIFIED: ob der Scanner ohne Heartbeat die Sitzung beendet, ist nicht getestet.
+            # UNVERIFIED: whether the scanner ends the session without a heartbeat is not tested.
             if self.heartbeat:
                 self._hb = Heartbeat(self.ip, self.ident.mac, HOST_UDP_PORT)
                 self._hb.start()
@@ -83,8 +83,8 @@ class Session:
                 with self.lock:
                     try:
                         self.ctl.announce(host_ip)
-                    except Exception as e:  # noqa: BLE001 – Ausfall zeigt das C2-Polling
-                        print(f"0x0210 fehlgeschlagen: {e}", file=sys.stderr)
+                    except Exception as e:  # noqa: BLE001 – C2 polling shows a failure
+                        print(f"0x0210 failed: {e}", file=sys.stderr)
 
         self._announcer = threading.Thread(target=run, daemon=True)
         self._announcer.start()
@@ -110,7 +110,7 @@ class Session:
 def session(
     ctl: Control, ip: str, ident: HostIdentity, *, pair: bool = False, handshake: bool = True, heartbeat: bool = True
 ) -> Generator[ScsiChannel]:
-    """Sitzung für einen einzelnen Auftrag (siehe :class:`Session`). Liefert den offenen Scan-Kanal."""
+    """Session for a single job (see :class:`Session`). Yields the open scan channel."""
     s = Session(ctl, ip, ident, pair=pair, handshake=handshake, heartbeat=heartbeat)
     try:
         yield s.open()
@@ -119,14 +119,14 @@ def session(
 
 
 class Device:
-    """Scanner hinter einer festen IP.
+    """Scanner behind a fixed IP.
 
-    Ohne ``keep_alive`` ist jeder Aufruf von :meth:`scan` eine eigene Sitzung. Mit ``keep_alive`` bleibt die
-    Sitzung zwischen den Scans offen (C2-Polling, Heartbeat, 0x0210 wie ScanSnap Home), der Scan beginnt dann
-    ohne Verbindungsaufbau. Ist die Verbindung abgerissen, baut :meth:`scan` sie einmal neu auf.
+    Without ``keep_alive`` every call of :meth:`scan` is a session of its own. With ``keep_alive`` the session
+    stays open between scans (C2 polling, heartbeat, 0x0210 like ScanSnap Home), and a scan then starts
+    without connecting first. If the connection has dropped, :meth:`scan` re-establishes it once.
 
-    ``on_button`` wird (im Listener-Thread) aufgerufen, wenn am Touchpanel „Scan“ gedrückt wird; das geht nur,
-    solange die dauerhafte Sitzung steht. Der Aufrufer startet dann wie gewohnt :meth:`scan`.
+    ``on_button`` is called (in the listener thread) when "Scan" is pressed on the touch panel; this only works
+    while the persistent session is up. The caller then starts :meth:`scan` as usual.
     """
 
     def __init__(
@@ -140,8 +140,8 @@ class Device:
         keep_alive: bool = False,
         on_button: Callable[[Notification], None] | None = None,
     ):
-        # Der Scanner liefert die Seiten um 180° gedreht (Live-Test 2026-10-29, Vorder- und Rückseite)
-        # und mit dem ganzen Scanfeld (Hintergrund um das Papier).
+        # The scanner delivers the pages rotated by 180° (live test 2026-10-29, front and back)
+        # and with the whole scan area (background around the paper).
         self.ip, self.ident, self.profile_id = ip, ident, profile_id
         self.rotate, self.crop, self.keep_alive = rotate, crop, keep_alive
         self.ctl = Control(ip, ident)
@@ -154,7 +154,7 @@ class Device:
         return self._session is not None and self._session.alive
 
     def connect(self) -> None:
-        """Dauerhafte Sitzung aufbauen, falls keine lebendige besteht."""
+        """Open a persistent session unless a live one exists."""
         self._live_session()
 
     def _live_session(self) -> Session:
@@ -167,8 +167,8 @@ class Device:
         if self.on_button and self._button is None:
             try:
                 self._button = ButtonListener(self.ip, self.ident.host_port, self.on_button)
-            except OSError as e:  # Port belegt, z. B. durch ScanSnap Home
-                print(f"Scan-Taste nicht verfügbar (UDP {self.ident.host_port}: {e})", file=sys.stderr)
+            except OSError as e:  # port in use, e.g. by ScanSnap Home
+                print(f"Scan button not available (UDP {self.ident.host_port}: {e})", file=sys.stderr)
         return s
 
     def disconnect(self) -> None:
@@ -180,16 +180,16 @@ class Device:
             self._session = None
 
     def ensure_profile(self) -> None:
-        """Legt Benutzer + eigenes Profil an, wenn der Scanner keins liefert.
+        """Creates a user + our own profile if the scanner does not return one.
 
-        Der Scanner verliert die Profile gelegentlich (z. B. nach Benutzerwechsel am Panel).
+        The scanner occasionally loses its profiles (e.g. after switching users on the panel).
         """
-        # UNVERIFIED: Ursache für verschwundene Profile ohne Benutzerwechsel unbekannt.
+        # UNVERIFIED: the cause of profiles disappearing without a user switch is unknown.
         profiles = self.ctl.get_users().get("profiles", [])
         if any(p.get("user_id") == self.ident.user_id for p in profiles):
             return
-        print("Kein eigenes Profil am Scanner – führe claim aus", file=sys.stderr)
-        self.disconnect()  # Koppeln braucht einen eigenen Verbindungsablauf
+        print("No profile of our own on the scanner – running claim", file=sys.stderr)
+        self.disconnect()  # pairing needs a connection sequence of its own
         with session(self.ctl, self.ip, self.ident, pair=True):
             self.ctl.claim(self.ctl.local_ip())
 
@@ -203,10 +203,10 @@ class Device:
         handshake: bool = True,
         heartbeat: bool = True,
     ) -> Iterator[Sheet]:
-        """Scannt alle Blätter im Einzug (``ports.scanner.ScannerPort``). Wirft NoPaper, wenn der Einzug leer ist.
+        """Scans all sheets in the feeder (``ports.scanner.ScannerPort``). Raises NoPaper if the feeder is empty.
 
-        ``whiten`` setzt die Papierfarbe auf Weiß (Hintergrund entfernen). ``select``, ``pair``, ``handshake``
-        und ``heartbeat`` sind Schalter zum Experimentieren (CLI) und gelten nur ohne ``keep_alive``.
+        ``whiten`` sets the paper color to white (removes the background). ``select``, ``pair``, ``handshake``
+        and ``heartbeat`` are switches for experiments (CLI) and only apply without ``keep_alive``.
         """
         if not self.keep_alive:
             if select and not self.profile_id:
@@ -221,7 +221,7 @@ class Device:
                     self.ensure_profile()
                 s = self._live_session()
                 if s.ch is None:
-                    raise ConnectionError("Sitzung ohne Scan-Kanal")
+                    raise ConnectionError("session without a scan channel")
                 with s.lock:
                     for sheet in self._scan(s.ch, settings, select, whiten, resume_polling=True):
                         delivered = True
@@ -231,7 +231,7 @@ class Device:
                 self.disconnect()
                 if delivered or attempt:
                     raise
-                print("Verbindung zum Scanner verloren – baue sie neu auf", file=sys.stderr)
+                print("Connection to the scanner lost – reconnecting", file=sys.stderr)
 
     def _scan(
         self, ch: ScsiChannel, settings: ScanSettings, select: bool, whiten: bool, *, resume_polling: bool = False
@@ -239,14 +239,14 @@ class Device:
         if select:
             prof_id = self.profile_id
             if prof_id:
-                self.ctl.get_users()  # wie ScanSnap Home: 0x0100 direkt vor 0x0610
+                self.ctl.get_users()  # like ScanSnap Home: 0x0100 right before 0x0610
             else:
                 prof = self.ctl.pick_profile(self.ctl.local_ip())
                 prof_id = prof["prof_id"]
-                print(f"Profil: {prof.get('prof_name')} ({prof.get('user_name')}, {prof_id})", file=sys.stderr)
+                print(f"Profile: {prof.get('prof_name')} ({prof.get('user_name')}, {prof_id})", file=sys.stderr)
             self.ctl.select_profile(prof_id)
         if not ch.stop_polling():
-            raise ConnectionError("Scanner antwortet nicht auf C2")
+            raise ConnectionError("scanner does not respond to C2")
         try:
             for sheet in Scanner(ch).scan(settings):
                 if self.rotate or self.crop or whiten:
@@ -258,4 +258,4 @@ class Device:
                 yield sheet
         finally:
             if resume_polling:
-                ch.start_polling()  # wie ScanSnap Home: nach dem Scan weiter C2
+                ch.start_polling()  # like ScanSnap Home: continue C2 after the scan
