@@ -9,6 +9,8 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-30
+
 ### Added
 
 - A changelog: this page, also on the website, and in the release notes of every new version.
@@ -47,6 +49,7 @@ First release with ready-made apps.
   scan dialog).
 - Protocol write-up, disclaimer and website on GitHub Pages.
 
-[Unreleased]: https://github.com/elte0/scansnack/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/elte0/scansnack/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/elte0/scansnack/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/elte0/scansnack/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/elte0/scansnack/releases/tag/v0.2.0
