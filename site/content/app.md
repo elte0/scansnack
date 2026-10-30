@@ -42,6 +42,9 @@ described in the [protocol write-up](protocol.md).
 - **Updates with one click** – on start the app checks GitHub for a new release and offers to install it;
   it then restarts as the new version. *Later* asks again next time, *Skip This Version* waits for the
   next one, and the check can be turned off in the *Help* menu.
+- **Scan from Image Capture and Preview** – the [AirScan bridge](airscan.md) makes the scanner show up in
+  the macOS scan dialog (*Image Capture*, German *Digitale Bilder*, and *Preview*), without a driver. It
+  is a separate command (`scansnap serve`) that runs from the source code, not part of the app download.
 - **Open source** – MIT license, no telemetry; the only request besides the scanner is the update check
   on GitHub. The source code is on
   [GitHub](https://github.com/elte0/scansnack).
