@@ -9,6 +9,10 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Fixed
+
+- The Windows download is built again; the release build failed while reading the project version.
+
 ## [0.3.1] - 2026-10-30
 
 ### Added
