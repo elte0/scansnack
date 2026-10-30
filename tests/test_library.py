@@ -17,11 +17,11 @@ def jpeg(w: int, h: int, color: str = "white") -> bytes:
 def test_add_reads_back_pages_and_persists(tmp_path: Path) -> None:
     lib = Library(tmp_path / "lib.json")
     a, b = jpeg(300, 600, "red"), jpeg(200, 100, "blue")
-    entry = lib.add([ScanPage(a, 300), ScanPage(b, 150)], tmp_path / "docs", "Brief")
+    entry = lib.add([ScanPage(a, 300), ScanPage(b, 150)], tmp_path / "docs", "Letter")
     pages = read_pdf_pages(entry.file)
     assert [p.jpeg for p in pages] == [a, b] and [p.dpi for p in pages] == [300, 150]
     again = Library(tmp_path / "lib.json")
-    assert [(e.name, e.pages) for e in again.entries] == [("Brief", 2)]
+    assert [(e.name, e.pages) for e in again.entries] == [("Letter", 2)]
 
 
 def test_update_rewrites_and_renames(tmp_path: Path) -> None:
@@ -30,10 +30,10 @@ def test_update_rewrites_and_renames(tmp_path: Path) -> None:
     old = entry.file
     page = read_pdf_pages(old)[0]
     page.rotate(90)
-    lib.update(entry, [page, ScanPage(jpeg(100, 100), 100)], "Neu")
-    assert not old.exists() and entry.file.name == "Neu.pdf" and entry.pages == 2
+    lib.update(entry, [page, ScanPage(jpeg(100, 100), 100)], "New")
+    assert not old.exists() and entry.file.name == "New.pdf" and entry.pages == 2
     first = Image.open(io.BytesIO(read_pdf_pages(entry.file)[0].jpeg))
-    assert first.size == (600, 300)  # Drehung ist im PDF angekommen
+    assert first.size == (600, 300)  # the rotation made it into the PDF
 
 
 def test_remove_keeps_file_and_foreign_pdf_is_rejected(tmp_path: Path) -> None:
@@ -61,11 +61,11 @@ def test_rotation_applied_on_save(tmp_path: Path) -> None:
     page.rotate(90)
     page.rotate(-180)
     assert page.rotation == 270
-    path = Library(tmp_path / "lib.json").add([page, ScanPage(jpeg(300, 600), 150)], tmp_path, "Brief").file
+    path = Library(tmp_path / "lib.json").add([page, ScanPage(jpeg(300, 600), 150)], tmp_path, "Letter").file
     data = path.read_bytes()
-    assert path.name == "Brief.pdf"
-    assert b"/MediaBox [0 0 144.00 72.00]" in data  # gedreht: quer
-    assert b"/MediaBox [0 0 144.00 288.00]" in data  # 150 dpi: doppelte Größe
+    assert path.name == "Letter.pdf"
+    assert b"/MediaBox [0 0 144.00 72.00]" in data  # rotated: landscape
+    assert b"/MediaBox [0 0 144.00 288.00]" in data  # 150 dpi: double size
 
 
 def test_unique_path_does_not_overwrite(tmp_path: Path) -> None:

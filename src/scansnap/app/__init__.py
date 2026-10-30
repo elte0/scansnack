@@ -1,1 +1,1 @@
-"""Composition Root: die einzige Stelle, die konkrete Adapter erzeugt und verdrahtet."""
+"""Composition root: the only place that creates and wires concrete adapters."""

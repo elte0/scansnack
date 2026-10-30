@@ -18,7 +18,7 @@ Decisions: ADR 0003 (PySide6), ADR 0004 (BeeWare). Protocol: [protocol](protocol
 ## Desktop app
 
 Code: `adapters/qt`, entry point `app/desktop.py`. Start: `uv run --extra app scansnap-app [--ip …]`.
-User interface in English, code comments in German.
+User interface and code comments in English (ADR 0006).
 
 - Layout: on the left profiles + options (Double-sided, Remove blank pages, Remove background) + Scan;
   in the middle the document list ("New Scan" + saved PDFs; persists across restarts: `adapters/library`,

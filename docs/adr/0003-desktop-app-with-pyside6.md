@@ -24,7 +24,8 @@ but reduced: choose a profile, scan, review pages, save as PDF, use the scan but
 ## Decision outcome
 
 Chosen: **PySide6**, as the optional extra `app`; Mac bundle via PyInstaller (`packaging/`).
-User interface in English, code comments in German. Design: Primer tokens (`adapters/qt/tokens.py`).
+User interface in English, code comments in German (the comment language is superseded by
+[ADR 0006](0006-english-as-repository-language.md): everything in English). Design: Primer tokens (`adapters/qt/tokens.py`).
 
 ### Consequences
 

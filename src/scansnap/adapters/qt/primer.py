@@ -1,9 +1,9 @@
-"""Primer (GitHub-Designsystem, https://primer.style) für Qt: Farb-Tokens als QPalette + Stylesheet.
+"""Primer (GitHub design system, https://primer.style) for Qt: color tokens as QPalette + stylesheet.
 
-Tokens in ``tokens`` (Qt-frei, auch für die iOS-App).
-Hell/Dunkel folgt dem System und wechselt live mit. Fusion als Grundstil, weil er die Palette vollständig nutzt.
-Komponenten: Button (default, primary = Default-Knopf), TextInput, ActionList (Listen), Checkbox, Tooltip,
-ProgressBar; Toolbar-Knöpfe als „invisible“-Buttons. Gedämpfte Texte: ``widget.setProperty("muted", True)``.
+Tokens in ``tokens`` (Qt-free, also used by the iOS app).
+Light/dark follows the system and switches live. Fusion as the base style because it uses the full palette.
+Components: Button (default, primary = default button), TextInput, ActionList (lists), Checkbox, Tooltip,
+ProgressBar; toolbar buttons as "invisible" buttons. Muted text: ``widget.setProperty("muted", True)``.
 """
 
 from __future__ import annotations
@@ -104,7 +104,7 @@ def scheme() -> str:
 
 
 def color(token: str, mode: str | None = None) -> QColor:
-    """Token als QColor; CSS-Hex mit Alpha (#RRGGBBAA) wird umgerechnet."""
+    """Token as QColor; CSS hex with alpha (#RRGGBBAA) is converted."""
     value = TOKENS[mode or scheme()][token]
     c = QColor(value[:7])
     if len(value) == 9:
@@ -156,7 +156,7 @@ def palette(mode: str) -> QPalette:
 
 
 def _check_image() -> str:
-    """Weißes Häkchen (Checkbox) als PNG, mit @2x für Retina; Qt-Stylesheets brauchen dafür eine Datei."""
+    """White check mark (checkbox) as PNG, with @2x for Retina; Qt stylesheets need a file for it."""
     folder = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.CacheLocation))
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / "primer-check.png"
@@ -186,11 +186,11 @@ def _check_image() -> str:
 
 
 def apply(*_args: object) -> None:
-    """Primer auf die laufende App anwenden; folgt danach dem Wechsel zwischen Hell und Dunkel."""
+    """Apply Primer to the running app; afterwards it follows switches between light and dark."""
     global _connected
     app = QApplication.instance()
     if not isinstance(app, QApplication):
-        raise RuntimeError("primer.apply braucht eine laufende QApplication")
+        raise RuntimeError("primer.apply needs a running QApplication")
     mode = scheme()
     app.setStyle("Fusion")
     app.setPalette(palette(mode))

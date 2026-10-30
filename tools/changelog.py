@@ -1,11 +1,11 @@
-"""CHANGELOG.md (Keep a Changelog): Abschnitt „Unreleased“ zur neuen Version machen, Release-Notes ausgeben.
+"""CHANGELOG.md (Keep a Changelog): turn the "Unreleased" section into the new version, print release notes.
 
-python3 tools/changelog.py release 1.2.3 [--date 2026-01-31]   # [Unreleased] → [1.2.3] - Datum, Links
-python3 tools/changelog.py notes 1.2.3                         # Text des Abschnitts (für das GitHub-Release)
-python3 tools/changelog.py check                               # Aufbau prüfen (auch in den Tests)
+python3 tools/changelog.py release 1.2.3 [--date 2026-01-31]   # [Unreleased] → [1.2.3] - date, links
+python3 tools/changelog.py notes 1.2.3                         # text of the section (for the GitHub release)
+python3 tools/changelog.py check                               # check the structure (also in the tests)
 
-``release`` ruft tools/bump_version.py auf (Workflow „Create Release“), ``notes`` der Workflow „Release“.
-Nur Standardbibliothek: läuft im Release-Job mit dem Python des Runners, ohne uv.
+``release`` is called by tools/bump_version.py (workflow "Create Release"), ``notes`` by the workflow "Release".
+Standard library only: runs in the release job with the runner's Python, without uv.
 """
 
 from __future__ import annotations
@@ -24,39 +24,39 @@ _UNRELEASED_LINK = re.compile(r"^\[Unreleased\]: \S+/compare/v(?P<prev>\d+\.\d+\
 
 
 class ChangelogError(Exception):
-    """CHANGELOG.md ist nicht so aufgebaut, wie die Release-Workflows es erwarten."""
+    """CHANGELOG.md is not structured the way the release workflows expect."""
 
 
 def _section(text: str, name: str) -> tuple[int, int, str]:
-    """Start der Überschrift, Ende des Abschnitts und Text unter der Überschrift (ohne Linkliste)."""
+    """Start of the heading, end of the section and text under the heading (without the link list)."""
     headings = list(_HEADING.finditer(text))
     for i, m in enumerate(headings):
         if m.group("name").lower() == name.lower():
             end = headings[i + 1].start() if i + 1 < len(headings) else len(text)
             body = text[m.end() : end]
-            # Linkliste am Dateiende gehört nicht zum letzten Abschnitt
+            # the link list at the end of the file does not belong to the last section
             links = re.search(r"^\[[^\]]+\]: ", body, re.MULTILINE)
             if links:
                 end = m.end() + links.start()
                 body = body[: links.start()]
             return m.start(), end, body.strip("\n")
-    raise ChangelogError(f"kein Abschnitt „## [{name}]“ in CHANGELOG.md")
+    raise ChangelogError(f'no section "## [{name}]" in CHANGELOG.md')
 
 
 def unreleased(text: str) -> str:
-    """Einträge unter „Unreleased“; Fehler, wenn dort nichts steht."""
+    """Entries under "Unreleased"; error if there are none."""
     body = _section(text, "Unreleased")[2]
     if not re.search(r"^\s*[-*] \S", body, re.MULTILINE):
-        raise ChangelogError("„Unreleased“ in CHANGELOG.md hat keine Einträge")
+        raise ChangelogError('"Unreleased" in CHANGELOG.md has no entries')
     return body
 
 
 def release(text: str, version: str, date: datetime.date) -> str:
-    """Macht aus „Unreleased“ den Abschnitt der Version und legt ein leeres „Unreleased“ darüber an."""
+    """Turns "Unreleased" into the version's section and adds an empty "Unreleased" above it."""
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
-        raise ChangelogError(f"Version {version!r} ist nicht Major.Minor.Patch")
+        raise ChangelogError(f"version {version!r} is not major.minor.patch")
     if any(m.group("name") == version for m in _HEADING.finditer(text)):
-        raise ChangelogError(f"Version {version} steht schon in CHANGELOG.md")
+        raise ChangelogError(f"version {version} is already in CHANGELOG.md")
     body = unreleased(text)
     start, end, _ = _section(text, "Unreleased")
     new_section = f"## [Unreleased]\n\n## [{version}] - {date.isoformat()}\n\n{body}\n\n"
@@ -67,26 +67,26 @@ def release(text: str, version: str, date: datetime.date) -> str:
     if link:
         new_link += f"[{version}]: {REPO}/compare/v{link.group('prev')}...v{version}\n"
         return text[: link.start()] + new_link + text[link.end() :]
-    # erstes Release im Changelog: Linkliste neu anfangen
+    # first release in the changelog: start a new link list
     return text.rstrip("\n") + "\n\n" + new_link + f"[{version}]: {REPO}/releases/tag/v{version}\n"
 
 
 def notes(text: str, version: str) -> str:
-    """Abschnitt einer Version, Überschriften eine Ebene höher (### → ##) für die Release-Seite."""
+    """Section of a version, headings one level up (### → ##) for the release page."""
     body = _section(text, version)[2].strip()
     if not body:
-        raise ChangelogError(f"Abschnitt {version} in CHANGELOG.md ist leer")
+        raise ChangelogError(f"section {version} in CHANGELOG.md is empty")
     return re.sub(r"^### ", "## ", body, flags=re.MULTILINE)
 
 
 def check(text: str) -> None:
-    """Aufbau: „Unreleased“ zuerst, jede Version mit Link. Einträge erst beim Release Pflicht."""
+    """Structure: "Unreleased" first, every version with a link. Entries are only required at release time."""
     names = [m.group("name") for m in _HEADING.finditer(text)]
     if not names or names[0] != "Unreleased":
-        raise ChangelogError("„Unreleased“ muss der erste Abschnitt sein")
+        raise ChangelogError('"Unreleased" must be the first section')
     for name in names[1:]:
         if f"\n[{name}]: " not in text:
-            raise ChangelogError(f"Link „[{name}]: …“ fehlt am Ende von CHANGELOG.md")
+            raise ChangelogError(f'link "[{name}]: …" missing at the end of CHANGELOG.md')
 
 
 def main(argv: list[str] | None = None) -> None:

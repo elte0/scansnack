@@ -1,4 +1,4 @@
-"""Fehler eines Scan-Auftrags, wie sie Oberflächen und eSCL sehen."""
+"""Errors of a scan job, as the user interfaces and eSCL see them."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ class ScanError(Exception):
 
 
 class NoPaper(ScanError):
-    """Einzug leer, bevor das erste Blatt gelesen wurde."""
+    """Feeder empty before the first sheet was read."""
 
 
 class FeedError(ScanError):
-    """Papierfehler beim Einzug oder Lesen (Stau, Doppeleinzug, Abdeckung offen …); ``reason`` ist Klartext."""
+    """Paper error while feeding or reading (jam, multifeed, cover open …); ``reason`` is plain text."""
 
     def __init__(self, reason: str, detail: str = ""):
         super().__init__(f"{reason}: {detail}" if detail else reason)

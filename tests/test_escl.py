@@ -38,7 +38,7 @@ def settings_xml(
 
 
 class FakeScanner:
-    """ScannerPort mit festen Blättern; ohne Blätter: Einzug leer."""
+    """ScannerPort with fixed sheets; without sheets: feeder empty."""
 
     connected = True
 
@@ -172,7 +172,7 @@ def test_pdf_page_size_follows_dpi() -> None:
 def test_scanner_error_before_first_page_returns_500(serve: Serve) -> None:
     class Broken(FakeScanner):
         def scan(self, settings: ScanSettings, *, whiten: bool = False) -> Iterator[Sheet]:
-            raise RuntimeError("Scanner hat keine Profile.")
+            raise RuntimeError("Scanner has no profiles.")
 
     _, port = serve(Broken([]))
     assert request(port, "POST", "/eSCL/ScanJobs", settings_xml())[0].status == 500
@@ -180,11 +180,11 @@ def test_scanner_error_before_first_page_returns_500(serve: Serve) -> None:
 
 def test_rotate_180_flips_pixels_and_keeps_size() -> None:
     im = Image.new("RGB", (64, 32), "white")
-    im.paste((255, 0, 0), (0, 0, 16, 16))  # rotes Quadrat oben links
+    im.paste((255, 0, 0), (0, 0, 16, 16))  # red square at the top left
     buf = io.BytesIO()
     im.save(buf, "JPEG", quality=90)
     out = Image.open(io.BytesIO(rotate_180(buf.getvalue())))
     assert out.size == (64, 32)
-    r, g, b = pixel(out, (56, 24))  # jetzt unten rechts
+    r, g, b = pixel(out, (56, 24))  # now at the bottom right
     assert r > 200 and g < 60 and b < 60
-    assert pixel(out, (4, 4))[1] > 200  # oben links weiß
+    assert pixel(out, (4, 4))[1] > 200  # top left white

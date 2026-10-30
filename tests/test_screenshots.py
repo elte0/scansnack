@@ -1,4 +1,4 @@
-"""tools/screenshots.py läuft im Pages-Build; hier fällt auf, wenn eine Änderung der Oberfläche es bricht."""
+"""tools/screenshots.py runs in the Pages build; this test notices when a UI change breaks it."""
 
 import os
 import subprocess

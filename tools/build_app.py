@@ -1,16 +1,16 @@
-"""Baut die Desktop-App für das laufende Betriebssystem und packt sie für ein Release.
+"""Builds the desktop app for the running operating system and packages it for a release.
 
-uv run --extra app python tools/build_app.py            # App + Paket
-uv run --extra app python tools/build_app.py --no-pack  # nur App (dist/ScanSnack.app bzw. dist/ScanSnack/)
+uv run --extra app python tools/build_app.py            # app + package
+uv run --extra app python tools/build_app.py --no-pack  # app only (dist/ScanSnack.app or dist/ScanSnack/)
 
-Ergebnis in dist/ (Version aus pyproject.toml, Architektur des laufenden Pythons):
-  macOS:   ScanSnack-<ver>-macos-<arch>.dmg      (ad hoc signiert, siehe CODESIGN_IDENTITY)
+Result in dist/ (version from pyproject.toml, architecture of the running Python):
+  macOS:   ScanSnack-<ver>-macos-<arch>.dmg      (ad hoc signed, see CODESIGN_IDENTITY)
   Windows: ScanSnack-<ver>-windows-<arch>.zip
-  Linux:   ScanSnack-<ver>-linux-<arch>.tar.gz   (inkl. .desktop-Datei und Icon)
+  Linux:   ScanSnack-<ver>-linux-<arch>.tar.gz   (incl. .desktop file and icon)
 
-Jeder Build startet die gebaute App mit --selftest (Paketdaten, JPEG, PDF).
-macOS ohne Gatekeeper-Warnung: CODESIGN_IDENTITY="Developer ID Application: …" setzen und danach
-notarisieren (xcrun notarytool) – beides braucht ein Apple-Developer-Konto.
+Every build starts the built app with --selftest (package data, JPEG, PDF).
+macOS without a Gatekeeper warning: set CODESIGN_IDENTITY="Developer ID Application: …" and then
+notarize (xcrun notarytool) – both need an Apple Developer account.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def run(*cmd: str | Path) -> None:
 
 
 def build() -> Path:
-    """PyInstaller-Build; gibt die ausführbare Datei zurück."""
+    """PyInstaller build; returns the executable."""
     if sys.platform == "darwin" and not (PACKAGING / f"{NAME}.icns").exists():
         run(sys.executable, ROOT / "tools" / "make_icon.py")
     run(
@@ -70,7 +70,7 @@ def build() -> Path:
 
 
 def pack() -> Path:
-    # Paketname aus core.update: danach sucht die Update-Prüfung der App im Release
+    # package name from core.update: the app's update check looks for it in the release
     ver = parse_version(version())
     assert ver is not None, version()
     file = DIST / package_name(ver, os_name(sys.platform), arch_name(platform.machine()))

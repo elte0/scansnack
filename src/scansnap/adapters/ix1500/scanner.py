@@ -1,6 +1,6 @@
-"""Scan-Sequenz D5, D8, E9, D4, 03, (E0, 28-Reads, 28-Info)*, D6 auf dem Scan-Kanal.
+"""Scan sequence D5, D8, E9, D4, 03, (E0, 28 reads, 28 info)*, D6 on the scan channel.
 
-Ablauf und Parameterblöcke: docs/protocol.md, Abschnitt „Scan sequence“.
+Flow and parameter blocks: docs/protocol.md, section "Scan sequence".
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from ...core.errors import FeedError, NoPaper
 from ...core.model import SCAN_HEIGHT_1200, SCAN_WIDTH_1200, ImageInfo, ScanSettings, Sheet
 from .scsi import CHECK_CONDITION, ScsiChannel, ScsiError, Sense
 
-# Kombinationen, deren Parameterblöcke 1:1 aus Captures stammen, mit der Read-Länge aus dem Capture
+# Combinations whose parameter blocks come 1:1 from captures, with the read length from the capture
 VERIFIED: dict[tuple[str, int], int] = {("gray", 150): 0x300000, ("color", 600): 0x20000}
 
 _MODE_TEMPLATE = bytes.fromhex(
@@ -25,20 +25,20 @@ def is_verified(settings: ScanSettings) -> bool:
 
 
 def read_len(settings: ScanSettings) -> int:
-    # UNVERIFIED: 0x20000 für Kombinationen ohne Capture (übernommen von color/600)
+    # UNVERIFIED: 0x20000 for combinations without a capture (taken from color/600)
     return VERIFIED.get((settings.mode, settings.dpi), 0x20000)
 
 
 def window_block(settings: ScanSettings) -> bytes:
-    """E9-Datenblock (32 B)."""
+    """E9 data block (32 B)."""
     dpi = settings.dpi
     return (struct.pack(">HHII", dpi, dpi, SCAN_WIDTH_1200, SCAN_HEIGHT_1200) + b"\x05").ljust(32, b"\0")
 
 
 def mode_block(settings: ScanSettings) -> bytes:
-    """D4-Datenblock (80 B)."""
-    # UNVERIFIED: außer gray/150 und color/600 abgeleitet (Byte 13 Farbe, 34–37 dpi, 40 Modus);
-    # color/300 wird live akzeptiert, obwohl ScanSnap Home dort andere Bytes 10/13/40 sendet.
+    """D4 data block (80 B)."""
+    # UNVERIFIED: derived except for gray/150 and color/600 (byte 13 color, 34–37 dpi, 40 mode);
+    # color/300 is accepted live, although ScanSnap Home sends different bytes 10/13/40 there.
     b = bytearray(_MODE_TEMPLATE)
     b[13] = 0x80 if settings.mode == "color" else 0x00
     struct.pack_into(">HH", b, 34, settings.dpi, settings.dpi)
@@ -65,7 +65,7 @@ def _info_cdb(side: int) -> bytes:
 
 
 class Scanner:
-    """Scan-Sequenz auf einem offenen Scan-Kanal."""
+    """Scan sequence on an open scan channel."""
 
     def __init__(self, channel: ScsiChannel):
         self.ch = channel
@@ -94,7 +94,7 @@ class Scanner:
         return [b"".join(p) for p in parts], last
 
     def scan(self, settings: ScanSettings) -> Iterator[Sheet]:
-        """Scannt alle Blätter im Einzug. Wirft NoPaper, wenn der Einzug leer ist."""
+        """Scans all sheets in the feeder. Raises NoPaper if the feeder is empty."""
         ch = self.ch
         ch.checked(bytes.fromhex("d50000010808"), out=b"\0" * 8, in_len=8)
         try:

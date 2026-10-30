@@ -1,1 +1,1 @@
-"""GitHub Releases als Quelle für App-Updates."""
+"""GitHub Releases as the source of app updates."""

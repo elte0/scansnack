@@ -84,7 +84,7 @@ def test_multiple_sheets_and_empty_feeder() -> None:
     try:
         with ScsiChannel("127.0.0.1", MAC, port=mock.port) as ch, pytest.raises(NoPaper):
             list(Scanner(ch).scan(Settings()))
-        assert mock.received[-1][0][0] == 0xD6  # Session wird trotzdem freigegeben
+        assert mock.received[-1][0][0] == 0xD6  # the session is released anyway
     finally:
         mock.close()
 
@@ -180,7 +180,7 @@ def test_heartbeat_probe_and_reply_counting() -> None:
 
 
 class RecordingControl(Control):
-    """Control ohne Netz: protokolliert die Kommandos in ``calls``."""
+    """Control without a network: logs the commands in ``calls``."""
 
     def __init__(self, ident: HostIdentity, users: dict[str, Any] | None = None):
         super().__init__("127.0.0.1", ident)

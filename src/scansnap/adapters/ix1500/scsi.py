@@ -1,6 +1,6 @@
-"""Scan-Kanal (TCP 53218): SCSI-Kommandos, getunnelt über eine dauerhafte Verbindung.
+"""Scan channel (TCP 53218): SCSI commands, tunnelled over a persistent connection.
 
-Request/Response-Layout und C2-Status: docs/protocol.md, Abschnitt „Scan channel (TCP 53218, SCSI tunnel)“.
+Request/response layout and C2 status: docs/protocol.md, section "Scan channel (TCP 53218, SCSI tunnel)".
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ class ScsiError(Exception):
         self.sense = sense
 
 
-# Sense 3/80/xx (Medium Error) der Fujitsu/PFU-Scanner; live bestätigt: 01 (Stau/zerknülltes Blatt),
-# 03 (Einzug leer), 33 (D5 ohne 0x0610).
-# UNVERIFIED: alle übrigen Texte aus dem Gedächtnis nach SANE fujitsu.c, nicht nachgeschlagen.
+# Sense 3/80/xx (medium error) of the Fujitsu/PFU scanners; confirmed live: 01 (jam/crumpled sheet),
+# 03 (feeder empty), 33 (D5 without 0x0610).
+# UNVERIFIED: all other texts from memory after SANE fujitsu.c, not looked up.
 MEDIUM_ERRORS = {
     0x01: "paper jam",
     0x02: "cover open",
@@ -51,7 +51,7 @@ class Sense:
     ascq: int
     eom: bool
     ili: bool
-    info: int  # bei kurzen Reads: Restlänge (angefordert − geliefert)
+    info: int  # for short reads: residual length (requested − delivered)
 
     @classmethod
     def parse(cls, data: bytes) -> Sense:
@@ -72,7 +72,7 @@ class Sense:
 
     @property
     def medium_error(self) -> str | None:
-        """Einzugs-/Papierfehler (Sense 3/80/xx) als Klartext, sonst None."""
+        """Feed/paper error (sense 3/80/xx) as plain text, otherwise None."""
         if self.key == 3 and self.asc == 0x80:
             return MEDIUM_ERRORS.get(self.ascq, f"medium error {self.ascq:#04x}")
         return None
@@ -100,15 +100,15 @@ class ScsiChannel:
         self._poller: threading.Thread | None = None
 
     def open_session(self) -> None:
-        """Erste Kommandos von ScanSnap Home auf einer neuen Verbindung."""
-        # UNVERIFIED: Inhalt von VPD f0 und E7 nicht ausgewertet, nur die Reihenfolge nachgebaut.
+        """First commands of ScanSnap Home on a new connection."""
+        # UNVERIFIED: content of VPD f0 and E7 not evaluated, only the order is reproduced.
         self.inquiry()
         self.checked(bytes.fromhex("1201f0009000"), in_len=0x90)
         self.checked(bytes.fromhex("e70001000000000c0000"), in_len=0x0C)
         self.hardware_status()
 
     def start_polling(self, interval: float = 0.25) -> None:
-        """C2-Abfrage im Hintergrund, wie ScanSnap Home sie dauerhaft betreibt. Bricht beim ersten Fehler ab."""
+        """C2 polling in the background, as ScanSnap Home runs it permanently. Stops at the first error."""
         self._stop.clear()
 
         def run() -> None:
@@ -123,11 +123,11 @@ class ScsiChannel:
 
     @property
     def polling(self) -> bool:
-        """C2-Polling läuft noch (also hat der Scanner zuletzt geantwortet)."""
+        """C2 polling is still running (so the scanner answered last time)."""
         return self._poller is not None and self._poller.is_alive()
 
     def stop_polling(self, timeout: float = 3.0) -> bool:
-        """Polling anhalten. False, wenn es in einer Abfrage hängt (Scanner antwortet nicht mehr)."""
+        """Stop polling. False if it hangs in a request (the scanner no longer answers)."""
         self._stop.set()
         if self._poller:
             self._poller.join(timeout)
@@ -139,7 +139,7 @@ class ScsiChannel:
     def close(self) -> None:
         self._stop.set()
         try:
-            self.sock.shutdown(socket.SHUT_RDWR)  # weckt eine hängende C2-Abfrage auf
+            self.sock.shutdown(socket.SHUT_RDWR)  # wakes up a hanging C2 request
         except OSError:
             pass
         self.stop_polling()
@@ -174,7 +174,7 @@ class ScsiChannel:
         return r
 
     def hardware_status(self) -> bytes:
-        """C2-Status, wie ScanSnap Home ihn alle 250 ms abfragt. Byte 32–39: ausgewählter Host."""
+        """C2 status, as ScanSnap Home polls it every 250 ms. Bytes 32–39: selected host."""
         return self.checked(bytes.fromhex("c2000000000000003000"), in_len=0x30).data
 
     def inquiry(self) -> tuple[str, str]:

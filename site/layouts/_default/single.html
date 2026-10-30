@@ -2,7 +2,7 @@
 <article>
   {{ .Content }}
   {{- with .File }}
-  {{- /* gemountete Dateien: docs/*.md, CHANGELOG.md aus dem Wurzelverzeichnis */}}
+  {{- /* mounted files: docs/*.md, CHANGELOG.md from the repository root */}}
   {{- $src := printf "docs/%s" .Path }}
   {{- if eq .Path "changelog.md" }}{{ $src = "CHANGELOG.md" }}{{ end }}
   <p class="source"><a href="{{ site.Params.repo }}/blob/main/{{ $src }}">View this page on GitHub</a></p>

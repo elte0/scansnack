@@ -14,13 +14,13 @@ def scan_like(
     paper: int = 252,
     background: int = 238,
 ) -> Image.Image:
-    """Synthetischer Scan wie vom iX1500: heller Hintergrund, Schattenkante, Papier mit Text."""
+    """Synthetic scan as from the iX1500: light background, shadow edge, paper with text."""
     im = Image.new("L", (w, h), background)
     d = ImageDraw.Draw(im)
     x0, y0, x1, y1 = box
-    d.rectangle((x0 - 3, y0 - 3, x1 + 2, y1 + 2), fill=225)  # Schatten
+    d.rectangle((x0 - 3, y0 - 3, x1 + 2, y1 + 2), fill=225)  # shadow
     d.rectangle((x0, y0, x1 - 1, y1 - 1), fill=paper)
-    for y in range(y0 + 40, y1 - 40, 24):  # Textzeilen
+    for y in range(y0 + 40, y1 - 40, 24):  # text lines
         d.rectangle((x0 + 60, y, x1 - 60, y + 8), fill=30)
     return im.convert("RGB")
 
@@ -55,10 +55,10 @@ def test_process_without_crop_keeps_size() -> None:
 
 def test_rotate_90_clockwise() -> None:
     im = Image.new("RGB", (60, 30), "white")
-    im.paste((255, 0, 0), (0, 0, 15, 15))  # rot oben links
+    im.paste((255, 0, 0), (0, 0, 15, 15))  # red at the top left
     out = Image.open(io.BytesIO(rotate(jpeg_bytes(im), 90)))
     assert out.size == (30, 60)
-    r, g, _ = pixel(out, (25, 5))  # im Uhrzeigersinn → oben rechts
+    r, g, _ = pixel(out, (25, 5))  # clockwise → top right
     assert r > 200 and g < 80
 
 
@@ -77,7 +77,7 @@ def test_pdf_with_per_page_dpi() -> None:
 
 
 def test_whiten_makes_tinted_paper_white_and_keeps_text() -> None:
-    im = Image.new("RGB", (400, 560), (246, 240, 222))  # gelbliches Papier
+    im = Image.new("RGB", (400, 560), (246, 240, 222))  # yellowish paper
     ImageDraw.Draw(im).rectangle((60, 200, 340, 230), fill=(40, 40, 40))
     out = whiten(im)
     assert all(v >= 254 for v in pixel(out, (20, 20)))

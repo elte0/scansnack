@@ -1,12 +1,12 @@
-"""Screenshots der echten Desktop-App für die Website (site/static/screenshots/).
+"""Screenshots of the real desktop app for the website (site/static/screenshots/).
 
 uv run --extra app python tools/screenshots.py [--out DIR]
 
-Startet das echte ``MainWindow`` (ohne Bildschirm, Qt-Plattform „offscreen“) mit einem Beispiel-Scanner, der
-statt Netzwerk-I/O fertige Beispielseiten liefert. Gescannt wird über den echten Weg (Scan-Knopf → ScanWorker
-im eigenen Thread → Seiten → automatisches Speichern als PDF), danach werden Dokumente umbenannt. Einstellungen
-und Ablage liegen in einem temporären Ordner, die echten App-Daten bleiben unberührt.
-Der Pages-Workflow ruft das Skript bei jedem Build auf, damit die Bilder zum aktuellen Stand passen.
+Starts the real ``MainWindow`` (without a screen, Qt platform "offscreen") with a sample scanner that delivers
+ready-made sample pages instead of network I/O. Scanning takes the real path (scan button → ScanWorker
+in its own thread → pages → automatic save as PDF), then the documents are renamed. Settings
+and library live in a temporary folder; the real app data stays untouched.
+The Pages workflow runs the script on every build so that the images match the current state.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-os.environ.setdefault("QT_SCALE_FACTOR", "2")  # scharf auf Retina-Bildschirmen
+os.environ.setdefault("QT_SCALE_FACTOR", "2")  # sharp on Retina screens
 
 from PIL import Image, ImageDraw, ImageFont
 from PySide6.QtCore import QSettings, QStandardPaths
@@ -36,7 +36,7 @@ from scansnap.core.model import FoundScanner, ScanSettings, Sheet
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "site" / "static" / "screenshots"
 DPI = 150
-A4 = (1240, 1754)  # 210 × 297 mm bei 150 dpi
+A4 = (1240, 1754)  # 210 × 297 mm at 150 dpi
 IP = "192.168.1.20"
 
 Font = ImageFont.FreeTypeFont | ImageFont.ImageFont
@@ -47,7 +47,7 @@ def font(size: int) -> Font:
 
 
 def text_lines(d: ImageDraw.ImageDraw, x: int, y: int, widths: list[int], gap: int = 34) -> int:
-    """Fließtext als graue Balken (liest sich in der Vorschau wie Text)."""
+    """Body text as gray bars (reads like text in the preview)."""
     for w in widths:
         d.rounded_rectangle((x, y, x + w, y + 12), 6, fill=(150, 150, 150))
         y += gap
@@ -127,7 +127,7 @@ def receipt(d: ImageDraw.ImageDraw) -> None:
     text_lines(d, 110, y + 220, [700, 620, 760, 540])
 
 
-DOCUMENTS = (  # (Name, Blätter: (Vorderseite, Rückseite))
+DOCUMENTS = (  # (name, sheets: (front, back))
     ("Receipt Corner Café", [(page_jpeg(receipt, (238, 233, 220)), None)]),
     ("Registration Form", [(page_jpeg(form), None)]),
     ("Library Renewal", [(page_jpeg(letter), page_jpeg(letter_back))]),
@@ -136,7 +136,7 @@ DOCUMENTS = (  # (Name, Blätter: (Vorderseite, Rückseite))
 
 
 class SampleScanner:
-    """``ports.scanner.ScannerPort`` ohne Netz: liefert bei jedem Scan das nächste Beispieldokument."""
+    """``ports.scanner.ScannerPort`` without a network: delivers the next sample document on every scan."""
 
     def __init__(self) -> None:
         self.next = 0
@@ -176,7 +176,7 @@ def wait(app: QApplication, done: Callable[[], bool], timeout: float = 20) -> No
     end = time.monotonic() + timeout
     while not done():
         if time.monotonic() > end:
-            raise TimeoutError("Scan im Screenshot-Lauf hängt")
+            raise TimeoutError("scan hangs in the screenshot run")
         app.processEvents()
         time.sleep(0.01)
     app.processEvents()
@@ -190,7 +190,7 @@ def grab(widget: QWidget, path: Path) -> None:
 
 
 def set_scheme(app: QApplication, mode: str) -> None:
-    """Hell/Dunkel erzwingen: die Plattform „offscreen“ kennt kein System-Farbschema."""
+    """Force light/dark: the "offscreen" platform has no system color scheme."""
     primer.scheme = lambda: mode
     primer.apply()
     app.processEvents()
@@ -211,7 +211,7 @@ def main() -> None:
         app = QApplication([sys.argv[0]])
         app.setApplicationName(qt_window.APP_NAME)
         app.setOrganizationName("scansnap-bridge")
-        if "Inter" in QFontDatabase.families():  # ähnelt der macOS-Systemschrift; Pages-Workflow installiert sie
+        if "Inter" in QFontDatabase.families():  # resembles the macOS system font; the Pages workflow installs it
             f = app.font()
             f.setFamily("Inter")
             app.setFont(f)
@@ -223,7 +223,7 @@ def main() -> None:
         w.folder = home / "Scans"
         w.open_after.setChecked(False)
         w._show_folder()  # pyright: ignore[reportPrivateUsage]
-        w.resize(1120, 700)  # etwas kleiner als der Start, damit die Schrift auf der Website lesbar bleibt
+        w.resize(1120, 700)  # a bit smaller than at startup so that the text stays readable on the website
         w.show()
         for name, _sheets in DOCUMENTS:
             w.start_scan()
@@ -235,7 +235,7 @@ def main() -> None:
         w.skip_blank.setChecked(True)
         w.whiten.setChecked(True)
         w.pages.item(0).setSelected(True)
-        # Anzeige wie auf einem Mac statt des temporären Ordners
+        # Show a path as on a Mac instead of the temporary folder
         shown = "~/Documents/Scans/Invoice Northwind.pdf"
         w.location.setText(shown)
         w.statusBar().showMessage(f"Saved: {shown}")

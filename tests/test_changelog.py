@@ -1,4 +1,4 @@
-"""CHANGELOG.md und tools/changelog.py: Create Release macht aus „Unreleased“ die neue Version."""
+"""CHANGELOG.md and tools/changelog.py: Create Release turns "Unreleased" into the new version."""
 
 from __future__ import annotations
 
@@ -48,15 +48,15 @@ def test_release_moves_unreleased_into_version() -> None:
     assert f"[Unreleased]: {REPO}/compare/v0.4.0...HEAD\n[0.4.0]: {REPO}/compare/v0.3.0...v0.4.0\n" in text
     assert text.endswith(f"[0.3.0]: {REPO}/releases/tag/v0.3.0\n")
     changelog.check(text)
-    with pytest.raises(ChangelogError, match="keine Einträge"):
-        changelog.unreleased(text)  # nächstes Release braucht neue Einträge
+    with pytest.raises(ChangelogError, match="no entries"):
+        changelog.unreleased(text)  # the next release needs new entries
 
 
 def test_release_refuses_empty_unreleased_and_known_version() -> None:
     empty = changelog.release(SAMPLE, "0.4.0", datetime.date(2026, 11, 2))
-    with pytest.raises(ChangelogError, match="keine Einträge"):
+    with pytest.raises(ChangelogError, match="no entries"):
         changelog.release(empty, "0.4.1", datetime.date(2026, 11, 3))
-    with pytest.raises(ChangelogError, match="schon"):
+    with pytest.raises(ChangelogError, match="already"):
         changelog.release(SAMPLE, "0.3.0", datetime.date(2026, 11, 3))
 
 
@@ -68,7 +68,7 @@ def test_first_release_starts_link_list() -> None:
 
 def test_notes_for_release_page() -> None:
     assert changelog.notes(SAMPLE, "0.3.0") == "## Added\n\n- Updates."
-    with pytest.raises(ChangelogError, match="kein Abschnitt"):
+    with pytest.raises(ChangelogError, match="no section"):
         changelog.notes(SAMPLE, "9.9.9")
 
 

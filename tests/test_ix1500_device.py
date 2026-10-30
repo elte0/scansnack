@@ -1,4 +1,4 @@
-"""Dauerhafte Sitzung (Device mit keep_alive): eine Verbindung für mehrere Scans, Neuaufbau nach Abriss."""
+"""Persistent session (Device with keep_alive): one connection for several scans, reconnect after a drop."""
 
 import time
 from collections.abc import Callable, Iterator
@@ -42,7 +42,7 @@ Sessions = tuple[list[MockScanner], list[device.Session]]
 
 @pytest.fixture
 def fake_sessions(monkeypatch: pytest.MonkeyPatch) -> Iterator[Sessions]:
-    """Ersetzt den echten Verbindungsablauf: jede Sitzung bekommt einen eigenen Mock-Scanner."""
+    """Replaces the real connection sequence: every session gets a mock scanner of its own."""
     mocks: list[MockScanner] = []
     opened: list[device.Session] = []
 
@@ -77,9 +77,9 @@ def test_keep_alive_reuses_session_and_polls_between_scans(fake_sessions: Sessio
     dev, ctl = make_device()
     dev.connect()
     assert len(list(dev.scan(Settings()))) == 1
-    assert dev.connected  # nach dem Scan läuft das C2-Polling weiter
-    time.sleep(0.3)  # Polling-Takt nach dem Scan: 250 ms
-    mocks[0].refill()  # nächstes Blatt in den Einzug
+    assert dev.connected  # C2 polling continues after the scan
+    time.sleep(0.3)  # polling interval after the scan: 250 ms
+    mocks[0].refill()  # next sheet into the feeder
     assert len(list(dev.scan(Settings()))) == 1
     assert len(opened) == 1
     ops = [cdb[0] for cdb, _ in mocks[0].received]
@@ -95,7 +95,7 @@ def test_dead_connection_is_rebuilt_before_scan(fake_sessions: Sessions) -> None
     dev, _ = make_device()
     dev.connect()
     mocks[0].close()
-    channel(opened[0]).sock.shutdown(2)  # Scanner weg: Polling bricht ab
+    channel(opened[0]).sock.shutdown(2)  # scanner gone: polling stops
     time.sleep(0.05)
     assert not dev.connected
     assert len(list(dev.scan(Settings()))) == 1
@@ -113,11 +113,11 @@ def test_connection_lost_during_scan_start_retries_once(
 
     def flaky_stop(self: ScsiChannel, timeout: float = 3.0) -> bool:
         calls.append(self)
-        return real_stop(self, timeout) and len(calls) > 1  # erste Sitzung „hängt“
+        return real_stop(self, timeout) and len(calls) > 1  # first session "hangs"
 
     monkeypatch.setattr(ScsiChannel, "stop_polling", flaky_stop)
     assert len(list(dev.scan(Settings()))) == 1
-    assert len(opened) == 2 and opened[0].ch is None  # alte Sitzung geschlossen
+    assert len(opened) == 2 and opened[0].ch is None  # old session closed
 
 
 class FakeListener:
@@ -141,10 +141,10 @@ def test_button_listener_follows_session(fake_sessions: Sessions, monkeypatch: p
     dev.on_button = presses.append
     dev.connect()
     assert [ls.args for ls in listeners] == [("127.0.0.1", IDENT.host_port, presses.append)]
-    dev.connect()  # Sitzung lebt: kein zweiter Listener
+    dev.connect()  # session alive: no second listener
     assert len(listeners) == 1
     dev.disconnect()
     assert listeners[0].closed
-    dev.connect()  # nach dem Trennen startet ein neuer Listener
+    dev.connect()  # after disconnecting, a new listener starts
     assert len(listeners) == 2
     dev.disconnect()

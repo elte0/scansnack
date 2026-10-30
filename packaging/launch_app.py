@@ -1,4 +1,4 @@
-"""Einstiegspunkt für PyInstaller (braucht ein Skript statt eines Entry-Points)."""
+"""Entry point for PyInstaller (it needs a script instead of an entry point)."""
 
 from scansnap.app.desktop import main
 

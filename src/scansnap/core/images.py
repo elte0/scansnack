@@ -1,4 +1,4 @@
-"""Nachbearbeitung der JPEGs vom Scanner: Zuschnitt aufs Papier und 180°-Drehung in einem Durchgang."""
+"""Post-processing of the JPEGs from the scanner: crop to the paper and rotate by 180° in one pass."""
 
 from __future__ import annotations
 
@@ -8,12 +8,12 @@ from typing import Any
 
 from PIL import Image, JpegImagePlugin
 
-# Messwerte (300 dpi, Live-Scans 2026-10-29): Hintergrund ~235–240, Papier ~252,
-# am Papierrand ein Schattenstreifen ~225. Rund 80 px Hintergrund links/rechts.
-SCALE = 4  # Analyse auf verkleinertem Bild
-PERCENTILE = 0.75  # „überwiegend“ hell: Text auf dem Papier stört nicht
-MIN_CONTRAST = 6  # Papier muss sich so weit vom Hintergrund abheben, sonst kein Zuschnitt
-MIN_FRACTION = 0.3  # kleinere Ergebnisse gelten als Fehlerkennung
+# Measurements (300 dpi, live scans 2026-10-29): background ~235–240, paper ~252,
+# a shadow stripe ~225 at the paper edge. About 80 px of background left/right.
+SCALE = 4  # analysis on a downscaled image
+PERCENTILE = 0.75  # "mostly" bright: text on the paper does not interfere
+MIN_CONTRAST = 6  # the paper must stand out this much from the background, otherwise no crop
+MIN_FRACTION = 0.3  # smaller results count as misdetection
 
 
 def _percentile(hist: list[int], q: float) -> int:
@@ -38,7 +38,7 @@ def _span(profile: list[int]) -> tuple[int, int] | None:
     edge = max(2, n // 100)
     background = min(profile[:edge] + profile[-edge:])
     middle = sorted(profile[n // 4 : 3 * n // 4])
-    paper = middle[int(len(middle) * 0.9)]  # hellste Zeilen/Spalten; dichter Text drückt den Median
+    paper = middle[int(len(middle) * 0.9)]  # brightest rows/columns; dense text pulls the median down
     if paper - background < MIN_CONTRAST:
         return None
     threshold = (paper + background) / 2
@@ -52,14 +52,14 @@ def _span(profile: list[int]) -> tuple[int, int] | None:
 
 
 def paper_box(im: Image.Image) -> tuple[int, int, int, int] | None:
-    """Papierbereich (links, oben, rechts, unten) in Pixeln oder None, wenn nicht sicher erkennbar."""
+    """Paper area (left, top, right, bottom) in pixels, or None if it cannot be detected reliably."""
     w, h = im.size
     gray = im.convert("L").resize((max(w // SCALE, 1), max(h // SCALE, 1)), Image.Resampling.BOX)
     xs, ys = _span(_profile(gray, "x")), _span(_profile(gray, "y"))
     if xs is None and ys is None:
         return None
     (x0, x1), (y0, y1) = xs or (0, gray.width), ys or (0, gray.height)
-    # eine Analysezeile nach innen, damit kein Schattenrest bleibt
+    # one analysis line inwards so that no shadow remains
     box = (
         (x0 + 1) * SCALE if xs else 0,
         (y0 + 1) * SCALE if ys else 0,
@@ -70,11 +70,11 @@ def paper_box(im: Image.Image) -> tuple[int, int, int, int] | None:
 
 
 def _reencode(jpeg: bytes, transform: Callable[[Image.Image], Image.Image], dpi: int | None = None) -> bytes:
-    """Wendet ``transform`` an und kodiert mit den Quantisierungstabellen und dem
-    Subsampling des Originals neu, damit kaum Qualität verloren geht."""
+    """Applies ``transform`` and re-encodes with the quantization tables and the
+    subsampling of the original so that hardly any quality is lost."""
     with Image.open(io.BytesIO(jpeg)) as src:
         if not isinstance(src, JpegImagePlugin.JpegImageFile):
-            raise ValueError("kein JPEG")
+            raise ValueError("not a JPEG")
         qtables, sampling = src.quantization, JpegImagePlugin.get_sampling(src)
         density: tuple[int, int] | None = (dpi, dpi) if dpi else src.info.get("dpi")
         im = transform(src.copy())
@@ -86,14 +86,14 @@ def _reencode(jpeg: bytes, transform: Callable[[Image.Image], Image.Image], dpi:
     return out.getvalue()
 
 
-# Hintergrund entfernen: Papierfarbe je Kanal schätzen und auf Weiß ziehen
-WHITEN_PERCENTILE = 0.85  # Dokumente sind überwiegend Papier
-WHITEN_KNEE = 10  # so viel unter der Papierfarbe wird schon reines Weiß (Rauschen, Struktur)
-WHITEN_MIN_PAPER = 150  # dunkleres „Papier“ (Foto, dunkler Karton) bleibt unverändert
+# Remove the background: estimate the paper color per channel and pull it to white
+WHITEN_PERCENTILE = 0.85  # documents are mostly paper
+WHITEN_KNEE = 10  # this far below the paper color already becomes pure white (noise, texture)
+WHITEN_MIN_PAPER = 150  # darker "paper" (photo, dark card) stays unchanged
 
 
 def paper_color(im: Image.Image) -> tuple[int, ...] | None:
-    """Papierfarbe je Kanal (Innenbereich, verkleinert) oder None, wenn kein helles Papier erkennbar ist."""
+    """Paper color per channel (inner area, downscaled), or None if no bright paper can be detected."""
     w, h = im.size
     inner = im.crop((w // 20, h // 20, w - w // 20, h - h // 20))
     small = inner.resize((max(inner.width // 8, 1), max(inner.height // 8, 1)), Image.Resampling.BOX)
@@ -103,7 +103,7 @@ def paper_color(im: Image.Image) -> tuple[int, ...] | None:
 
 
 def whiten(im: Image.Image) -> Image.Image:
-    """Setzt die Papierfarbe auf Weiß (Tonwertkorrektur je Kanal); dunkle Inhalte bleiben dunkel."""
+    """Sets the paper color to white (levels correction per channel); dark content stays dark."""
     color = paper_color(im)
     if color is None:
         return im
@@ -117,8 +117,8 @@ def whiten(im: Image.Image) -> Image.Image:
 def process(
     jpeg: bytes, dpi: int | None = None, *, rotate: bool = True, crop: bool = True, whiten_background: bool = False
 ) -> bytes:
-    """Schneidet aufs Papier zu, dreht um 180° und setzt auf Wunsch die Papierfarbe auf Weiß – in einem
-    Durchgang. ``dpi`` wird ins JFIF geschrieben (der Scanner trägt 0 ein)."""
+    """Crops to the paper, rotates by 180° and optionally sets the paper color to white – in one
+    pass. ``dpi`` is written into the JFIF header (the scanner writes 0)."""
     if not (rotate or crop or whiten_background):
         return jpeg
 
@@ -140,7 +140,7 @@ _TRANSPOSE = {90: Image.Transpose.ROTATE_270, 180: Image.Transpose.ROTATE_180, 2
 
 
 def rotate(jpeg: bytes, degrees: int) -> bytes:
-    """Dreht im Uhrzeigersinn um 90, 180 oder 270 Grad."""
+    """Rotates clockwise by 90, 180 or 270 degrees."""
     degrees %= 360
     if degrees == 0:
         return jpeg
@@ -148,15 +148,15 @@ def rotate(jpeg: bytes, degrees: int) -> bytes:
     return _reencode(jpeg, lambda im: im.transpose(method))
 
 
-# Leerseiten: Anteil „dunkler“ Pixel (deutlich dunkler als das Papier) im Innenbereich
-BLANK_MARGIN = 0.05  # Rand ignorieren (Schattenkante, Lochung am Rand)
-BLANK_DARKER = 40  # so viel dunkler als das Papier zählt als Inhalt
-BLANK_MAX_INK = 0.002  # höchstens 0,2 % Inhalt → leer
+# Blank pages: share of "dark" pixels (clearly darker than the paper) in the inner area
+BLANK_MARGIN = 0.05  # ignore the margin (shadow edge, punch holes at the edge)
+BLANK_DARKER = 40  # this much darker than the paper counts as content
+BLANK_MAX_INK = 0.002  # at most 0.2 % content → blank
 
 
 def is_blank(jpeg: bytes) -> bool:
     with Image.open(io.BytesIO(jpeg)) as src:
-        src.draft("L", (src.width // 8, src.height // 8))  # dekodiert direkt verkleinert
+        src.draft("L", (src.width // 8, src.height // 8))  # decodes directly at reduced size
         im = src.convert("L")
         im = im.resize((max(im.width // 4, 1), max(im.height // 4, 1)), Image.Resampling.BOX)
     w, h = im.size

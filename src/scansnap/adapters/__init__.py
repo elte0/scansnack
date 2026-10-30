@@ -1,1 +1,1 @@
-"""Adapter nach außen. Sie importieren einander nicht; verdrahtet werden sie nur in ``scansnap.app``."""
+"""Outward-facing adapters. They do not import each other; they are wired only in ``scansnap.app``."""

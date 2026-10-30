@@ -1,4 +1,4 @@
-"""Bonjour-Anzeige als eSCL-Scanner (``_uscan._tcp``), TXT-Schlüssel wie bei AirScan-Geräten."""
+"""Bonjour advertisement as an eSCL scanner (``_uscan._tcp``), TXT keys as on AirScan devices."""
 
 from __future__ import annotations
 

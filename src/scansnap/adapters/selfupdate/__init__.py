@@ -1,1 +1,1 @@
-"""Selbst-Update der gebauten App (PyInstaller): herunterladen, prüfen, austauschen, neu starten."""
+"""Self-update of the built app (PyInstaller): download, verify, replace, restart."""

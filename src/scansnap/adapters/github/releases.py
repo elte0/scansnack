@@ -1,7 +1,7 @@
-"""Neuestes Release über die GitHub-REST-API (ohne Token: 60 Abfragen pro Stunde und IP reichen beim Start).
+"""Latest release via the GitHub REST API (without a token: 60 requests per hour and IP are enough at startup).
 
-Prüfsummen: GitHub liefert seit 2025-06 zu jedem Asset ``digest: "sha256:…"``; fehlt er, wird die vom
-Release-Workflow angehängte Datei ``SHA256SUMS`` gelesen.
+Checksums: since 2025-06 GitHub provides ``digest: "sha256:…"`` for every asset; if it is missing, the
+``SHA256SUMS`` file attached by the release workflow is read.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def _digest(raw: dict[str, Any]) -> str | None:
 
 
 def parse_release(data: object, sums: dict[str, str] | None = None) -> Release | None:
-    """JSON von ``GET /repos/…/releases/latest`` → Release; None bei Entwurf, Vorabversion oder fremdem Tag."""
+    """JSON of ``GET /repos/…/releases/latest`` → Release; None for a draft, pre-release or foreign tag."""
     if not isinstance(data, dict):
         raise ValueError("unexpected release data")
     raw = cast(dict[str, Any], data)
@@ -51,7 +51,7 @@ def parse_release(data: object, sums: dict[str, str] | None = None) -> Release |
 
 
 class GitHubReleases:
-    """``ReleaseSource`` für ein öffentliches GitHub-Repository."""
+    """``ReleaseSource`` for a public GitHub repository."""
 
     def __init__(
         self, repo: str = REPO, *, timeout: float = 10.0, opener: Opener = _open, user_agent: str = "ScanSnack"
@@ -70,7 +70,7 @@ class GitHubReleases:
         try:
             body = self._get(f"{API}/repos/{self.repo}/releases/latest", "application/vnd.github+json")
         except urllib.error.HTTPError as e:
-            if e.code == 404:  # noch kein Release veröffentlicht
+            if e.code == 404:  # no release published yet
                 return None
             raise
         data = json.loads(body)

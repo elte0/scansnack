@@ -13,6 +13,11 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 - A changelog: this page, also on the website, and in the release notes of every new version.
 
+### Changed
+
+- The command line, log output and error messages are now in English throughout, as are the code
+  comments and developer docs.
+
 ## [0.3.0] - 2026-10-29
 
 ### Added

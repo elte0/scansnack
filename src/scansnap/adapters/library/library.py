@@ -1,4 +1,4 @@
-"""Dokumentliste der App: Index der gespeicherten PDFs (JSON). Seiten werden aus den PDFs gelesen."""
+"""Document list of the app: index of the saved PDFs (JSON). Pages are read from the PDFs."""
 
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ _MEDIABOX = re.compile(rb"/Type /Page /Parent \d+ 0 R /MediaBox \[0 0 ([\d.]+) (
 
 
 def read_pdf_pages(path: Path) -> list[ScanPage]:
-    """Liest die JPEG-Seiten aus einem PDF, das diese App (``jpegs_to_pdf``) geschrieben hat."""
+    """Reads the JPEG pages from a PDF written by this app (``jpegs_to_pdf``)."""
     data = path.read_bytes()
     images = [(int(m[1]), m.end(), int(m[3])) for m in _IMAGE.finditer(data)]
     boxes = [float(m[1]) for m in _MEDIABOX.finditer(data)]
     if not images or len(images) != len(boxes):
-        raise ValueError(f"{path.name}: kein von dieser App geschriebenes PDF")
+        raise ValueError(f"{path.name}: not a PDF written by this app")
     return [
         ScanPage(data[start : start + length], round(width * 72 / pw))
         for (width, start, length), pw in zip(images, boxes, strict=True)
@@ -42,11 +42,11 @@ def unique_path(folder: Path, name: str) -> Path:
     return path
 
 
-THUMB_SIZE = 112  # Dokumentliste (Retina: doppelte Anzeigegröße)
+THUMB_SIZE = 112  # document list (Retina: twice the display size)
 
 
 class Library:
-    """Implementiert ``ports.output.OutputPort``."""
+    """Implements ``ports.output.OutputPort``."""
 
     def __init__(self, index: Path):
         self.index = index
@@ -64,7 +64,7 @@ class Library:
         tmp.replace(self.index)
 
     def thumb_path(self, entry: Entry) -> Path:
-        """Kleine Vorschau der ersten Seite, damit die Liste beim Start keine PDFs lesen muss."""
+        """Small preview of the first page so that the list does not have to read PDFs at startup."""
         return self.index.parent / "thumbs" / f"{entry.id}.png"
 
     def _write_thumb(self, entry: Entry, pages: Sequence[ScanPage]) -> None:
@@ -84,7 +84,7 @@ class Library:
 
     def add(self, pages: Sequence[ScanPage], folder: Path, name: str) -> Entry:
         if not pages:
-            raise ValueError("keine Seiten")
+            raise ValueError("no pages")
         folder.mkdir(parents=True, exist_ok=True)
         path = unique_path(folder, name)
         path.write_bytes(_pdf(pages))
@@ -95,9 +95,9 @@ class Library:
         return entry
 
     def update(self, entry: Entry, pages: Sequence[ScanPage], name: str) -> Entry:
-        """Schreibt das PDF neu; ein geänderter Name benennt die Datei um (ohne zu überschreiben)."""
+        """Rewrites the PDF; a changed name renames the file (without overwriting)."""
         if not pages:
-            raise ValueError("keine Seiten")
+            raise ValueError("no pages")
         target = entry.file
         if name.strip() and name.strip().removesuffix(".pdf") != entry.file.stem:
             target = unique_path(entry.file.parent, name)
@@ -112,7 +112,7 @@ class Library:
         return entry
 
     def remove(self, entry: Entry) -> None:
-        """Entfernt den Eintrag aus der Liste; die Datei bleibt."""
+        """Removes the entry from the list; the file stays."""
         self.entries = [e for e in self.entries if e.id != entry.id]
         self.thumb_path(entry).unlink(missing_ok=True)
         self._store()

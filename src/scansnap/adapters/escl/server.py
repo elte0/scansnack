@@ -1,14 +1,14 @@
-"""eSCL/AirScan-Server (Mopria/Apple), der Aufträge an den ScanSnap weiterreicht.
+"""eSCL/AirScan server (Mopria/Apple) that passes jobs on to the ScanSnap.
 
-Endpunkte:
+Endpoints:
     GET    /eSCL/ScannerCapabilities
     GET    /eSCL/ScannerStatus
-    POST   /eSCL/ScanJobs                     → 201 + Location, 409 bei leerem Einzug
-    GET    /eSCL/ScanJobs/<id>/NextDocument   → nächste Seite, 404 wenn keine mehr kommt
+    POST   /eSCL/ScanJobs                     → 201 + Location, 409 if the feeder is empty
+    GET    /eSCL/ScanJobs/<id>/NextDocument   → next page, 404 when no more pages come
     DELETE /eSCL/ScanJobs/<id>
 
-Nur Einzug (ADF). Der Scanner liefert fertige JPEGs; für PDF werden sie unverändert eingebettet.
-Längen in eSCL sind in 1/300 Zoll.
+Feeder (ADF) only. The scanner delivers finished JPEGs; for PDF they are embedded unchanged.
+Lengths in eSCL are in 1/300 inch.
 """
 
 from __future__ import annotations
@@ -33,10 +33,10 @@ from ...ports.scanner import ScannerPort
 ESCL_VERSION = "2.63"
 RESOLUTIONS = (150, 300, 600)
 FORMATS = ("image/jpeg", "application/pdf")
-MAX_WIDTH = SCAN_WIDTH_1200 // 4  # 1/1200 → 1/300 Zoll
+MAX_WIDTH = SCAN_WIDTH_1200 // 4  # 1/1200 → 1/300 inch
 MAX_HEIGHT = SCAN_HEIGHT_1200 // 4
 FIRST_PAGE_TIMEOUT = 60.0
-# UNVERIFIED: Einzugskapazität nicht vom Gerät gelesen.
+# UNVERIFIED: feeder capacity not read from the device.
 FEEDER_CAPACITY = 50
 
 NS = 'xmlns:scan="http://schemas.hp.com/imaging/escl/2011/05/03" xmlns:pwg="http://www.pwg.org/schemas/2010/12/sm"'
@@ -46,7 +46,7 @@ NS = 'xmlns:scan="http://schemas.hp.com/imaging/escl/2011/05/03" xmlns:pwg="http
 class ScanRequest:
     settings: ScanSettings
     fmt: str
-    color_mode: str = "RGB24"  # wie vom Client angefragt
+    color_mode: str = "RGB24"  # as requested by the client
 
 
 class BadRequest(Exception):
@@ -54,24 +54,24 @@ class BadRequest(Exception):
 
 
 def parse_scan_settings(body: bytes) -> ScanRequest:
-    """ScanSettings-XML → Settings. Namensräume werden ignoriert (Clients sind da uneinheitlich)."""
+    """ScanSettings XML → settings. Namespaces are ignored (clients are inconsistent there)."""
     try:
         root = ET.fromstring(body)
     except ET.ParseError as e:
-        raise BadRequest(f"ScanSettings nicht lesbar: {e}") from e
+        raise BadRequest(f"ScanSettings not readable: {e}") from e
     values: dict[str, str] = {}
     for el in root.iter():
         values.setdefault(el.tag.rsplit("}", 1)[-1], (el.text or "").strip())
     source = values.get("InputSource", "Feeder")
     if source not in ("Feeder", "Adf"):
-        raise BadRequest(f"InputSource {source} nicht unterstützt (nur Feeder)")
+        raise BadRequest(f"InputSource {source} not supported (Feeder only)")
     color_mode = values.get("ColorMode", "RGB24")
-    # UNVERIFIED: gray liefert 3-Kanal-JPEGs; ob der Scanner echte Graustufen-JPEGs kann, ist offen.
+    # UNVERIFIED: gray delivers 3-channel JPEGs; whether the scanner can produce true grayscale JPEGs is open.
     mode = "color" if color_mode == "RGB24" else "gray"
     try:
         wanted = int(values.get("XResolution") or 300)
     except ValueError as e:
-        raise BadRequest("XResolution ungültig") from e
+        raise BadRequest("XResolution invalid") from e
     dpi = min(RESOLUTIONS, key=lambda r: (abs(r - wanted), r))
     duplex = values.get("Duplex", "false").lower() in ("true", "1")
     fmt = values.get("DocumentFormatExt") or values.get("DocumentFormat") or "image/jpeg"
@@ -131,7 +131,7 @@ class Job:
     request: ScanRequest
     id: str = field(default_factory=lambda: uuidlib.uuid4().hex)
     created: float = field(default_factory=time.monotonic)
-    documents: queue.Queue[bytes | None] = field(default_factory=lambda: queue.Queue())  # None = Ende
+    documents: queue.Queue[bytes | None] = field(default_factory=lambda: queue.Queue())  # None = end
     started: threading.Event = field(default_factory=threading.Event)
     state: str = "Processing"  # Processing | Completed | Aborted | Canceled
     reason: str = "JobScanning"
@@ -156,7 +156,7 @@ class Job:
 
 
 class EsclService:
-    """Auftragsverwaltung ohne HTTP; ein Scan zur Zeit."""
+    """Job management without HTTP; one scan at a time."""
 
     def __init__(
         self,
@@ -192,9 +192,9 @@ class EsclService:
         )
 
     def start(self, request: ScanRequest) -> Job | None:
-        """Startet den Scan und wartet auf die erste Seite. None = Einzug leer, BlockingIOError = belegt."""
+        """Starts the scan and waits for the first page. None = feeder empty, BlockingIOError = busy."""
         if not self._busy.acquire(blocking=False):
-            raise BlockingIOError("Scanner belegt")
+            raise BlockingIOError("scanner busy")
         job = Job(request)
         self._prune()
         self.jobs[job.id] = job
@@ -203,7 +203,7 @@ class EsclService:
         if job.no_paper:
             return None
         if job.state == "Aborted" and job.images == 0:
-            raise RuntimeError("Scan fehlgeschlagen")
+            raise RuntimeError("scan failed")
         return job
 
     def _run(self, job: Job) -> None:
@@ -213,7 +213,7 @@ class EsclService:
         def emit(doc: bytes) -> None:
             job.images += 1
             w, h, comps = jpeg_info(doc)
-            print(f"[escl] Seite {job.images}: {w}×{h}, {comps} Kanal/Kanäle, {len(doc)} B", file=sys.stderr)
+            print(f"[escl] page {job.images}: {w}×{h}, {comps} channel(s), {len(doc)} B", file=sys.stderr)
             if req.fmt == "application/pdf":
                 collected.append(doc)
             else:
@@ -236,9 +236,9 @@ class EsclService:
             job.no_paper, self.adf_empty = True, True
             job.state, job.reason = "Aborted", "AdfEmpty"
         except FeedError as e:
-            print(f"[escl] Papierfehler: {e.reason}", file=sys.stderr)
+            print(f"[escl] paper error: {e.reason}", file=sys.stderr)
             job.state, job.reason = "Aborted", "MediaJam" if e.reason == "paper jam" else "ErrorOccurred"
-        except Exception:  # noqa: BLE001 – jeder Fehler beendet den Auftrag, Meldung im Log
+        except Exception:  # noqa: BLE001 – any error ends the job, message in the log
             traceback.print_exc(file=sys.stderr)
             job.state, job.reason = "Aborted", "ErrorOccurred"
         finally:
@@ -255,7 +255,7 @@ class EsclService:
         except queue.Empty:
             return None
         if doc is None:
-            job.documents.put(None)  # weitere Abfragen ebenfalls 404
+            job.documents.put(None)  # further requests get 404 as well
             return None
         job.delivered += 1
         return doc
@@ -322,7 +322,7 @@ def make_handler(service: EsclService) -> type[BaseHTTPRequestHandler]:
                 request = parse_scan_settings(body)
                 s = request.settings
                 print(
-                    f"[escl] Auftrag: ColorMode={request.color_mode} → {s.mode}/{s.dpi} dpi, "
+                    f"[escl] job: ColorMode={request.color_mode} → {s.mode}/{s.dpi} dpi, "
                     f"{'duplex' if s.duplex else 'simplex'}, {request.fmt}",
                     file=sys.stderr,
                 )

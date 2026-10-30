@@ -1,4 +1,4 @@
-"""Auto-Update: Versionen, Release-Abfrage (ohne Netz), Installation mit echtem Helfer-Skript (POSIX)."""
+"""Auto-update: versions, release query (without network), installation with the real helper script (POSIX)."""
 
 from __future__ import annotations
 
@@ -141,7 +141,7 @@ def tarball(files: dict[str, str]) -> bytes:
 
 
 def installed_app(tmp_path: Path, marker: Path) -> Path:
-    """Installierte „alte“ App: ein Shell-Skript als ScanSnack-Programm."""
+    """Installed "old" app: a shell script as the ScanSnack program."""
     folder = tmp_path / "apps" / "ScanSnack"
     folder.mkdir(parents=True)
     exe = folder / "ScanSnack"
@@ -176,16 +176,16 @@ def test_install_replaces_app_and_restarts(tmp_path: Path) -> None:
     progress: list[tuple[int, int]] = []
     staged = inst.prepare(asset, lambda done, total: progress.append((done, total)))
     assert staged == inst.staging / "new" / "ScanSnack" and progress[-1] == (len(payload), len(payload))
-    assert not (inst.staging / asset.name).exists()  # Paket nach dem Entpacken gelöscht
+    assert not (inst.staging / asset.name).exists()  # package deleted after unpacking
 
-    gone = subprocess.Popen(["true"])  # PID eines schon beendeten Prozesses: Helfer wartet nicht
+    gone = subprocess.Popen(["true"])  # PID of a process that has already exited: the helper does not wait
     gone.wait()
     inst.restart_into(staged)
     script = Path(spawned[0][-1])
     text = script.read_text().replace(f"pid={os.getpid()}", f"pid={gone.pid}")
     script.write_text(text)
     subprocess.run(["/bin/sh", str(script)], check=True, timeout=30)
-    for _ in range(100):  # neue App läuft im Hintergrund (nohup … &)
+    for _ in range(100):  # the new app runs in the background (nohup … &)
         if marker.exists():
             break
         time.sleep(0.05)

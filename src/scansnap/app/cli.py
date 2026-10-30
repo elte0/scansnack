@@ -1,4 +1,4 @@
-"""Kommandozeile ``scansnap``: Experimente am Protokoll, Einzelscans, eSCL-Server (verdrahtet ix1500 + escl)."""
+"""Command line ``scansnap``: protocol experiments, single scans, eSCL server (wires ix1500 + escl)."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _resolve_ip(args: argparse.Namespace, ident: HostIdentity) -> str:
         return args.ip
     found = discover(ident.mac)
     if not found:
-        sys.exit("Kein Scanner gefunden. Mit --ip angeben.")
+        sys.exit("No scanner found. Specify it with --ip.")
     return found[0].ip
 
 
@@ -40,7 +40,7 @@ def _serve(args: argparse.Namespace, ip: str, ident: HostIdentity) -> None:
     model = info.model if info else "ScanSnap iX1500"
     serial = info.serial if info else ""
     name = args.name or model
-    # Stabil über Neustarts, damit macOS den Scanner wiedererkennt
+    # Stable across restarts so that macOS recognizes the scanner again
     escl_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"scansnap-bridge:{serial or ip}:{ident.host_id}"))
     my_ip = local_ip_for(ip)
     device = Device(ip, ident, args.profile_id, crop=not args.no_crop)
@@ -66,12 +66,12 @@ def _save(pages: Iterable[Sheet], out: Path) -> int:
         (out / f"page{n:03d}_front.jpg").write_bytes(page.front)
         if page.back is not None:
             (out / f"page{n:03d}_back.jpg").write_bytes(page.back)
-        print(f"Blatt {n}: {page.info}", flush=True)
+        print(f"Sheet {n}: {page.info}", flush=True)
     return n
 
 
 def _listen(args: argparse.Namespace, ip: str, ident: HostIdentity) -> None:
-    """Sitzung halten und bei jedem Druck auf „Scan“ am Touchpanel scannen."""
+    """Keep the session open and scan on every press of "Scan" on the touch panel."""
     import datetime as dt
     import queue
 
@@ -79,22 +79,22 @@ def _listen(args: argparse.Namespace, ip: str, ident: HostIdentity) -> None:
     device = Device(ip, ident, args.profile_id, crop=not args.no_crop, keep_alive=True, on_button=presses.put)
     device.connect()
     settings = ScanSettings(args.mode, args.dpi, args.duplex)
-    print("Bereit – am Scanner auf „Scan“ drücken (Strg+C beendet).", file=sys.stderr)
+    print('Ready – press "Scan" on the scanner (Ctrl+C quits).', file=sys.stderr)
     try:
         while True:
             try:
                 presses.get(timeout=30)
             except queue.Empty:
-                device.connect()  # Sitzung nach Abriss wieder aufbauen, sonst kommt keine Meldung
+                device.connect()  # reconnect after a drop, otherwise no notification arrives
                 continue
             out = args.out / dt.datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
             try:
                 n = _save(device.scan(settings), out)
-                print(f"{n} Blatt/Blätter → {out}", file=sys.stderr)
+                print(f"{n} sheet(s) → {out}", file=sys.stderr)
             except NoPaper:
-                print("Kein Papier im Einzug.", file=sys.stderr)
-            except Exception as e:  # noqa: BLE001 – weiter auf den nächsten Tastendruck warten
-                print(f"Scan fehlgeschlagen: {e}", file=sys.stderr)
+                print("No paper in the feeder.", file=sys.stderr)
+            except Exception as e:  # noqa: BLE001 – keep waiting for the next button press
+                print(f"Scan failed: {e}", file=sys.stderr)
     except KeyboardInterrupt:
         pass
     finally:
@@ -103,33 +103,33 @@ def _listen(args: argparse.Namespace, ip: str, ident: HostIdentity) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="scansnap")
-    p.add_argument("--ip", help="IP des Scanners (sonst Discovery)")
+    p.add_argument("--ip", help="IP of the scanner (otherwise discovery)")
     p.add_argument("--identity", type=Path, default=DEFAULT_PATH)
-    p.add_argument("--debug", action="store_true", help="alle Frames als Hex auf stderr")
+    p.add_argument("--debug", action="store_true", help="all frames as hex on stderr")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("discover")
-    sub.add_parser("pair", help="Handshake auf dem Steuerkanal wie ScanSnap Home")
-    sub.add_parser("status", help="Benutzer/Profile und ausgewählten Host anzeigen")
-    sub.add_parser("claim", help="diesen Host beim Scanner eintragen und auswählen")
-    sv = sub.add_parser("serve", help="eSCL/AirScan-Server mit Bonjour-Anzeige")
+    sub.add_parser("pair", help="handshake on the control channel like ScanSnap Home")
+    sub.add_parser("status", help="show users/profiles and the selected host")
+    sub.add_parser("claim", help="register this host with the scanner and select it")
+    sv = sub.add_parser("serve", help="eSCL/AirScan server with Bonjour advertisement")
     sv.add_argument("--port", type=int, default=8090)
-    sv.add_argument("--name", help="Name im Scanfenster (Default: Modell vom Scanner)")
-    sv.add_argument("--profile-id", help="Profil für 0x0610 (Default: eigenes/gleiche IP/erstes)")
+    sv.add_argument("--name", help="name in the scan dialog (default: model reported by the scanner)")
+    sv.add_argument("--profile-id", help="profile for 0x0610 (default: own/same IP/first)")
     sv.add_argument("--no-bonjour", action="store_true")
-    sv.add_argument("--no-crop", action="store_true", help="ganzes Scanfeld statt Zuschnitt aufs Papier")
-    ls = sub.add_parser("listen", help="bei jedem Druck auf „Scan“ am Touchpanel scannen")
+    sv.add_argument("--no-crop", action="store_true", help="whole scan area instead of cropping to the paper")
+    ls = sub.add_parser("listen", help='scan on every press of "Scan" on the touch panel')
     sc = sub.add_parser("scan")
     for q in (sc, ls):
         q.add_argument("--mode", choices=["gray", "color"], default="gray")
         q.add_argument("--dpi", type=int, default=150)
         q.add_argument("--duplex", action="store_true")
         q.add_argument("--out", type=Path, default=Path("scans"))
-        q.add_argument("--profile-id", help="Profil für 0x0610 (Default: eigenes/gleiche IP/erstes)")
-        q.add_argument("--no-crop", action="store_true", help="ganzes Scanfeld statt Zuschnitt aufs Papier")
-    sc.add_argument("--no-pair", action="store_true", help="Steuerkanal-Handshake überspringen")
-    sc.add_argument("--pair", action="store_true", help="Pairing-Handshake (0x11 Flag 5) statt Verbinden")
-    sc.add_argument("--no-select", action="store_true", help="0x0610 vor dem Scan weglassen")
-    sc.add_argument("--no-heartbeat", action="store_true", help="UDP-Heartbeat an 52217 weglassen")
+        q.add_argument("--profile-id", help="profile for 0x0610 (default: own/same IP/first)")
+        q.add_argument("--no-crop", action="store_true", help="whole scan area instead of cropping to the paper")
+    sc.add_argument("--no-pair", action="store_true", help="skip the control channel handshake")
+    sc.add_argument("--pair", action="store_true", help="pairing handshake (0x11 flag 5) instead of connecting")
+    sc.add_argument("--no-select", action="store_true", help="omit 0x0610 before the scan")
+    sc.add_argument("--no-heartbeat", action="store_true", help="omit the UDP heartbeat to 52217")
     args = p.parse_args(argv)
 
     if args.debug:
@@ -144,12 +144,12 @@ def main(argv: list[str] | None = None) -> None:
     ip = _resolve_ip(args, ident)
     if args.cmd == "status":
         users = Control(ip, ident).get_users()
-        print(f"Eigene Host-ID: {ident.host_id}")
-        print("Benutzer:", [(u["name"], u["host_id"]) for u in users["conn_user"]["users"]])
-        print("Ausgewählt (JSON):", users["conn_user"].get("select"))
-        print("Profile:", [(p.get("prof_name"), p.get("user_name")) for p in users.get("profiles", [])])
+        print(f"Own host ID: {ident.host_id}")
+        print("Users:", [(u["name"], u["host_id"]) for u in users["conn_user"]["users"]])
+        print("Selected (JSON):", users["conn_user"].get("select"))
+        print("Profiles:", [(p.get("prof_name"), p.get("user_name")) for p in users.get("profiles", [])])
         with ScsiChannel(ip, ident.mac) as ch:
-            print("Ausgewählt (C2):", ch.hardware_status()[32:40].hex())
+            print("Selected (C2):", ch.hardware_status()[32:40].hex())
         return
     if args.cmd == "serve":
         return _serve(args, ip, ident)
@@ -157,29 +157,29 @@ def main(argv: list[str] | None = None) -> None:
         return _listen(args, ip, ident)
     ctl = Control(ip, ident)
     if args.cmd == "claim":
-        # Benutzer/Profile schreiben (0x0110) geht nur im Pairing-Zustand (0x11 mit Flag 5).
+        # Writing users/profiles (0x0110) only works in the pairing state (0x11 with flag 5).
         with session(ctl, ip, ident, pair=True) as ch:
             try:
                 ctl.claim(ctl.local_ip())
             finally:
-                print("Ausgewählt (C2):", ch.hardware_status()[32:40].hex())
-        print(f"Host {ident.host_id} mit eigenem Profil eingetragen.")
+                print("Selected (C2):", ch.hardware_status()[32:40].hex())
+        print(f"Host {ident.host_id} registered with its own profile.")
         return
     if args.cmd == "pair":
         host_ip = ctl.handshake()
-        print(f"Handshake ok (Host {host_ip}, ID {ident.host_id})")
+        print(f"Handshake ok (host {host_ip}, ID {ident.host_id})")
         return
 
     settings = ScanSettings(args.mode, args.dpi, args.duplex)
     if not is_verified(settings):
-        print(f"Warnung: {args.mode}/{args.dpi} dpi ist nicht durch Captures belegt.", file=sys.stderr)
+        print(f"Warning: {args.mode}/{args.dpi} dpi is not backed by captures.", file=sys.stderr)
     pages = Device(ip, ident, args.profile_id, crop=not args.no_crop).scan(
         settings, select=not args.no_select, pair=args.pair, handshake=not args.no_pair, heartbeat=not args.no_heartbeat
     )
     try:
         _save(pages, args.out)
     except NoPaper:
-        sys.exit("Kein Papier im Einzug.")
+        sys.exit("No paper in the feeder.")
 
 
 if __name__ == "__main__":

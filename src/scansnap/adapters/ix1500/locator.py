@@ -1,4 +1,4 @@
-"""``ports.scanner.ScannerLocator`` für den iX1500: Discovery per UDP, Erreichbarkeit per TCP 53219."""
+"""``ports.scanner.ScannerLocator`` for the iX1500: discovery via UDP, reachability via TCP 53219."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from .identity import DEFAULT_PATH, load_or_create
 
 
 class Ix1500Locator:
-    """Die Host-Identität wird erst bei Bedarf geladen bzw. angelegt."""
+    """The host identity is only loaded or created when needed."""
 
     def __init__(self, identity_path: Path = DEFAULT_PATH, name: str | None = None):
         self.identity_path, self.name = identity_path, name

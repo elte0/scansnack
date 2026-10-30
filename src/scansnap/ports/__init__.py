@@ -1,1 +1,1 @@
-"""Schnittstellen (``typing.Protocol``) zwischen Core und Adaptern."""
+"""Interfaces (``typing.Protocol``) between the core and the adapters."""

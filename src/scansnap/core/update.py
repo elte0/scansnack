@@ -1,8 +1,8 @@
-"""Updates der Desktop-App: Versionen vergleichen, das passende Release-Paket wählen, Prüfsummen.
+"""Updates of the desktop app: compare versions, pick the matching release package, checksums.
 
-Paketnamen wie in ``tools/build_app.py``: ``ScanSnack-<version>-<os>-<arch>.<ext>``.
-Ohne Netz und ohne Plattform-Aufrufe; die Adapter (``adapters/github``, ``adapters/selfupdate``) holen
-und installieren.
+Package names as in ``tools/build_app.py``: ``ScanSnack-<version>-<os>-<arch>.<ext>``.
+No network and no platform calls; the adapters (``adapters/github``, ``adapters/selfupdate``) fetch
+and install.
 """
 
 from __future__ import annotations
@@ -22,16 +22,16 @@ _VERSION = re.compile(r"v?(\d+)\.(\d+)\.(\d+)")
 @dataclass(frozen=True)
 class Asset:
     name: str
-    url: str  # Download-URL (browser_download_url)
+    url: str  # download URL (browser_download_url)
     size: int
-    sha256: str | None  # klein geschrieben, hex; None: keine Prüfsumme bekannt → nicht installierbar
+    sha256: str | None  # lower case, hex; None: no checksum known → not installable
 
 
 @dataclass(frozen=True)
 class Release:
     version: Version
     tag: str
-    page_url: str  # Release-Seite für Menschen (Download von Hand, Notizen)
+    page_url: str  # release page for humans (manual download, notes)
     notes: str  # Markdown
     assets: tuple[Asset, ...]
 
@@ -41,7 +41,7 @@ class Release:
 
 
 def parse_version(text: str) -> Version | None:
-    """``"v1.2.3"``/``"1.2.3"`` → ``(1, 2, 3)``; anderes (auch Vorabversionen wie ``1.2.3-rc1``) → None."""
+    """``"v1.2.3"``/``"1.2.3"`` → ``(1, 2, 3)``; anything else (including pre-releases like ``1.2.3-rc1``) → None."""
     m = _VERSION.fullmatch(text.strip())
     return (int(m[1]), int(m[2]), int(m[3])) if m else None
 
@@ -51,12 +51,12 @@ def format_version(version: Version) -> str:
 
 
 def os_name(sys_platform: str) -> str:
-    """``sys.platform`` → Namensteil der Pakete."""
+    """``sys.platform`` → name part of the packages."""
     return {"darwin": "macos", "win32": "windows"}.get(sys_platform, "linux")
 
 
 def arch_name(machine: str) -> str:
-    """``platform.machine()`` → Namensteil der Pakete."""
+    """``platform.machine()`` → name part of the packages."""
     machine = machine.lower()
     return ARCHES.get(machine, machine)
 
@@ -66,7 +66,7 @@ def package_name(version: Version, os: str, arch: str) -> str:
 
 
 def pick_asset(release: Release, os: str, arch: str) -> Asset | None:
-    """Das Paket dieses Systems aus dem Release, oder None, wenn es keins gibt."""
+    """The package for this system from the release, or None if there is none."""
     wanted = package_name(release.version, os, arch)
     return next((a for a in release.assets if a.name == wanted), None)
 
@@ -76,7 +76,7 @@ def is_newer(release: Release, current: Version) -> bool:
 
 
 def parse_sha256sums(text: str) -> dict[str, str]:
-    """Inhalt einer ``SHA256SUMS``-Datei (Format von ``sha256sum``) → Dateiname: Prüfsumme."""
+    """Content of a ``SHA256SUMS`` file (format of ``sha256sum``) → file name: checksum."""
     sums: dict[str, str] = {}
     for line in text.splitlines():
         parts = line.strip().split(maxsplit=1)
@@ -90,7 +90,7 @@ class ChecksumMismatch(ValueError):
 
 
 class Sha256:
-    """Prüfsumme beim Herunterladen mitrechnen und am Ende vergleichen."""
+    """Compute the checksum while downloading and compare it at the end."""
 
     def __init__(self, expected: str):
         self.expected = expected.lower()

@@ -1,1 +1,1 @@
-"""Domäne: Scan-Einstellungen, Seiten, Dokumente, Nachbearbeitung, PDF. Kennt weder Qt noch Sockets."""
+"""Domain: scan settings, pages, documents, post-processing, PDF. Knows neither Qt nor sockets."""

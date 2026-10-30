@@ -1,4 +1,4 @@
-"""Ablage gescannter Dokumente."""
+"""Storage of scanned documents."""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ from ..core.document import Entry, ScanPage
 
 
 class OutputPort(Protocol):
-    """Dokumentliste mit gespeicherten PDFs. Fehler beim Schreiben: ``OSError``/``ValueError``."""
+    """Document list with saved PDFs. Write errors: ``OSError``/``ValueError``."""
 
     @property
     def entries(self) -> Sequence[Entry]:
-        """Neueste zuerst."""
+        """Newest first."""
         ...
 
     def get(self, entry_id: str) -> Entry | None: ...
@@ -24,11 +24,11 @@ class OutputPort(Protocol):
     def update(self, entry: Entry, pages: Sequence[ScanPage], name: str) -> Entry: ...
 
     def remove(self, entry: Entry) -> None:
-        """Nur aus der Liste entfernen; die Datei bleibt."""
+        """Remove from the list only; the file stays."""
         ...
 
     def read_pages(self, entry: Entry) -> list[ScanPage]: ...
 
     def thumbnail(self, entry: Entry) -> bytes | None:
-        """PNG-Vorschau der ersten Seite, ohne das PDF zu lesen; None, wenn keine vorliegt."""
+        """PNG preview of the first page, without reading the PDF; None if there is none."""
         ...
