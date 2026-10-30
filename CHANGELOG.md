@@ -12,9 +12,13 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 ### Added
 
 - A changelog: this page, also on the website, and in the release notes of every new version.
+- A guide to the AirScan bridge, on the website and in `docs/airscan.md`: how to start it, how to scan
+  from Image Capture (*Digitale Bilder*) and Preview, supported options, limitations and
+  troubleshooting. The bridge is also listed among the features.
 
 ### Changed
 
+- The README and the website call the project ScanSnack throughout.
 - The command line, log output and error messages are now in English throughout, as are the code
   comments and developer docs.
 

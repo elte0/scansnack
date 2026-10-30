@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - docs/protocol.md
+      - docs/airscan.md
       - docs/disclaimer.md
       - CHANGELOG.md
       - site/**
@@ -20,6 +21,7 @@ on:
   pull_request:
     paths:
       - docs/protocol.md
+      - docs/airscan.md
       - docs/disclaimer.md
       - CHANGELOG.md
       - site/**

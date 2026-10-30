@@ -29,7 +29,7 @@ enableRobotsTXT = false
   [[module.mounts]]
     source = "../docs"
     target = "content"
-    includeFiles = ["protocol.md", "disclaimer.md"]
+    includeFiles = ["protocol.md", "airscan.md", "disclaimer.md"]
   [[module.mounts]]
     source = "../CHANGELOG.md"
     target = "content/changelog.md"

@@ -2,7 +2,7 @@
 
 > **Summary.** "ScanSnack" is the user-facing app on top of the protocol client: a PySide6 desktop app
 > (built as a Mac bundle) and an iOS app built with BeeWare. In addition, the eSCL bridge makes the
-> scanner available in the macOS scan dialog. This page describes how each of them is built, how they
+> scanner available in the macOS scan dialog (user guide: [AirScan bridge](airscan.md)). This page describes how each of them is built, how they
 > behave, and what has been tested so far.
 
 Decisions: ADR 0003 (PySide6), ADR 0004 (BeeWare). Protocol: [protocol](protocol.md).
@@ -108,7 +108,8 @@ Signing + `signtool`. Unsigned: macOS "Open Anyway", Windows SmartScreen "Run an
 
 ## eSCL bridge
 
-Code: `adapters/escl`. Start: `scansnap serve [--port 8090] [--name …]`.
+Code: `adapters/escl`. Start: `scansnap serve [--port 8090] [--name …]`. User guide (start, options,
+limitations, troubleshooting): [AirScan bridge](airscan.md). The desktop app does not start the bridge.
 
 - Feeder (ADF) only, JPEG/PDF; Bonjour `_uscan._tcp` via zeroconf. Runs `claim` automatically if our
   own profile is missing.
