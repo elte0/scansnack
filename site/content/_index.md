@@ -2,8 +2,8 @@
 title: "ScanSnack"
 ---
 
-ScanSnack lets you use a **ScanSnap iX1500** document scanner over Wi-Fi without ScanSnap Home. The
-project has three parts:
+ScanSnack lets you use a **ScanSnap iX1500** document scanner over Wi-Fi without ScanSnap Home; support
+for the older **iX500** is in beta (see the [model list](models.md)). The project has three parts:
 
 - **[The ScanSnack app](app.md)** – a small desktop app for macOS, Windows and Linux that scans, saves
   every scan as a PDF and lets you tidy up the pages afterwards. [Download it here](app.md#download).

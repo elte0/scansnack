@@ -1,4 +1,5 @@
-"""``ports.scanner.ScannerLocator`` for the iX1500: discovery via UDP, reachability via TCP 53219."""
+"""``ports.scanner.ScannerLocator`` for the Wi-Fi ScanSnaps (iX1500, iX500 beta): discovery via UDP,
+reachability via TCP 53219."""
 
 from __future__ import annotations
 
@@ -6,12 +7,15 @@ import socket
 from collections.abc import Callable
 from pathlib import Path
 
+from ...core import catalog
 from ...core.model import FoundScanner
+from ...ports.scanner import ScannerPort
 from .button import Notification
 from .control import CONTROL_PORT, HostIdentity
 from .device import Device
 from .discovery import discover
 from .identity import DEFAULT_PATH, load_or_create
+from .ix500 import Ix500Device
 
 
 class Ix1500Locator:
@@ -37,7 +41,15 @@ class Ix1500Locator:
         except OSError:
             return False
 
-    def open(self, ip: str, *, on_button: Callable[[], None] | None = None) -> Device:
+    def open(
+        self, ip: str, *, model: str, pairing_key: str = "", on_button: Callable[[], None] | None = None
+    ) -> ScannerPort:
+        if model == "ix500":
+            return Ix500Device(ip, self.identity, key=pairing_key or None)
+        if model != "ix1500":
+            known = catalog.by_id(model)
+            raise ValueError(f"{known.full_name if known else model} is not supported")
+
         def callback(_note: Notification) -> None:
             if on_button is not None:
                 on_button()

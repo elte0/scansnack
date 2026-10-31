@@ -36,6 +36,10 @@ class ScannerLocator(Protocol):
 
     def reachable(self, ip: str, timeout: float = 1.5) -> bool: ...
 
-    def open(self, ip: str, *, on_button: Callable[[], None] | None = None) -> ScannerPort:
-        """Device with a persistent session; ``on_button`` runs (in a background thread) on "Scan" at the device."""
+    def open(
+        self, ip: str, *, model: str, pairing_key: str = "", on_button: Callable[[], None] | None = None
+    ) -> ScannerPort:
+        """Device of the given model (``core.catalog`` ID). ``pairing_key`` is needed by models that register with
+        a secret key (iX500). ``on_button`` runs (in a background thread) on "Scan" at the device, where supported.
+        Raises ``ValueError`` for models that are not supported."""
         ...

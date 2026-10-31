@@ -35,7 +35,9 @@ class FakeLocator:
     def reachable(self, ip: str, timeout: float = 1.5) -> bool:
         return self.is_reachable
 
-    def open(self, ip: str, *, on_button: Callable[[], None] | None = None) -> ScannerPort:
+    def open(
+        self, ip: str, *, model: str, pairing_key: str = "", on_button: Callable[[], None] | None = None
+    ) -> ScannerPort:
         assert self.device is not None
         return self.device
 
@@ -248,7 +250,7 @@ def test_unreachable_scanner_at_start_opens_dialog(tmp_path: Path, monkeypatch: 
 
     monkeypatch.setattr(w, "ask_scanner", ask)
     try:
-        w.worker.ip = "192.0.2.1"
+        w.worker.ip, w.worker.model = "192.0.2.1", "ix1500"
         w.check_scanner()  # checks in the background, the result arrives via a signal
         for _ in range(200):
             qapp.processEvents()
@@ -297,8 +299,40 @@ def test_panel_button_starts_scan_with_current_settings(window: app_main.MainWin
     requested: list[Preset] = []
     window.request_scan.disconnect()
     window.request_scan.connect(requested.append)
-    window.worker.ip = "127.0.0.1"
+    window.worker.ip, window.worker.model = "127.0.0.1", "ix1500"
     window.duplex.setChecked(True)
     window.panel_scan()
     window.panel_scan()  # second press during the scan: ignored
     assert len(requested) == 1 and requested[0].duplex and window.scanning
+
+
+def test_scanner_dialog_lists_all_models_and_greys_out_unsupported() -> None:
+    from PySide6.QtGui import QStandardItemModel
+
+    from scansnap.core import catalog
+
+    app()
+    dialog = app_main.ScannerDialog("", FakeLocator())
+    items = dialog.model.model()
+    assert isinstance(items, QStandardItemModel)
+    assert dialog.model.count() == len(catalog.MODELS)
+    enabled = {dialog.model.itemData(i): items.item(i).isEnabled() for i in range(dialog.model.count())}
+    assert enabled == {m.id: m.usable for m in catalog.MODELS}
+    assert dialog.model_id() == "" and not dialog.connect_button.isEnabled()  # a model must be chosen
+
+    dialog.model.setCurrentIndex(dialog.model.findData("ix500"))
+    assert dialog.connect_button.isEnabled() and not dialog.key.isHidden() and "Beta" in dialog.note.text()
+    dialog.ip.setText("192.0.2.5")
+    dialog.key.setText(" KEY123456789 ")
+    assert (dialog.value(), dialog.model_id(), dialog.pairing_key()) == ("192.0.2.5", "ix500", "KEY123456789")
+    dialog.model.setCurrentIndex(dialog.model.findData("ix1500"))
+    assert dialog.key.isHidden() and dialog.pairing_key() == ""
+
+
+def test_scanner_dialog_search_picks_the_found_model() -> None:
+    app()
+    dialog = app_main.ScannerDialog("", FakeLocator())
+    dialog.finished_task.emit("search", [FoundScanner("192.0.2.7", "iX500-A0TEST0000", "ScanSnap iX500  ")])
+    assert (dialog.value(), dialog.model_id()) == ("192.0.2.7", "ix500")
+    dialog.finished_task.emit("search", [FoundScanner("192.0.2.8", "iX1600-X", "ScanSnap iX1600")])
+    assert "does not support" in dialog.info.text()

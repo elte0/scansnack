@@ -18,9 +18,9 @@ Overview: `README.md`, apps: `docs/apps.md`.
 
 ```
 src/scansnap/
-  core/      domain: ScanSettings, Sheet, ScanPage, Entry, errors, image post-processing, PDF
+  core/      domain: ScanSettings, Sheet, ScanPage, Entry, errors, image post-processing, PDF, model catalog
   ports/     typing.Protocol: ScannerPort, ScannerLocator, OutputPort, ReleaseSource, Installer
-  adapters/  ix1500/ (Wi-Fi protocol), escl/ (eSCL + Bonjour), library/ (PDF storage), qt/ (GUI),
+  adapters/  ix1500/ (Wi-Fi protocol: iX1500, iX500 beta in ix500.py, ADR 0007), escl/ (eSCL + Bonjour), library/ (PDF storage), qt/ (GUI),
              github/ (release check), selfupdate/ (install update + restart, ADR 0005)
   app/       composition root: cli.py, desktop.py – the only place that creates concrete adapters
 ```
@@ -43,6 +43,8 @@ src/scansnap/
   documents). In the docs, refer to them only as private sources (see "Sources and conventions" in
   `protocol.md`), never by file name.
 - Keep `docs/disclaimer.md` (reverse engineering, trademarks) in place and linked from the README.
+- Supported models: `src/scansnap/core/catalog.py` and the matrix `docs/models.md` (kept equal by a test).
+  Change a model's support level in both, plus changelog and feature list.
 
 ## Decisions
 

@@ -6,6 +6,7 @@ import json
 import os
 import secrets
 import uuid
+from dataclasses import replace
 from pathlib import Path
 
 from .control import HostIdentity
@@ -22,7 +23,14 @@ def _random_mac() -> bytes:
 def load_or_create(path: Path = DEFAULT_PATH, name: str | None = None) -> HostIdentity:
     if path.exists():
         d = json.loads(path.read_text())
-        return HostIdentity(d["name"], d["host_id"], d["user_id"], bytes.fromhex(d["mac"]), d.get("host_port", 55265))
+        return HostIdentity(
+            d["name"],
+            d["host_id"],
+            d["user_id"],
+            bytes.fromhex(d["mac"]),
+            d.get("host_port", 55265),
+            d.get("pairing_key", ""),
+        )
     node = uuid.getnode()
     mac = node.to_bytes(6, "big") if not (node >> 40) & 1 else _random_mac()
     ident = HostIdentity(
@@ -32,17 +40,28 @@ def load_or_create(path: Path = DEFAULT_PATH, name: str | None = None) -> HostId
         user_id=uuid.uuid4().hex.upper(),
         mac=mac,
     )
+    save(ident, path)
+    return ident
+
+
+def save(ident: HostIdentity, path: Path = DEFAULT_PATH) -> None:
+    data: dict[str, object] = {
+        "name": ident.name,
+        "host_id": ident.host_id,
+        "user_id": ident.user_id,
+        "mac": ident.mac.hex(),
+        "host_port": ident.host_port,
+    }
+    if ident.pairing_key:
+        data["pairing_key"] = ident.pairing_key
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            {
-                "name": ident.name,
-                "host_id": ident.host_id,
-                "user_id": ident.user_id,
-                "mac": ident.mac.hex(),
-                "host_port": ident.host_port,
-            },
-            indent=2,
-        )
-    )
+    path.write_text(json.dumps(data, indent=2))
+    if ident.pairing_key:
+        path.chmod(0o600)
+
+
+def with_pairing_key(path: Path, key: str) -> HostIdentity:
+    """Stores the iX500 pairing key in the identity file."""
+    ident = replace(load_or_create(path), pairing_key=key)
+    save(ident, path)
     return ident

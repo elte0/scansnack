@@ -1,4 +1,7 @@
-"""Command line ``scansnap``: protocol experiments, single scans, eSCL server (wires ix1500 + escl)."""
+"""Command line ``scansnap``: protocol experiments, single scans, eSCL server (wires ix1500 + escl).
+
+``--model ix500`` switches to the iX500 (beta); it supports ``discover``, ``scan``, ``serve`` and ``capture-key``.
+"""
 
 from __future__ import annotations
 
@@ -12,11 +15,16 @@ from ..adapters.ix1500.button import Notification
 from ..adapters.ix1500.control import Control, HostIdentity
 from ..adapters.ix1500.device import Device, session
 from ..adapters.ix1500.discovery import discover
-from ..adapters.ix1500.identity import DEFAULT_PATH, load_or_create
+from ..adapters.ix1500.identity import DEFAULT_PATH, load_or_create, with_pairing_key
+from ..adapters.ix1500.ix500 import Ix500Device, capture_key
 from ..adapters.ix1500.scanner import is_verified
 from ..adapters.ix1500.scsi import ScsiChannel
+from ..core import catalog
 from ..core.errors import NoPaper
 from ..core.model import ScanSettings, Sheet
+from ..ports.scanner import ScannerPort
+
+IX1500_ONLY = {"pair", "status", "claim", "listen"}
 
 
 def _resolve_ip(args: argparse.Namespace, ident: HostIdentity) -> str:
@@ -37,13 +45,18 @@ def _serve(args: argparse.Namespace, ip: str, ident: HostIdentity) -> None:
     from ..adapters.ix1500.discovery import local_ip_for
 
     info = next(iter(discover(ident.mac, target=ip, timeout=2.0)), None)
-    model = info.model if info else "ScanSnap iX1500"
+    chosen = catalog.by_id(args.model)
+    model = info.model if info else chosen.full_name if chosen else "ScanSnap"
     serial = info.serial if info else ""
     name = args.name or model
     # Stable across restarts so that macOS recognizes the scanner again
     escl_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"scansnap-bridge:{serial or ip}:{ident.host_id}"))
     my_ip = local_ip_for(ip)
-    device = Device(ip, ident, args.profile_id, crop=not args.no_crop)
+    device: ScannerPort = (
+        Ix500Device(ip, ident, key=args.key, crop=not args.no_crop)
+        if args.model == "ix500"
+        else Device(ip, ident, args.profile_id, crop=not args.no_crop)
+    )
     service = EsclService(device, make_and_model=model, serial=serial, uuid=escl_uuid)
     server = make_server(service, port=args.port)
     print(f"eSCL: http://{my_ip}:{args.port}/eSCL/ScannerCapabilities ({name}, Scanner {ip})", file=sys.stderr)
@@ -106,8 +119,18 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--ip", help="IP of the scanner (otherwise discovery)")
     p.add_argument("--identity", type=Path, default=DEFAULT_PATH)
     p.add_argument("--debug", action="store_true", help="all frames as hex on stderr")
+    p.add_argument(
+        "--model",
+        choices=[m.id for m in catalog.MODELS if m.usable],
+        default=catalog.DEFAULT_MODEL,
+        help="scanner model (ix500: beta, see docs/models.md)",
+    )
+    p.add_argument("--key", help="iX500 pairing key (default: the one stored by capture-key)")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("discover")
+    ck = sub.add_parser("capture-key", help="iX500: pose as the scanner until ScanSnap Home sends the pairing key")
+    ck.add_argument("--name", required=True, help="device name ScanSnap Home knows, e.g. iX500-A0B1C2D3E4")
+    ck.add_argument("--timeout", type=float, help="give up after this many seconds")
     sub.add_parser("pair", help="handshake on the control channel like ScanSnap Home")
     sub.add_parser("status", help="show users/profiles and the selected host")
     sub.add_parser("claim", help="register this host with the scanner and select it")
@@ -138,8 +161,20 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.cmd == "discover":
         for s in discover(ident.mac):
-            print(f"{s.ip}\t{s.model}\t{s.name}\tserial={s.serial}\tpaired_host={s.paired_host_id}")
+            m = catalog.match(s.model) or catalog.match(s.name)
+            support = catalog.SUPPORT_LABELS[m.support] if m else "unknown model"
+            print(f"{s.ip}\t{s.model}\t{s.name}\tserial={s.serial}\tpaired_host={s.paired_host_id}\t{support}")
         return
+    if args.cmd == "capture-key":
+        print("Switch the iX500 off and start ScanSnap Home on another computer.", file=sys.stderr)
+        key = capture_key(args.name, timeout=args.timeout, log=lambda msg: print(msg, file=sys.stderr))
+        if key is None:
+            sys.exit("No pairing key received.")
+        with_pairing_key(args.identity, key)
+        print(f"Pairing key {key} stored in {args.identity}. Switch the iX500 on again.")
+        return
+    if args.model == "ix500" and args.cmd in IX1500_ONLY:
+        sys.exit(f"'{args.cmd}' is only available for the iX1500.")
 
     ip = _resolve_ip(args, ident)
     if args.cmd == "status":
@@ -171,6 +206,13 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     settings = ScanSettings(args.mode, args.dpi, args.duplex)
+    if args.model == "ix500":
+        print("Warning: iX500 support is in beta and untested on a device.", file=sys.stderr)
+        try:
+            _save(Ix500Device(ip, ident, key=args.key, crop=not args.no_crop).scan(settings), args.out)
+        except NoPaper:
+            sys.exit("No paper in the feeder.")
+        return
     if not is_verified(settings):
         print(f"Warning: {args.mode}/{args.dpi} dpi is not backed by captures.", file=sys.stderr)
     pages = Device(ip, ident, args.profile_id, crop=not args.no_crop).scan(

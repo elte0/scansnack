@@ -14,3 +14,4 @@ decision and sets the old one to "superseded by NNNN".
 | [0004](0004-ios-app-with-beeware.md) | iOS app with BeeWare/Toga instead of PySide6 | accepted |
 | [0005](0005-own-updater-on-github-releases.md) | Own small updater on top of GitHub Releases | accepted |
 | [0006](0006-english-as-repository-language.md) | English as the only repository language | accepted |
+| [0007](0007-ix500-beta-in-the-wifi-adapter.md) | iX500 as a beta model in the Wi-Fi adapter, with an explicit model choice | accepted |
