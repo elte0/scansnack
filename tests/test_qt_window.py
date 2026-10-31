@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import time
 from collections.abc import Callable, Iterator
@@ -10,12 +11,15 @@ pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PIL import Image, ImageDraw
-from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtCore import QSettings, QUrl
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
 from helpers import jpeg as make_jpeg
 from scansnap.adapters.library.library import Library
+from scansnap.adapters.qt import diagnostics as qt_diagnostics
 from scansnap.adapters.qt import window as app_main
+from scansnap.core.diagnostics import DiagnosticReport
 from scansnap.core.document import Entry, Preset, ScanPage, thumbnail
 from scansnap.core.errors import FeedError
 from scansnap.core.model import FoundScanner, ScanSettings, Sheet
@@ -302,3 +306,52 @@ def test_panel_button_starts_scan_with_current_settings(window: app_main.MainWin
     window.panel_scan()
     window.panel_scan()  # second press during the scan: ignored
     assert len(requested) == 1 and requested[0].duplex and window.scanning
+
+
+class FakeDiagnostics:
+    def __init__(self) -> None:
+        self.ips: list[str] = []
+
+    def run(self, ip: str, progress: Callable[[str], None] | None = None) -> DiagnosticReport:
+        self.ips.append(ip)
+        if progress:
+            progress("Sending discovery probes …")
+        return DiagnosticReport("1.2.3", "TestOS", {"model": "ScanSnap iX500"}, [], created="2026-10-31T12:00:00Z")
+
+
+def test_diagnostics_dialog_saves_and_mails_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    app()
+    target = tmp_path / "report.json"
+    opened: list[str] = []
+    revealed: list[Path] = []
+
+    def save_name(*_args: object, **_kwargs: object) -> tuple[str, str]:
+        return str(target), ""
+
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", save_name)
+
+    def open_url(url: QUrl) -> bool:
+        opened.append(url.toString())
+        return True
+
+    monkeypatch.setattr(QDesktopServices, "openUrl", open_url)
+    monkeypatch.setattr(qt_diagnostics, "reveal", revealed.append)
+    fake = FakeDiagnostics()
+    dialog = qt_diagnostics.DiagnosticsDialog("10.0.0.5", fake, "dev@example.org")
+    assert not dialog.mail_button.isEnabled()
+
+    dialog.run_button.click()
+    deadline = time.monotonic() + 5
+    while dialog.report is None and time.monotonic() < deadline:
+        QApplication.processEvents()
+    assert fake.ips == ["10.0.0.5"]
+    assert dialog.mail_button.isEnabled()
+    assert "ScanSnap iX500" in dialog.view.toPlainText()
+
+    dialog.model.setText("iX500")
+    dialog.notes.setPlainText("Not found by the search.")
+    dialog.mail_button.click()
+    saved = json.loads(target.read_text())
+    assert (saved["model"], saved["notes"]) == ("iX500", "Not found by the search.")
+    assert opened and opened[0].startswith("mailto:dev@example.org")
+    assert revealed == [target]

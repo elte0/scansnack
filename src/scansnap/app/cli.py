@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import sys
 from collections.abc import Iterable
 from pathlib import Path
@@ -101,6 +102,28 @@ def _listen(args: argparse.Namespace, ip: str, ident: HostIdentity) -> None:
         device.disconnect()
 
 
+def _diagnose(args: argparse.Namespace) -> None:
+    """Diagnostic report for a model that is not supported yet (read-only, anonymized)."""
+    from importlib.metadata import PackageNotFoundError, version
+
+    from ..adapters.ix1500.diagnostics import Ix1500Diagnostics
+    from ..core.diagnostics import REPORT_EMAIL
+
+    if not args.ip:
+        sys.exit("Specify the scanner with --ip (discovery may not work with an unsupported model).")
+    try:
+        app_version = version("scansnap-bridge")
+    except PackageNotFoundError:
+        app_version = "unknown"
+    report = Ix1500Diagnostics(app_version).run(args.ip, lambda text: print(text, file=sys.stderr))
+    report = dataclasses.replace(report, model=args.model, notes=args.notes)
+    out: Path = args.out or Path(report.file_name())
+    out.write_text(report.to_json() + "\n", encoding="utf-8")
+    for key, value in report.summary.items():
+        print(f"{key}: {value}", file=sys.stderr)
+    print(f"Report: {out} – please check it and send it to {REPORT_EMAIL}.", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="scansnap")
     p.add_argument("--ip", help="IP of the scanner (otherwise discovery)")
@@ -111,6 +134,10 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("pair", help="handshake on the control channel like ScanSnap Home")
     sub.add_parser("status", help="show users/profiles and the selected host")
     sub.add_parser("claim", help="register this host with the scanner and select it")
+    dg = sub.add_parser("diagnose", help="diagnostic report for a model that is not supported yet")
+    dg.add_argument("--model", default="", help="model name as printed on the scanner, e.g. iX500")
+    dg.add_argument("--notes", default="", help="what you tried and what happened")
+    dg.add_argument("--out", type=Path, help="report file (default: scansnack-diagnostics-….json)")
     sv = sub.add_parser("serve", help="eSCL/AirScan server with Bonjour advertisement")
     sv.add_argument("--port", type=int, default=8090)
     sv.add_argument("--name", help="name in the scan dialog (default: model reported by the scanner)")
@@ -134,6 +161,8 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.debug:
         wire.DEBUG = True
+    if args.cmd == "diagnose":
+        return _diagnose(args)
     ident = load_or_create(args.identity)
 
     if args.cmd == "discover":

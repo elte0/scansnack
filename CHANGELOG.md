@@ -9,6 +9,12 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Added
+
+- *Help → Report Unsupported Scanner* (and `scansnap diagnose --ip …`): for ScanSnap models other than the
+  iX1500, a read-only check records what the scanner answers to the known protocol. Addresses, serial
+  number and device name are replaced by placeholders; you review the report, save it and send it by email.
+
 ## [0.3.2] - 2026-10-30
 
 ### Fixed

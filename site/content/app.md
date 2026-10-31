@@ -38,6 +38,9 @@ described in the [protocol write-up](protocol.md).
   reorder pages (drag and drop) and rename it; *Save Changes* rewrites the PDF.
 - **Clear help for paper problems** – paper jam, double feed, open cover and similar errors come with a
   hint on what to do.
+- **Help for other models** – *Help → Report Unsupported Scanner* checks a ScanSnap model that is not
+  supported yet, without changing anything on it, and prepares an anonymized report you can read and send
+  by email, so that support for the model can be added.
 - **Light and dark mode** – follows the system setting.
 - **Updates with one click** – on start the app checks GitHub for a new release and offers to install it;
   it then restarts as the new version. *Later* asks again next time, *Skip This Version* waits for the
@@ -52,7 +55,8 @@ described in the [protocol write-up](protocol.md).
 What changed in each version is listed in the [changelog](changelog.md).
 
 > ScanSnack is an early version. It is developed and tested on macOS; the Windows and Linux builds are
-> made automatically and have not been tested with a scanner yet. Only the iX1500 is supported.
+> made automatically and have not been tested with a scanner yet. Only the iX1500 is supported; for
+> another model, please send a report via *Help → Report Unsupported Scanner*.
 
 ## Getting started
 

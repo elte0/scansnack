@@ -12,9 +12,11 @@ from PIL import Image
 
 from ..adapters.github.releases import GitHubReleases
 from ..adapters.ix1500.control import profile_template
+from ..adapters.ix1500.diagnostics import Ix1500Diagnostics
 from ..adapters.ix1500.locator import Ix1500Locator
 from ..adapters.library.library import Library
 from ..adapters.selfupdate.installer import SelfInstaller
+from ..core.diagnostics import REPORT_EMAIL
 from ..core.document import ScanPage
 from ..core.images import process
 from ..core.pdf import jpegs_to_pdf
@@ -63,7 +65,18 @@ def main() -> None:
         arch_name(platform.machine()),
         check_on_start=installer.frozen,  # started from source: only via the menu
     )
-    sys.exit(window.run(Ix1500Locator(), lambda data: Library(data / "library.json"), args.ip, qt_args, updates))
+    version_text = ".".join(map(str, app_version()))
+    sys.exit(
+        window.run(
+            Ix1500Locator(),
+            lambda data: Library(data / "library.json"),
+            args.ip,
+            qt_args,
+            updates,
+            Ix1500Diagnostics(version_text),
+            REPORT_EMAIL,
+        )
+    )
 
 
 if __name__ == "__main__":
