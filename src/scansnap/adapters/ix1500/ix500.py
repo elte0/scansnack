@@ -361,12 +361,17 @@ def capture_key(
     *,
     host_ip: str | None = None,
     timeout: float | None = None,
+    cancel: threading.Event | None = None,
     log: Callable[[str], None] = lambda _msg: None,
+    discovery_port: int = DISCOVERY_PORT,
+    control_port: int = CONTROL_PORT,
+    data_port: int = DATA_PORT,
 ) -> str | None:
     """Poses as an iX500 until ScanSnap Home (on another computer) registers and sends its pairing key.
 
     The real scanner must be switched off meanwhile. ``name`` is the device name ScanSnap Home knows,
-    e.g. ``iX500-A0B1C2D3E4``. Needs the UDP ports 52217/53220 and TCP 53218/53219 of this computer.
+    e.g. ``iX500-A0B1C2D3E4``. Needs the UDP ports 52217/53220 and TCP 53218/53219 of this computer
+    (``OSError`` if one is in use). Returns None after ``timeout`` or when ``cancel`` is set.
     """
     my_ip = host_ip or local_ip_for("8.8.8.8")
     mac = bytes.fromhex("008092") + secrets.token_bytes(3)  # Silex OUI like the scanner's Wi-Fi module
@@ -435,10 +440,10 @@ def capture_key(
         for s in (udp, tcp_ctl, tcp_data):
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.settimeout(0.5)
-        udp.bind(("", DISCOVERY_PORT))
-        tcp_ctl.bind(("", CONTROL_PORT))
+        udp.bind(("", discovery_port))
+        tcp_ctl.bind(("", control_port))
         tcp_ctl.listen(5)
-        tcp_data.bind(("", DATA_PORT))
+        tcp_data.bind(("", data_port))
         tcp_data.listen(5)
         threads = [
             threading.Thread(target=broadcaster, daemon=True),
@@ -449,8 +454,11 @@ def capture_key(
         for t in threads:
             t.start()
         log(f"Posing as {name} at {my_ip}; waiting for ScanSnap Home …")
+        deadline = None if timeout is None else time.monotonic() + timeout
         try:
-            stop.wait(timeout)
+            while not stop.wait(0.2):
+                if (cancel is not None and cancel.is_set()) or (deadline is not None and time.monotonic() > deadline):
+                    break
         finally:
             stop.set()
             for t in threads:

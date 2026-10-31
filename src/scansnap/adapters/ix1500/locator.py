@@ -4,6 +4,7 @@ reachability via TCP 53219."""
 from __future__ import annotations
 
 import socket
+import threading
 from collections.abc import Callable
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from .control import CONTROL_PORT, HostIdentity
 from .device import Device
 from .discovery import discover
 from .identity import DEFAULT_PATH, load_or_create
-from .ix500 import Ix500Device
+from .ix500 import Ix500Device, capture_key
 
 
 class Ix1500Locator:
@@ -55,3 +56,8 @@ class Ix1500Locator:
                 on_button()
 
         return Device(ip, self.identity, keep_alive=True, on_button=callback if on_button else None)
+
+    def capture_pairing_key(self, model: str, device_name: str, cancel: threading.Event) -> str | None:
+        if model != "ix500":
+            raise ValueError(f"{model} has no pairing key")
+        return capture_key(device_name, cancel=cancel)

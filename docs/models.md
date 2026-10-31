@@ -43,13 +43,13 @@ in the [protocol description](protocol.md)) and has not been tested on a device 
 scan you need the scanner's pairing key:
 
 1. Switch the iX500 off.
-2. Run `scansnap capture-key --name iX500-<serial>` on a computer in the same network (the serial is on
-   the label on the bottom of the scanner). It poses as the scanner and needs the ports 52217, 53218 and
-   53219 of that computer.
-3. Start ScanSnap Home on another computer. It connects to the stand-in and sends the key, which
-   `scansnap` prints and stores.
-4. Switch the iX500 on again. In the app, choose *ScanSnap iX500 (beta)* and enter the key; on the command
-   line, use `scansnap --model ix500 scan`.
+2. In the app, choose *ScanSnap iX500 (beta)* when connecting and click *Get Key …*, enter the device
+   name `iX500-<serial>` (the serial is on the label on the bottom of the scanner) and click *Start*.
+   On the command line, run `scansnap capture-key --name iX500-<serial>` instead. ScanSnack then poses
+   as the scanner and needs the ports 52217, 53218 and 53219 of this computer.
+3. Start ScanSnap Home on another computer in the same network. It connects to the stand-in and sends
+   the key, which ScanSnack fills in (app) or prints and stores (command line).
+4. Switch the iX500 on again and connect; on the command line, use `scansnap --model ix500 scan`.
 
 Not available on the iX500: starting a scan with the button on the device (in the app and with
 `scansnap listen`). Grayscale is scanned in color and converted on the computer.

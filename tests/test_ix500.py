@@ -22,6 +22,7 @@ from scansnap.adapters.ix1500.ix500 import (
     Ix500Device,
     RegistrationError,
     announcement,
+    capture_key,
     device_info,
     key_from_register,
     mode_block,
@@ -204,3 +205,70 @@ def test_wrong_key_is_reported() -> None:
             raise AssertionError("expected RegistrationError")
     finally:
         fake.close()
+
+
+def test_capture_key_from_scansnap_home() -> None:
+    """Plays ScanSnap Home: probe the stand-in, then register with the key."""
+    ports: list[int] = []
+    for kind in (socket.SOCK_DGRAM, socket.SOCK_STREAM, socket.SOCK_STREAM):
+        with socket.socket(socket.AF_INET, kind) as s:
+            s.bind(("127.0.0.1", 0))
+            ports.append(s.getsockname()[1])
+    udp_port, ctl_port, data_port = ports
+    result: list[str | None] = []
+    cancel = threading.Event()
+    t = threading.Thread(
+        target=lambda: result.append(
+            capture_key(
+                "iX500-A0TEST0000",
+                host_ip="127.0.0.1",
+                timeout=10,
+                cancel=cancel,
+                discovery_port=udp_port,
+                control_port=ctl_port,
+                data_port=data_port,
+            )
+        )
+    )
+    t.start()
+    try:
+        reply = b""
+        for _ in range(50):
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as u:
+                u.settimeout(0.2)
+                u.sendto(b"VENS" + bytes(28), ("127.0.0.1", udp_port))
+                try:
+                    reply = u.recv(2048)
+                    break
+                except (TimeoutError, ConnectionResetError):
+                    continue
+        info = parse_reply(reply)
+        assert info is not None and info.name == "iX500-A0TEST0000"
+        body = register_body(IDENT, "127.0.0.1", "KEY123456789", NOW)
+        with socket.create_connection(("127.0.0.1", ctl_port), timeout=5) as c:
+            wire.read_frame(c)
+            c.sendall(wire.client_frame(0x11, IDENT.mac, body, magic=wire.VENS))
+            c.recv(64)
+    finally:
+        t.join(10)
+        cancel.set()
+    assert result == ["KEY123456789"]
+
+
+def test_capture_key_can_be_cancelled() -> None:
+    ports: list[int] = []
+    for kind in (socket.SOCK_DGRAM, socket.SOCK_STREAM, socket.SOCK_STREAM):
+        with socket.socket(socket.AF_INET, kind) as s:
+            s.bind(("127.0.0.1", 0))
+            ports.append(s.getsockname()[1])
+    cancel = threading.Event()
+    cancel.set()
+    key = capture_key(
+        "iX500-A0TEST0000",
+        host_ip="127.0.0.1",
+        cancel=cancel,
+        discovery_port=ports[0],
+        control_port=ports[1],
+        data_port=ports[2],
+    )
+    assert key is None

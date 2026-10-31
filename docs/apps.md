@@ -31,7 +31,8 @@ User interface and code comments in English (ADR 0006).
   not arrive). The scan button starts a scan with the settings on the left.
 - Start-up: without a saved model and IP, or when the scanner does not respond, "Connect Scanner" appears
   first: choose the model (all of `core.catalog`, unsupported ones greyed out), enter an IP or
-  "Search Network" (selects the model it finds), and for the iX500 the pairing key. Search and check run
+  "Search Network" (selects the model it finds), and for the iX500 the pairing key ("Get Key …" opens
+  `KeyCaptureDialog`, which runs `ScannerLocator.capture_pairing_key` in a background thread). Search and check run
   in the background. Connection errors during a scan open it as well. Settings without a model (from
   before the model choice) count as iX1500.
 - iX500 (beta, `adapters/ix1500/ix500.py`): no persistent session and no scan button; every scan

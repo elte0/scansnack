@@ -208,8 +208,12 @@ class ScannerDialog(QDialog):
         self.ip = QLineEdit(ip)
         self.ip.setPlaceholderText("e.g. 192.168.1.20")
         self.key = QLineEdit(pairing_key)
-        self.key.setPlaceholderText("12 characters, see the documentation")
+        self.key.setPlaceholderText("12 characters")
         self.key_label = QLabel("Pairing key (iX500):")
+        self.get_key = QPushButton("Get Key …")
+        self.get_key.setToolTip("Get the pairing key from ScanSnap Home on another computer")
+        self.get_key.clicked.connect(self._capture_key)
+        self.found_name = ""  # device name from the last network search, e.g. iX500-A0B1C2D3E4
         self.note = QLabel()
         self.note.setWordWrap(True)
         self.info = QLabel(message or "Choose your ScanSnap model, then enter its IP address or search the network.")
@@ -237,7 +241,10 @@ class ScannerDialog(QDialog):
         lay.addWidget(QLabel("Scanner IP address:"))
         lay.addLayout(row)
         lay.addWidget(self.key_label)
-        lay.addWidget(self.key)
+        key_row = QHBoxLayout()
+        key_row.addWidget(self.key, 1)
+        key_row.addWidget(self.get_key)
+        lay.addLayout(key_row)
         lay.addWidget(self.spinner)
         lay.addWidget(self.buttons)
         self.setMinimumWidth(440)
@@ -253,6 +260,7 @@ class ScannerDialog(QDialog):
         needs_key = bool(m and m.needs_pairing_key)
         self.key.setVisible(needs_key)
         self.key_label.setVisible(needs_key)
+        self.get_key.setVisible(needs_key)
         self.note.setText(f"Beta: {m.note}" if m and m.support == "beta" else "")
         self.note.setVisible(bool(self.note.text()))
         self.connect_button.setEnabled(m is not None and m.usable)
@@ -260,12 +268,12 @@ class ScannerDialog(QDialog):
     def _busy(self, text: str) -> None:
         self.info.setText(text)
         self.spinner.show()
-        for w in (self.search, self.connect_button, self.ip, self.model, self.key):
+        for w in (self.search, self.connect_button, self.ip, self.model, self.key, self.get_key):
             w.setEnabled(False)
 
     def _idle(self) -> None:
         self.spinner.hide()
-        for w in (self.search, self.ip, self.model, self.key):
+        for w in (self.search, self.ip, self.model, self.key, self.get_key):
             w.setEnabled(True)
         self._model_changed()
 
@@ -296,6 +304,7 @@ class ScannerDialog(QDialog):
             found = cast(list[FoundScanner], result)
             if found:
                 first = found[0]
+                self.found_name = first.name
                 self.ip.setText(first.ip)
                 m = catalog.match(first.model) or catalog.match(first.name)
                 if m is not None:
@@ -311,6 +320,15 @@ class ScannerDialog(QDialog):
         else:
             self.info.setText(f"No scanner responds at {self.value()}.")
 
+    def _capture_key(self) -> None:
+        m = self.selected_model()
+        if m is None or not m.needs_pairing_key:
+            return
+        dialog = KeyCaptureDialog(self.locator, m, self.found_name, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.key:
+            self.key.setText(dialog.key)
+            self.info.setText(f"Pairing key received. Switch the {m.full_name} on again, then connect.")
+
     def value(self) -> str:
         return self.ip.text().strip()
 
@@ -321,6 +339,97 @@ class ScannerDialog(QDialog):
     def pairing_key(self) -> str:
         m = self.selected_model()
         return self.key.text().strip() if m and m.needs_pairing_key else ""
+
+
+class KeyCaptureDialog(QDialog):
+    """Gets a pairing key: the app poses as the scanner until the vendor software on another computer
+    sends the key. Runs in the background; Cancel stops it."""
+
+    finished_capture = Signal(object)  # key (str), None (cancelled) or the error (Exception)
+
+    def __init__(
+        self, locator: ScannerLocator, model: catalog.ScannerModel, name: str = "", parent: QWidget | None = None
+    ):
+        super().__init__(parent)
+        self.locator, self.scanner = locator, model
+        self.key = ""
+        self.cancel = threading.Event()
+        self.worker: threading.Thread | None = None
+        self.setWindowTitle("Get Pairing Key")
+        steps = QLabel(
+            f"1. Switch the {model.full_name} off.\n"
+            "2. Enter its device name (on the label: model and serial number), then click Start.\n"
+            "3. Open ScanSnap Home on another computer in the same network. It finds ScanSnack instead of the "
+            "scanner and sends the key.\n"
+            "4. Switch the scanner on again."
+        )
+        steps.setWordWrap(True)
+        self.name = QLineEdit(name)
+        self.name.setPlaceholderText(f"e.g. {model.name}-A0B1C2D3E4")
+        self.info = QLabel("")
+        self.info.setWordWrap(True)
+        self.spinner = QProgressBar()
+        self.spinner.setRange(0, 0)
+        self.spinner.setTextVisible(False)
+        self.spinner.setMaximumHeight(10)
+        self.spinner.hide()
+        self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.start_button = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
+        self.start_button.setText("Start")
+        self.buttons.accepted.connect(self._start)
+        self.buttons.rejected.connect(self.reject)
+        lay = QVBoxLayout(self)
+        lay.addWidget(steps)
+        lay.addWidget(QLabel("Device name:"))
+        lay.addWidget(self.name)
+        lay.addWidget(self.info)
+        lay.addWidget(self.spinner)
+        lay.addWidget(self.buttons)
+        self.setMinimumWidth(460)
+        self.finished_capture.connect(self._done)
+
+    def _start(self) -> None:
+        name = self.name.text().strip()
+        if not name:
+            self.info.setText("Enter the device name first.")
+            return
+        self.cancel.clear()
+        self.spinner.show()
+        self.start_button.setEnabled(False)
+        self.name.setEnabled(False)
+        self.info.setText("Waiting for ScanSnap Home … (keep the scanner switched off)")
+
+        def run() -> None:
+            try:
+                result: object = self.locator.capture_pairing_key(self.scanner.id, name, self.cancel)
+            except Exception as e:  # noqa: BLE001 – shown in the dialog
+                result = e
+            self.finished_capture.emit(result)
+
+        self.worker = threading.Thread(target=run, daemon=True)
+        self.worker.start()
+
+    @Slot(object)
+    def _done(self, result: object) -> None:
+        self.spinner.hide()
+        self.start_button.setEnabled(True)
+        self.name.setEnabled(True)
+        if isinstance(result, str) and result:
+            self.key = result
+            self.accept()
+        elif isinstance(result, OSError):
+            self.info.setText(
+                f"Could not pose as the scanner ({result}). Another program may use the ports 52217, 53218 "
+                "or 53219; quit ScanSnap Home on this computer."
+            )
+        elif isinstance(result, Exception):
+            self.info.setText(f"Getting the key failed: {result}")
+        elif not self.cancel.is_set():
+            self.info.setText("No key received.")
+
+    def reject(self) -> None:
+        self.cancel.set()  # the background capture ends within a moment
+        super().reject()
 
 
 class PageList(QListWidget):

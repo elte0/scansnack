@@ -1,5 +1,6 @@
 import io
 import os
+import threading
 import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -28,12 +29,16 @@ class FakeLocator:
     def __init__(self, device: ScannerPort | None = None, reachable: bool = True):
         self.device = device
         self.is_reachable = reachable
+        self.captured_key: str | None = None
 
     def discover(self, timeout: float = 3.0) -> list[FoundScanner]:
         return []
 
     def reachable(self, ip: str, timeout: float = 1.5) -> bool:
         return self.is_reachable
+
+    def capture_pairing_key(self, model: str, device_name: str, cancel: threading.Event) -> str | None:
+        return self.captured_key
 
     def open(
         self, ip: str, *, model: str, pairing_key: str = "", on_button: Callable[[], None] | None = None
@@ -336,3 +341,42 @@ def test_scanner_dialog_search_picks_the_found_model() -> None:
     assert (dialog.value(), dialog.model_id()) == ("192.0.2.7", "ix500")
     dialog.finished_task.emit("search", [FoundScanner("192.0.2.8", "iX1600-X", "ScanSnap iX1600")])
     assert "does not support" in dialog.info.text()
+
+
+def test_key_capture_dialog_returns_the_key() -> None:
+    from scansnap.core import catalog
+
+    qapp = app()
+    locator = FakeLocator()
+    locator.captured_key = "KEY123456789"
+    ix500 = catalog.by_id("ix500")
+    assert ix500 is not None
+    dialog = app_main.KeyCaptureDialog(locator, ix500, "iX500-A0TEST0000")
+    dialog.start_button.click()
+    for _ in range(200):
+        qapp.processEvents()
+        if dialog.key:
+            break
+        time.sleep(0.01)
+    assert dialog.key == "KEY123456789" and dialog.result() == app_main.QDialog.DialogCode.Accepted
+
+
+def test_key_capture_dialog_reports_busy_ports() -> None:
+    from scansnap.core import catalog
+
+    qapp = app()
+
+    class BusyLocator(FakeLocator):
+        def capture_pairing_key(self, model: str, device_name: str, cancel: threading.Event) -> str | None:
+            raise OSError("address already in use")
+
+    ix500 = catalog.by_id("ix500")
+    assert ix500 is not None
+    dialog = app_main.KeyCaptureDialog(BusyLocator(), ix500, "iX500-A0TEST0000")
+    dialog.start_button.click()
+    for _ in range(200):
+        qapp.processEvents()
+        if "ports" in dialog.info.text():
+            break
+        time.sleep(0.01)
+    assert "53219" in dialog.info.text() and not dialog.key

@@ -28,8 +28,9 @@ described in the [protocol write-up](protocol.md).
 - **Scan over Wi-Fi** – choose your scanner model, then connect by IP address or let the app search the
   network. The connection is kept open, so the *Scan* button on the scanner's touch panel starts a scan
   in the app.
-- **Supported models** – the iX1500, and the iX500 in beta (enter its pairing key when connecting). The
-  model list shows every ScanSnap and greys out the ones not supported yet; see [models](models.md).
+- **Supported models** – the iX1500, and the iX500 in beta. For the iX500, *Get Key …* fetches its
+  pairing key from ScanSnap Home on another computer once. The model list shows every ScanSnap and greys
+  out the ones not supported yet; see [models](models.md).
 - **Profiles** – color or black & white documents at 300 dpi, a quick 150 dpi mode and photos at
   600 dpi.
 - **Double-sided**, **remove blank pages** and **remove background** (turns gray or yellowish paper into

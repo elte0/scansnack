@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable, Iterator
 from typing import Protocol
 
@@ -42,4 +43,10 @@ class ScannerLocator(Protocol):
         """Device of the given model (``core.catalog`` ID). ``pairing_key`` is needed by models that register with
         a secret key (iX500). ``on_button`` runs (in a background thread) on "Scan" at the device, where supported.
         Raises ``ValueError`` for models that are not supported."""
+        ...
+
+    def capture_pairing_key(self, model: str, device_name: str, cancel: threading.Event) -> str | None:
+        """Poses as the scanner until its vendor software sends the pairing key (models with
+        ``needs_pairing_key``); blocks until then or until ``cancel`` is set (then None).
+        Raises ``OSError`` if the needed ports are in use, ``ValueError`` for models without a key."""
         ...

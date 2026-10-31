@@ -16,6 +16,7 @@ import io
 import os
 import sys
 import tempfile
+import threading
 import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -167,6 +168,9 @@ class SampleLocator:
 
     def reachable(self, ip: str, timeout: float = 1.5) -> bool:
         return True
+
+    def capture_pairing_key(self, model: str, device_name: str, cancel: threading.Event) -> str | None:
+        return None
 
     def open(
         self, ip: str, *, model: str, pairing_key: str = "", on_button: Callable[[], None] | None = None

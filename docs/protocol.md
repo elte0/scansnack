@@ -386,8 +386,8 @@ The key is the serial number of the scanner's Wi-Fi module (Silex, OUI 00:80:92)
 serial. The scanner never sends it; ScanSnap Home knows it from the initial setup. The write-up obtains it
 by posing as the scanner: broadcast the announcement, answer the probes with a 132-byte reply carrying the
 device name ScanSnap Home knows (e.g. `iX500-<serial>`), and read the key at frame offset 52 of the 0x11
-that ScanSnap Home then sends. The real scanner has to be off meanwhile. `scansnap capture-key` does
-this.
+that ScanSnap Home then sends. The real scanner has to be off meanwhile. `scansnap capture-key` and
+*Get Key …* in the app do this.
 
 ### Scan session
 
