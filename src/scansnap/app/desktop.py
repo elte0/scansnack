@@ -1,4 +1,4 @@
-"""Desktop app ``scansnap-app``: wires the ix1500 scanner, PDF library and Qt UI."""
+"""Desktop app ``scansnap-app``: wires the scanners (iX1500, iX500), PDF library and Qt UI."""
 
 from __future__ import annotations
 
@@ -12,13 +12,13 @@ from PIL import Image
 
 from ..adapters.github.releases import GitHubReleases
 from ..adapters.ix1500.control import profile_template
-from ..adapters.ix1500.locator import Ix1500Locator
 from ..adapters.library.library import Library
 from ..adapters.selfupdate.installer import SelfInstaller
 from ..core.document import ScanPage
 from ..core.images import process
 from ..core.pdf import jpegs_to_pdf
 from ..core.update import Version, arch_name, os_name, parse_version
+from .locator import AutoLocator
 
 DIST_NAME = "scansnap-bridge"
 
@@ -63,7 +63,7 @@ def main() -> None:
         arch_name(platform.machine()),
         check_on_start=installer.frozen,  # started from source: only via the menu
     )
-    sys.exit(window.run(Ix1500Locator(), lambda data: Library(data / "library.json"), args.ip, qt_args, updates))
+    sys.exit(window.run(AutoLocator(), lambda data: Library(data / "library.json"), args.ip, qt_args, updates))
 
 
 if __name__ == "__main__":

@@ -20,12 +20,14 @@ Overview: `README.md`, apps: `docs/apps.md`.
 src/scansnap/
   core/      domain: ScanSettings, Sheet, ScanPage, Entry, errors, image post-processing, PDF
   ports/     typing.Protocol: ScannerPort, ScannerLocator, OutputPort, ReleaseSource, Installer
-  adapters/  ix1500/ (Wi-Fi protocol), escl/ (eSCL + Bonjour), library/ (PDF storage), qt/ (GUI),
+  adapters/  ix1500/, ix500/ (Wi-Fi protocol per model), scansnap_wifi/ (shared Wi-Fi primitives, ADR 0007),
+             escl/ (eSCL + Bonjour), library/ (PDF storage), qt/ (GUI),
              github/ (release check), selfupdate/ (install update + restart, ADR 0005)
   app/       composition root: cli.py, desktop.py – the only place that creates concrete adapters
 ```
 
-- `core` and `ports` know nothing about Qt, sockets or adapters. Adapters do not import each other.
+- `core` and `ports` know nothing about Qt, sockets or adapters. Adapters do not import each other;
+  model adapters may use `scansnap_wifi`, which imports no adapter (ADR 0007).
 - Qt types (`QImage`, signals, `QObject`) only in `adapters/qt`; the core works with `bytes`/PIL.
 - Protocol I/O never in the GUI thread: worker thread, results to the GUI via signals.
 - Enforced by import-linter (`[tool.importlinter]` in `pyproject.toml`).
