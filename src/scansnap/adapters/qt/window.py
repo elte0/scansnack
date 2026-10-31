@@ -56,9 +56,11 @@ from ...core.document import FEED_HELP, PRESETS, Entry, Preset, ScanPage, defaul
 from ...core.errors import FeedError, NoPaper
 from ...core.images import is_blank
 from ...core.model import FoundScanner, ScanSettings
+from ...ports.diagnostics import Diagnostics
 from ...ports.output import OutputPort
 from ...ports.scanner import ScannerLocator, ScannerPort
 from . import primer
+from .diagnostics import DiagnosticsDialog
 from .updates import UpdateChecker, Updates
 
 APP_NAME = "ScanSnack"
@@ -317,9 +319,17 @@ class Document:
 class MainWindow(QMainWindow):
     request_scan = Signal(object)
     request_connect = Signal()
+    request_disconnect = Signal()
     reachable_checked = Signal(bool)  # result of the check at startup (from a background thread)
 
-    def __init__(self, library: OutputPort, locator: ScannerLocator, updates: Updates | None = None):
+    def __init__(
+        self,
+        library: OutputPort,
+        locator: ScannerLocator,
+        updates: Updates | None = None,
+        diagnostics: Diagnostics | None = None,
+        report_email: str = "",
+    ):
         super().__init__()
         self.settings = QSettings("scansnap-bridge", "app")
         self.setWindowTitle(APP_NAME)
@@ -467,9 +477,13 @@ class MainWindow(QMainWindow):
         menu.addAction(self._action("Connect Scanner …", "Ctrl+K", lambda: self.ask_scanner()))
         self.updates = updates
         self.update_checker: UpdateChecker | None = None
+        self.diagnostics, self.report_email = diagnostics, report_email
+        self.diagnosing = False
+        help_menu = self.menuBar().addMenu("Help")
+        if diagnostics is not None:
+            help_menu.addAction(self._action("Report Unsupported Scanner …", None, self.report_unsupported))
         if updates is not None:
             self.update_checker = checker = UpdateChecker(self, updates, self.settings, self.restart_for_update)
-            help_menu = self.menuBar().addMenu("Help")
             check = self._action("Check for Updates …", None, lambda: checker.check(manual=True))
             check.setMenuRole(QAction.MenuRole.ApplicationSpecificRole)  # macOS: into the app menu
             help_menu.addAction(check)
@@ -488,6 +502,7 @@ class MainWindow(QMainWindow):
         self.worker.moveToThread(self.scan_thread)
         self.request_scan.connect(self.worker.scan)
         self.request_connect.connect(self.worker.open_connection)
+        self.request_disconnect.connect(self.worker.close_connection)
         self.worker.page.connect(self.add_scanned_page)
         self.worker.status.connect(self.statusBar().showMessage)
         self.worker.done.connect(self.scan_done)
@@ -741,8 +756,20 @@ class MainWindow(QMainWindow):
             )
 
     def _keep_connected(self) -> None:
-        if self.worker.ip and not self.scanning:
+        if self.worker.ip and not self.scanning and not self.diagnosing:
             self.request_connect.emit()
+
+    def report_unsupported(self) -> None:
+        """Diagnosis of a model that is not supported yet; the app's own session is closed meanwhile."""
+        if self.diagnostics is None or self.scanning:
+            return
+        self.diagnosing = True
+        self.request_disconnect.emit()
+        try:
+            DiagnosticsDialog(self.worker.ip, self.diagnostics, self.report_email, self).exec()
+        finally:
+            self.diagnosing = False
+            self._keep_connected()
 
     @Slot()
     def panel_scan(self) -> None:
@@ -980,6 +1007,8 @@ def run(
     ip: str | None = None,
     qt_args: list[str] | None = None,
     updates: Updates | None = None,
+    diagnostics: Diagnostics | None = None,
+    report_email: str = "",
 ) -> int:
     """Starts the UI. ``make_output`` gets the app data directory and returns the document library."""
     app = QApplication([sys.argv[0], *(qt_args or [])])
@@ -988,7 +1017,7 @@ def run(
     if ip:
         QSettings("scansnap-bridge", "app").setValue("ip", ip)
     primer.apply()
-    window = MainWindow(make_output(data_dir()), locator, updates)
+    window = MainWindow(make_output(data_dir()), locator, updates, diagnostics, report_email)
     window.show()
     QTimer.singleShot(200, window.check_scanner)
     QTimer.singleShot(1500, window.check_updates_on_start)
