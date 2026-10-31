@@ -29,9 +29,14 @@ User interface and code comments in English (ADR 0006).
 - Connection: `ScanWorker` in its own `QThread`, device via `ports.scanner.ScannerLocator`; a persistent
   session is opened right at start-up and re-established every 20 s (otherwise the scan button events do
   not arrive). The scan button starts a scan with the settings on the left.
-- Start-up: without a saved or reachable IP, "Connect Scanner" appears first (enter an IP or
-  "Search Network"; search and check run in the background). Connection errors during a scan open it as
-  well.
+- Start-up: without a saved model and IP, or when the scanner does not respond, "Connect Scanner" appears
+  first: choose the model (all of `core.catalog`, unsupported ones greyed out), enter an IP or
+  "Search Network" (selects the model it finds), and for the iX500 the pairing key ("Get Key …" opens
+  `KeyCaptureDialog`, which runs `ScannerLocator.capture_pairing_key` in a background thread). Search and check run
+  in the background. Connection errors during a scan open it as well. Settings without a model (from
+  before the model choice) count as iX1500.
+- iX500 (beta, `adapters/ix1500/ix500.py`): no persistent session and no scan button; every scan
+  registers anew (ADR 0007).
 - Every scan run is a document of its own and is **saved immediately after the scan** (user
   requirement), named "Scan YYYY-MM-DD HH.MM", into the "Save to" folder, optionally opened – including
   the pages scanned before a paper jam. If saving fails, the draft stays available for "Save as PDF".

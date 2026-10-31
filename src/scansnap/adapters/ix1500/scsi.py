@@ -88,10 +88,21 @@ class Response:
 
 
 class ScsiChannel:
-    def __init__(self, ip: str, mac: bytes, port: int = DATA_PORT, timeout: float = 60.0):
-        self.mac = mac
+    def __init__(
+        self,
+        ip: str,
+        mac: bytes,
+        port: int = DATA_PORT,
+        timeout: float = 60.0,
+        *,
+        magic: bytes = wire.MAGIC,
+        status_len: int = 0x30,
+        send_host_ip: bool = True,
+    ):
+        """``magic``, ``status_len`` (C2 length) and ``send_host_ip`` differ between iX1500 and iX500."""
+        self.mac, self.magic, self.status_len = mac, magic, status_len
         self.sock = socket.create_connection((ip, port), timeout=timeout)
-        self.host_ip = ipaddress.IPv4Address(self.sock.getsockname()[0]).packed
+        self.host_ip = ipaddress.IPv4Address(self.sock.getsockname()[0]).packed if send_host_ip else b"\0" * 4
         greeting = wire.read_frame(self.sock)
         if len(greeting) != wire.SERVER_HEADER_LEN:
             raise wire.ProtocolError("unexpected greeting")
@@ -152,10 +163,10 @@ class ScsiChannel:
         self.close()
 
     def command(self, cdb: bytes, out: bytes = b"", in_len: int = 0) -> Response:
-        if len(cdb) not in (6, 10, 12):
-            raise ValueError("CDB must be 6, 10 or 12 bytes")
+        if len(cdb) not in (6, 8, 10, 12):
+            raise ValueError("CDB must be 6, 8, 10 or 12 bytes")
         body = struct.pack(">III", len(cdb), in_len, len(out)) + b"\0" * 4 + cdb.ljust(16, b"\0") + out
-        frame = wire.client_frame(1, self.mac, body, self.host_ip)
+        frame = wire.client_frame(1, self.mac, body, self.host_ip, self.magic)
         with self._lock:
             wire.trace(f"-> scsi {cdb.hex()}", frame)
             self.sock.sendall(frame)
@@ -174,8 +185,9 @@ class ScsiChannel:
         return r
 
     def hardware_status(self) -> bytes:
-        """C2 status, as ScanSnap Home polls it every 250 ms. Bytes 32–39: selected host."""
-        return self.checked(bytes.fromhex("c2000000000000003000"), in_len=0x30).data
+        """C2 status, as ScanSnap Home polls it every 250 ms. Bytes 32–39: selected host (iX1500)."""
+        cdb = bytes([0xC2, 0, 0, 0, 0, 0, 0, self.status_len, 0, 0])
+        return self.checked(cdb, in_len=self.status_len).data
 
     def inquiry(self) -> tuple[str, str]:
         d = self.checked(bytes([0x12, 0, 0, 0, 0x60, 0]), in_len=0x60).data

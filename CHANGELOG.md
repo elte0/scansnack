@@ -9,6 +9,22 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Added
+
+- Beta support for the ScanSnap iX500, based on a third-party protocol write-up and not yet tested on a
+  device: scanning in the app and with `scansnap --model ix500 scan`. The scanner's pairing key is
+  obtained from ScanSnap Home once, with *Get Key …* in the app's connect dialog or with
+  `scansnap capture-key`.
+- A list of all ScanSnap models and whether ScanSnack supports them (`docs/models.md`, also on the
+  website).
+- The protocol description covers the iX500 and how it differs from the iX1500, with sources.
+
+### Changed
+
+- When connecting a scanner, the app asks for the scanner model. All ScanSnap models are listed; the
+  ones ScanSnack does not support yet are greyed out. A network search selects the model it finds.
+  Existing setups keep working as iX1500.
+
 ## [0.3.2] - 2026-10-30
 
 ### Fixed

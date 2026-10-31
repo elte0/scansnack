@@ -28,12 +28,14 @@ from PySide6.QtGui import (
     QPainter,
     QPalette,
     QPixmap,
+    QStandardItemModel,
     QTransform,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QCheckBox,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -52,6 +54,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ...core import catalog
 from ...core.document import FEED_HELP, PRESETS, Entry, Preset, ScanPage, default_name, thumbnail
 from ...core.errors import FeedError, NoPaper
 from ...core.images import is_blank
@@ -95,19 +98,23 @@ class ScanWorker(QObject):
     done = Signal(str, bool)  # error message ("" = ok), connection problem?
     button = Signal()  # "Scan" pressed on the touch panel (from the listener thread)
 
-    def __init__(self, ip: str, locator: ScannerLocator):
+    def __init__(self, ip: str, locator: ScannerLocator, model: str = catalog.DEFAULT_MODEL, pairing_key: str = ""):
         super().__init__()
-        self.ip = ip
+        self.ip, self.model, self.pairing_key = ip, model, pairing_key
         self.locator = locator
         self.device: ScannerPort | None = None
-        self.device_ip = ""
+        self.device_key: tuple[str, str, str] = ("", "", "")
 
     def _device(self) -> ScannerPort:
-        """Persistently connected device for the current IP (disconnect the old one when the IP changes)."""
-        if self.device is None or self.device_ip != self.ip:
+        """Persistently connected device for the current scanner (disconnect the old one when IP, model or
+        pairing key change)."""
+        key = (self.ip, self.model, self.pairing_key)
+        if self.device is None or self.device_key != key:
             self.close_connection()
-            self.device = self.locator.open(self.ip, on_button=self.button.emit)
-            self.device_ip = self.ip
+            self.device = self.locator.open(
+                self.ip, model=self.model, pairing_key=self.pairing_key, on_button=self.button.emit
+            )
+            self.device_key = key
         return self.device
 
     @Slot()
@@ -165,17 +172,51 @@ class ScanWorker(QObject):
 
 
 class ScannerDialog(QDialog):
-    """Enter the scanner IP or search the network. Search and check run in the background (with a spinner)."""
+    """Choose the scanner model, enter the IP or search the network. Models ScanSnack does not support yet are
+    listed but greyed out. Search and check run in the background (with a spinner)."""
 
     finished_task = Signal(str, object)  # task ("search"/"check"), result
 
-    def __init__(self, ip: str, locator: ScannerLocator, message: str = "", parent: QWidget | None = None):
+    def __init__(
+        self,
+        ip: str,
+        locator: ScannerLocator,
+        message: str = "",
+        parent: QWidget | None = None,
+        *,
+        model: str = "",
+        pairing_key: str = "",
+    ):
         super().__init__(parent)
         self.locator = locator
         self.setWindowTitle("Connect Scanner")
+        self.model = QComboBox()
+        self.model.setPlaceholderText("Choose your model")
+        items = cast(QStandardItemModel, self.model.model())
+        for m in catalog.MODELS:
+            label = m.full_name
+            if m.support == "beta":
+                label += " (beta)"
+            elif not m.usable:
+                label += " – not supported yet"
+            self.model.addItem(label, m.id)
+            item = items.item(self.model.count() - 1)
+            item.setToolTip(f"{m.connection}. {m.note}".strip())
+            item.setEnabled(m.usable)
+        self.model.setCurrentIndex(self.model.findData(model) if catalog.by_id(model) else -1)
+        self.model.currentIndexChanged.connect(self._model_changed)
         self.ip = QLineEdit(ip)
         self.ip.setPlaceholderText("e.g. 192.168.1.20")
-        self.info = QLabel(message or "Enter the IP address of your ScanSnap or search the network.")
+        self.key = QLineEdit(pairing_key)
+        self.key.setPlaceholderText("12 characters")
+        self.key_label = QLabel("Pairing key (iX500):")
+        self.get_key = QPushButton("Get Key …")
+        self.get_key.setToolTip("Get the pairing key from ScanSnap Home on another computer")
+        self.get_key.clicked.connect(self._capture_key)
+        self.found_name = ""  # device name from the last network search, e.g. iX500-A0B1C2D3E4
+        self.note = QLabel()
+        self.note.setWordWrap(True)
+        self.info = QLabel(message or "Choose your ScanSnap model, then enter its IP address or search the network.")
         self.info.setWordWrap(True)
         self.search = QPushButton("Search Network")
         self.search.clicked.connect(self._search)
@@ -194,23 +235,47 @@ class ScannerDialog(QDialog):
         self.buttons.rejected.connect(self.reject)
         lay = QVBoxLayout(self)
         lay.addWidget(self.info)
+        lay.addWidget(QLabel("Scanner model:"))
+        lay.addWidget(self.model)
+        lay.addWidget(self.note)
         lay.addWidget(QLabel("Scanner IP address:"))
         lay.addLayout(row)
+        lay.addWidget(self.key_label)
+        key_row = QHBoxLayout()
+        key_row.addWidget(self.key, 1)
+        key_row.addWidget(self.get_key)
+        lay.addLayout(key_row)
         lay.addWidget(self.spinner)
         lay.addWidget(self.buttons)
         self.setMinimumWidth(440)
         self.finished_task.connect(self._task_done)
+        self._model_changed()
+
+    def selected_model(self) -> catalog.ScannerModel | None:
+        data = self.model.currentData()
+        return catalog.by_id(data) if isinstance(data, str) else None
+
+    def _model_changed(self) -> None:
+        m = self.selected_model()
+        needs_key = bool(m and m.needs_pairing_key)
+        self.key.setVisible(needs_key)
+        self.key_label.setVisible(needs_key)
+        self.get_key.setVisible(needs_key)
+        self.note.setText(f"Beta: {m.note}" if m and m.support == "beta" else "")
+        self.note.setVisible(bool(self.note.text()))
+        self.connect_button.setEnabled(m is not None and m.usable)
 
     def _busy(self, text: str) -> None:
         self.info.setText(text)
         self.spinner.show()
-        for w in (self.search, self.connect_button, self.ip):
+        for w in (self.search, self.connect_button, self.ip, self.model, self.key, self.get_key):
             w.setEnabled(False)
 
     def _idle(self) -> None:
         self.spinner.hide()
-        for w in (self.search, self.connect_button, self.ip):
+        for w in (self.search, self.ip, self.model, self.key, self.get_key):
             w.setEnabled(True)
+        self._model_changed()
 
     def _run(self, task: str, fn: Callable[[], object]) -> None:
         threading.Thread(target=lambda: self.finished_task.emit(task, fn()), daemon=True).start()
@@ -220,8 +285,14 @@ class ScannerDialog(QDialog):
         self._run("search", lambda: self.locator.discover(timeout=2.5))
 
     def _check(self) -> None:
-        ip = self.value()
+        ip, m = self.value(), self.selected_model()
+        if m is None or not m.usable:
+            self.info.setText("Choose your scanner model first.")
+            return
         if not ip:
+            return
+        if m.needs_pairing_key and not self.pairing_key():
+            self.info.setText(f"The {m.full_name} needs its pairing key. Enter it below.")
             return
         self._busy(f"Connecting to {ip} …")
         self._run("check", lambda: self.locator.reachable(ip))
@@ -232,8 +303,16 @@ class ScannerDialog(QDialog):
         if task == "search":
             found = cast(list[FoundScanner], result)
             if found:
-                self.ip.setText(found[0].ip)
-                self.info.setText(f"Found {found[0].name} ({found[0].model}) at {found[0].ip}.")
+                first = found[0]
+                self.found_name = first.name
+                self.ip.setText(first.ip)
+                m = catalog.match(first.model) or catalog.match(first.name)
+                if m is not None:
+                    self.model.setCurrentIndex(self.model.findData(m.id))
+                text = f"Found {first.name} ({first.model}) at {first.ip}."
+                if m is not None and not m.usable:
+                    text += f" ScanSnack does not support the {m.full_name} yet."
+                self.info.setText(text)
             else:
                 self.info.setText("No scanner found. Make sure it is on and in the same network, or enter its IP.")
         elif result:
@@ -241,8 +320,116 @@ class ScannerDialog(QDialog):
         else:
             self.info.setText(f"No scanner responds at {self.value()}.")
 
+    def _capture_key(self) -> None:
+        m = self.selected_model()
+        if m is None or not m.needs_pairing_key:
+            return
+        dialog = KeyCaptureDialog(self.locator, m, self.found_name, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.key:
+            self.key.setText(dialog.key)
+            self.info.setText(f"Pairing key received. Switch the {m.full_name} on again, then connect.")
+
     def value(self) -> str:
         return self.ip.text().strip()
+
+    def model_id(self) -> str:
+        m = self.selected_model()
+        return m.id if m else ""
+
+    def pairing_key(self) -> str:
+        m = self.selected_model()
+        return self.key.text().strip() if m and m.needs_pairing_key else ""
+
+
+class KeyCaptureDialog(QDialog):
+    """Gets a pairing key: the app poses as the scanner until the vendor software on another computer
+    sends the key. Runs in the background; Cancel stops it."""
+
+    finished_capture = Signal(object)  # key (str), None (cancelled) or the error (Exception)
+
+    def __init__(
+        self, locator: ScannerLocator, model: catalog.ScannerModel, name: str = "", parent: QWidget | None = None
+    ):
+        super().__init__(parent)
+        self.locator, self.scanner = locator, model
+        self.key = ""
+        self.cancel = threading.Event()
+        self.worker: threading.Thread | None = None
+        self.setWindowTitle("Get Pairing Key")
+        steps = QLabel(
+            f"1. Switch the {model.full_name} off.\n"
+            "2. Enter its device name (on the label: model and serial number), then click Start.\n"
+            "3. Open ScanSnap Home on another computer in the same network. It finds ScanSnack instead of the "
+            "scanner and sends the key.\n"
+            "4. Switch the scanner on again."
+        )
+        steps.setWordWrap(True)
+        self.name = QLineEdit(name)
+        self.name.setPlaceholderText(f"e.g. {model.name}-A0B1C2D3E4")
+        self.info = QLabel("")
+        self.info.setWordWrap(True)
+        self.spinner = QProgressBar()
+        self.spinner.setRange(0, 0)
+        self.spinner.setTextVisible(False)
+        self.spinner.setMaximumHeight(10)
+        self.spinner.hide()
+        self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.start_button = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
+        self.start_button.setText("Start")
+        self.buttons.accepted.connect(self._start)
+        self.buttons.rejected.connect(self.reject)
+        lay = QVBoxLayout(self)
+        lay.addWidget(steps)
+        lay.addWidget(QLabel("Device name:"))
+        lay.addWidget(self.name)
+        lay.addWidget(self.info)
+        lay.addWidget(self.spinner)
+        lay.addWidget(self.buttons)
+        self.setMinimumWidth(460)
+        self.finished_capture.connect(self._done)
+
+    def _start(self) -> None:
+        name = self.name.text().strip()
+        if not name:
+            self.info.setText("Enter the device name first.")
+            return
+        self.cancel.clear()
+        self.spinner.show()
+        self.start_button.setEnabled(False)
+        self.name.setEnabled(False)
+        self.info.setText("Waiting for ScanSnap Home … (keep the scanner switched off)")
+
+        def run() -> None:
+            try:
+                result: object = self.locator.capture_pairing_key(self.scanner.id, name, self.cancel)
+            except Exception as e:  # noqa: BLE001 – shown in the dialog
+                result = e
+            self.finished_capture.emit(result)
+
+        self.worker = threading.Thread(target=run, daemon=True)
+        self.worker.start()
+
+    @Slot(object)
+    def _done(self, result: object) -> None:
+        self.spinner.hide()
+        self.start_button.setEnabled(True)
+        self.name.setEnabled(True)
+        if isinstance(result, str) and result:
+            self.key = result
+            self.accept()
+        elif isinstance(result, OSError):
+            self.info.setText(
+                f"Could not pose as the scanner ({result}). Another program may use the ports 52217, 53218 "
+                "or 53219; quit ScanSnap Home on this computer."
+            )
+        elif isinstance(result, Exception):
+            self.info.setText(f"Getting the key failed: {result}")
+        elif not self.cancel.is_set():
+            self.info.setText("No key received.")
+
+    def reject(self) -> None:
+        self.cancel.set()  # the background capture ends within a moment
+        super().reject()
 
 
 class PageList(QListWidget):
@@ -484,7 +671,10 @@ class MainWindow(QMainWindow):
 
         # --- scan thread ---------------------------------------------------------------
         self.scan_thread = QThread(self)
-        self.worker = ScanWorker(str(self.settings.value("ip", "")), locator)
+        ip = str(self.settings.value("ip", ""))
+        # before the model choice existed, only the iX1500 could be connected
+        model = str(self.settings.value("model", catalog.DEFAULT_MODEL if ip else ""))
+        self.worker = ScanWorker(ip, locator, model, str(self.settings.value("pairing_key", "")))
         self.worker.moveToThread(self.scan_thread)
         self.request_scan.connect(self.worker.scan)
         self.request_connect.connect(self.worker.open_connection)
@@ -708,14 +898,22 @@ class MainWindow(QMainWindow):
 
     # --- Scanner ----------------------------------------------------------------------
     def _show_scanner(self) -> None:
-        self.scanner_label.setText(f"Scanner: {self.worker.ip}" if self.worker.ip else "No scanner connected")
+        m = catalog.by_id(self.worker.model)
+        name = f"{m.full_name}{' (beta)' if m.support == 'beta' else ''} at " if m else ""
+        self.scanner_label.setText(f"Scanner: {name}{self.worker.ip}" if self.worker.ip else "No scanner connected")
 
     def ask_scanner(self, message: str = "") -> bool:
-        dialog = ScannerDialog(self.worker.ip, self.locator, message, self)
+        dialog = ScannerDialog(
+            self.worker.ip, self.locator, message, self, model=self.worker.model, pairing_key=self.worker.pairing_key
+        )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return False
         self.worker.ip = dialog.value()
+        self.worker.model = dialog.model_id()
+        self.worker.pairing_key = dialog.pairing_key()
         self.settings.setValue("ip", self.worker.ip)
+        self.settings.setValue("model", self.worker.model)
+        self.settings.setValue("pairing_key", self.worker.pairing_key)
         self._show_scanner()
         self.statusBar().showMessage(f"Scanner: {self.worker.ip}")
         self.request_connect.emit()
@@ -724,8 +922,12 @@ class MainWindow(QMainWindow):
     def check_scanner(self) -> None:
         """At startup: without a saved or reachable IP, show the scanner dialog first.
         The check runs in the background (never network I/O in the GUI thread)."""
-        if not self.worker.ip:
-            self.ask_scanner("Welcome! Connect your ScanSnap first: enter its IP address or search the network.")
+        m = catalog.by_id(self.worker.model)
+        if not self.worker.ip or m is None or not m.usable:
+            self.ask_scanner(
+                "Welcome! Connect your ScanSnap first: choose its model, then enter its IP address "
+                "or search the network."
+            )
             return
         ip = self.worker.ip
         threading.Thread(target=lambda: self.reachable_checked.emit(self.locator.reachable(ip)), daemon=True).start()
@@ -753,7 +955,7 @@ class MainWindow(QMainWindow):
         self.start_scan()
 
     def start_scan(self) -> None:
-        if not self.worker.ip and not self.ask_scanner():
+        if not (self.worker.ip and self.worker.model) and not self.ask_scanner():
             return
         base: Preset = self.presets.currentItem().data(PAGE_ROLE)
         preset = Preset(

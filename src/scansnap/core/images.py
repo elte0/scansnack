@@ -115,11 +115,17 @@ def whiten(im: Image.Image) -> Image.Image:
 
 
 def process(
-    jpeg: bytes, dpi: int | None = None, *, rotate: bool = True, crop: bool = True, whiten_background: bool = False
+    jpeg: bytes,
+    dpi: int | None = None,
+    *,
+    rotate: bool = True,
+    crop: bool = True,
+    whiten_background: bool = False,
+    gray: bool = False,
 ) -> bytes:
-    """Crops to the paper, rotates by 180° and optionally sets the paper color to white – in one
-    pass. ``dpi`` is written into the JFIF header (the scanner writes 0)."""
-    if not (rotate or crop or whiten_background):
+    """Crops to the paper, rotates by 180°, optionally sets the paper color to white and converts to
+    grayscale – in one pass. ``dpi`` is written into the JFIF header (the scanner writes 0)."""
+    if not (rotate or crop or whiten_background or gray):
         return jpeg
 
     def transform(im: Image.Image) -> Image.Image:
@@ -127,6 +133,8 @@ def process(
             im = im.crop(box)
         if whiten_background:
             im = whiten(im)
+        if gray:
+            im = im.convert("L")
         return im.transpose(Image.Transpose.ROTATE_180) if rotate else im
 
     return _reencode(jpeg, transform, dpi)

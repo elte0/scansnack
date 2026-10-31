@@ -1,7 +1,7 @@
 # ScanSnack
 
-Use the ScanSnap iX1500 over Wi-Fi without ScanSnap Home: an independent client for its proprietary
-protocol, an AirScan bridge that makes the scanner show up in Image Capture and Preview on the Mac, a
+Use the ScanSnap iX1500 (and, in beta, the iX500) over Wi-Fi without ScanSnap Home: an independent
+client for its proprietary protocol, an AirScan bridge that makes the scanner show up in Image Capture and Preview on the Mac, a
 desktop app (PySide6) and an iOS app (BeeWare). The Python package is called `scansnap-bridge` and
 provides the commands `scansnap` and `scansnap-app`.
 
@@ -27,6 +27,7 @@ provides the commands `scansnap` and `scansnap-app`.
 - **Desktop app "ScanSnack"**: scans over Wi-Fi and saves every scan as a PDF. Its features are listed
   on the [app page](site/content/app.md) ([website](https://elte0.github.io/scansnack/app/)).
 - **iOS app** built on the same Python core.
+- **Models:** the iX1500 is supported, the iX500 is in beta; see the [model list](docs/models.md).
 
 ## Usage
 
@@ -36,6 +37,8 @@ uv run scansnap --ip <scanner-ip> claim        # create our own user + profile, 
 uv run scansnap --ip <scanner-ip> scan --mode color --dpi 300 --out scans/
 uv run scansnap --ip <scanner-ip> serve        # AirScan bridge for Image Capture and Preview
 uv run --extra app scansnap-app                # desktop app
+uv run scansnap capture-key --name iX500-<serial>   # iX500 (beta): get the pairing key once
+uv run scansnap --model ix500 --ip <scanner-ip> scan
 ```
 
 Broadcast discovery is unreliable, so pass the scanner's IP address with `--ip`.
@@ -52,6 +55,7 @@ Ready-made apps for macOS (Apple Silicon and Intel), Windows and Linux are on th
 - [AirScan bridge](docs/airscan.md) – scanning from Image Capture and Preview: start, options, limits,
   troubleshooting
 - [Protocol](docs/protocol.md) – the Wi-Fi protocol (single source of truth), including open questions
+- [Models](docs/models.md) – which ScanSnap models ScanSnack supports
 - [Architecture decisions](docs/adr/README.md) – architecture and protocol decisions (ADRs)
 - [Apps](docs/apps.md) – desktop and iOS app, eSCL bridge, packaging, releases
 - [Changelog](CHANGELOG.md) – what changed in each version

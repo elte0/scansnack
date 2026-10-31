@@ -16,6 +16,7 @@ import io
 import os
 import sys
 import tempfile
+import threading
 import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -168,7 +169,12 @@ class SampleLocator:
     def reachable(self, ip: str, timeout: float = 1.5) -> bool:
         return True
 
-    def open(self, ip: str, *, on_button: Callable[[], None] | None = None) -> SampleScanner:
+    def capture_pairing_key(self, model: str, device_name: str, cancel: threading.Event) -> str | None:
+        return None
+
+    def open(
+        self, ip: str, *, model: str, pairing_key: str = "", on_button: Callable[[], None] | None = None
+    ) -> SampleScanner:
         return self.device
 
 
@@ -247,11 +253,9 @@ def main() -> None:
 
         for mode in ("light", "dark"):
             set_scheme(app, mode)
-            dialog = qt_window.ScannerDialog(
-                "", locator, "Welcome! Connect your ScanSnap first: enter its IP address or search the network.", w
-            )
+            dialog = qt_window.ScannerDialog("", locator, "", w, model="ix1500")
             dialog.ip.setText(IP)
-            dialog.info.setText(f"Found ScanSnap (iX1500) at {IP}.")
+            dialog.info.setText(f"Found iX1500-TEST000000 (ScanSnap iX1500) at {IP}.")
             dialog.show()
             grab(dialog, out / f"connect-{mode}.png")
             dialog.close()

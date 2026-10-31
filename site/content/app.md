@@ -25,8 +25,12 @@ described in the [protocol write-up](protocol.md).
 
 ## Features
 
-- **Scan over Wi-Fi** – connect by IP address or let the app search the network. The connection is kept
-  open, so the *Scan* button on the scanner's touch panel starts a scan in the app.
+- **Scan over Wi-Fi** – choose your scanner model, then connect by IP address or let the app search the
+  network. The connection is kept open, so the *Scan* button on the scanner's touch panel starts a scan
+  in the app.
+- **Supported models** – the iX1500, and the iX500 in beta. For the iX500, *Get Key …* fetches its
+  pairing key from ScanSnap Home on another computer once. The model list shows every ScanSnap and greys
+  out the ones not supported yet; see [models](models.md).
 - **Profiles** – color or black & white documents at 300 dpi, a quick 150 dpi mode and photos at
   600 dpi.
 - **Double-sided**, **remove blank pages** and **remove background** (turns gray or yellowish paper into
@@ -52,7 +56,8 @@ described in the [protocol write-up](protocol.md).
 What changed in each version is listed in the [changelog](changelog.md).
 
 > ScanSnack is an early version. It is developed and tested on macOS; the Windows and Linux builds are
-> made automatically and have not been tested with a scanner yet. Only the iX1500 is supported.
+> made automatically and have not been tested with a scanner yet. Only the iX1500 is fully supported;
+> iX500 support is in beta and has not been tested on a device.
 
 ## Getting started
 

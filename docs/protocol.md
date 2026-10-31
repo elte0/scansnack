@@ -6,7 +6,8 @@
 > SCSI commands for status polling and scanning. Pages arrive as ready-made JPEGs. A press of the
 > "Scan" button on the touch panel is reported to the host by UDP.
 > This document describes the frames, the sequences ScanSnap Home uses, the device states, and
-> everything that is still unknown.
+> everything that is still unknown. The older iX500 speaks a close relative of the protocol; its
+> differences are described in [ScanSnap iX500](#scansnap-ix500), based on a third-party write-up.
 
 This is the single source of truth for the protocol. Everything here was observed in network captures
 of ScanSnap Home or in live tests against the device. Guesses appear only under
@@ -30,6 +31,7 @@ Fujitsu. See the [disclaimer](disclaimer.md).
   - [Scan sequence](#scan-sequence)
   - [Sense codes](#sense-codes)
 - [Scan button on the touch panel](#scan-button-on-the-touch-panel)
+- [ScanSnap iX500](#scansnap-ix500)
 - [Sequences](#sequences)
   - [App start / connect](#app-start--connect)
   - [Scan](#scan)
@@ -56,8 +58,13 @@ capture is public, it is an anonymised extract without image data, generated wit
 | Touch panel captures | two captures of the "Scan" button on the panel | no |
 | Live test logs | our own client against the device: keep-alive, scan, `claim` | no |
 | User list backup | the scanner's user and profile list before our changes | no |
+| iX500 write-up | third-party reverse engineering of an iX500 with ScanSnap Home: [bramheerink/scansnap](https://github.com/bramheerink/scansnap) at commit [`5706688`](https://github.com/bramheerink/scansnap/tree/5706688db58f45a4d3db239de6e2e93bab36bb0f) (files `PROTOCOL`, `scansnap.py`, `legacy/scansnap.c`), GPL-2.0 | yes (third party) |
 
 Live tests ran on a home network with ScanSnap Home quit.
+
+Everything about the iX500 comes from the iX500 write-up and has **not** been observed by us: we have no
+iX500 and no iX500 captures. Only facts (offsets, values, sequences) are taken from it, no code; where we
+interpret its findings in terms of this document (for example its "commands" as SCSI CDBs), we say so.
 
 Conventions: offsets are byte offsets from the start of the frame or body; integers are big-endian
 (BE) unless marked little-endian (LE). Hex values are written `0x..`; status words such as
@@ -296,6 +303,116 @@ German-language panel: „Es wird auf eine Antwort vom Gerät gewartet“) until
 normal 0x0100 → 0x0610 → D5 … sequence. Without a running session (scan channel + C2 polling) nothing
 arrives. Confirmed live with `scansnap listen` (2 presses, 1 sheet each).
 
+## ScanSnap iX500
+
+Source: the [iX500 write-up](#sources-and-conventions) (its `PROTOCOL` file and its client
+`scansnap.py`, cited as *write-up* below). Nothing in this section has been tested by us; the code is in
+`src/scansnap/adapters/ix1500/ix500.py` and every assumption there carries an `# UNVERIFIED:` marker.
+
+**In short:** the iX500 uses the same ports, the same UDP probes and the same SCSI tunnel on 53218 with
+the same commands as the iX1500. It differs in the magic (`VENS` instead of `ssNR`), in a shorter 0x11
+registration that carries a secret **pairing key**, and in having no touch panel, no JSON users or
+profiles and no 0x0610. Read with this document in mind, the write-up's scan "commands" are SCSI CDBs:
+its "0x0C scan start" is the 12-byte READ `28`, "0x03 ready" is REQUEST SENSE, "0x12 set mode" is
+INQUIRY and "0xE0 prepare" is the feed command (our interpretation).
+
+| Area | iX1500 (this document) | iX500 (write-up) |
+|---|---|---|
+| Ports | UDP 52217, TCP 53218/53219, host 55264/55265 | the same |
+| TCP magic | `ssNR` | `VENS`, also in the greeting |
+| Client header, offset 24 | host IP (scan channel) | 0 |
+| UDP probes | `VENS`/`ssNR`/`V2ss` | byte-identical; the `VENS` probe is answered |
+| Probe reply | 144 B, `ssNR`, serial at 132 | 132 B, `VENS`, no serial; offsets 16–131 as on the iX1500 |
+| UDP 53220 | seen during pairing, not analysed | periodic 48-byte announcement (below) |
+| 0x11 | 352-byte body, flag 5/0, no secret | 96-byte body with the pairing key (below) |
+| 0x11 status | u32 at offset 12 | i32 at offset 8 of a 20-byte reply |
+| Other control commands | 0x12, 0x13, 0x30, 0x41 JSON | 0x13 and 0x30 only |
+| Session | 53218 open permanently, C2 every 250 ms, heartbeat, 0x0210 | short connections, D6 after each job, no heartbeat |
+| Before 0x11 | INQUIRY, VPD f0, E7, C2 work (cold start) | "on a bare 53218 connection the scanner accepts only D6" |
+| C2 length | 0x30 | 0x20 |
+| D5 | `d5 00 00 01 08 08`, needs 0x0610 first | `d5 00 00 00 08 08`, no profile |
+| E9 | dpi, dpi, 0x28D0, 0x44DC, 0x05 | byte-identical (color/300) |
+| D4 color/300 | bytes 10/13/40 = 0x80/0x80/0x0A (our template) | 0x90/0x00/0x00 |
+| READ `28` byte 10/11 | side / chunk number | page counter 0, 1, 2 … / 0; read length 0x300000 |
+| Images | complete JPEGs, rotated by 180° | complete JPEGs with the comment `PFU ScanSnap #iX500`; rotation not mentioned |
+| Scan button | UDP datagram from the touch panel | hardware button, not analysed |
+
+### Announcement (UDP 53220)
+
+The iX500 broadcasts 48 bytes to 255.255.255.255:53220 (write-up):
+
+| Offset | Content |
+|---|---|
+| 0 | u32 length (0x30) |
+| 4 | `b"VENS"` |
+| 8 | u32 0x21 |
+| 12 | u32 0 |
+| 16 | u32 1 |
+| 20 | u32 0 |
+| 24 | 4 B scanner IP |
+| 28 | 6 B scanner MAC |
+
+### 0x11 Registration (96 bytes)
+
+From the write-up's client template; offsets are from the start of the body (frame offset − 32):
+
+| Offset | Content |
+|---|---|
+| 0 | `00 06 1e 00` (iX1500: `01 00 1e 00`) |
+| 4 | u32 0 (no pairing flag) |
+| 8 | u32 1 |
+| 12 | 4 B host IP |
+| 16 | u16 0 |
+| 18 | u16 `host_port` (55265) |
+| 20 | 16 B pairing key, ASCII, zero-padded (12 characters observed) |
+| 48 | u16 year, u8 month, day, hour, minute, second, u8 0 |
+| 56 | 8 B host ID |
+| 64 | i32 time zone bias |
+| 68 | 28 B 0 |
+
+From offset 48 on, the fields are those of the iX1500 body at offset 68, shifted by 20 bytes. The
+write-up calls the 8 bytes at 56 "unknown", but the same value appears at offset 124 of its probe reply,
+which is the "ID of the currently paired host" on the iX1500 (our interpretation). The write-up sends a
+fixed date and host ID from its capture; whether the scanner checks them is unknown.
+
+Statuses (write-up; how each was found is not stated): 0 ok, −1 bad packet, −2 serial mismatch,
+−3 unknown pairing key, −4 session busy or stale (send D6 on 53218 and retry), −5 no serial in the
+packet, −7 paired to a different client. −4 and −7 have the same values as `fffffffc` and `fffffff9` of the
+iX1500, whose meanings we observed differently (pairing state, host not selected).
+
+### Pairing key
+
+The key is the serial number of the scanner's Wi-Fi module (Silex, OUI 00:80:92), not the product
+serial. The scanner never sends it; ScanSnap Home knows it from the initial setup. The write-up obtains it
+by posing as the scanner: broadcast the announcement, answer the probes with a 132-byte reply carrying the
+device name ScanSnap Home knows (e.g. `iX500-<serial>`), and read the key at frame offset 52 of the 0x11
+that ScanSnap Home then sends. The real scanner has to be off meanwhile. `scansnap capture-key` and
+*Get Key …* in the app do this.
+
+### Scan session
+
+As in the write-up's client:
+
+1. UDP probes (all three, four times, from port 55264).
+2. 0x11 on 53219 with the key. On −4: D6 on a new 53218 connection, wait 1 s, start again.
+3. Init connection on 53218: INQUIRY (0x60), E7, C2, E6 `e6 00 01 00 00 00 00 04` (read, 4 B),
+   E6 `e6 00 00 00 00 04 00 00` (write `10 1e 00 00`), D5, D6. Meanwhile 0x13 and 0x30 on 53219.
+   E6 uses an 8-byte CDB; ScanSnap Home does not send it to the iX1500.
+4. UDP probes once more.
+5. Scan connection on 53218: C2, D5, D8, E9, D4, C2, REQUEST SENSE, then per sheet E0 and READ for front
+   and back, with REQUEST SENSE after each page, image info (`28 00 80`) and C2 between sheets.
+   "More sheets" is detected by an empty sense after E0; an empty feeder answers E0 with an error.
+6. Close the connection, wait 1 s, D6 on a new 53218 connection.
+
+The write-up's C2 reply (72 bytes = 40 + 0x20) has the "feeder empty" bit at frame offset 43, which is
+data offset 3, bit 7: the same bit as on the iX1500, found independently by comparing replies with and
+without paper. Its scan area 0x28D0 × 0x44DC puzzled the write-up ("does not match 2480 pixels"); in
+1/1200 inch (see [Scan sequence](#scan-sequence)) it is 221 × 373 mm.
+
+ScanSnack's iX500 support (beta) follows this sequence. Where the write-up has only one example, the code
+generalises like on the iX1500: D4 is the color/300 block with the dpi patched; grayscale is scanned in
+color and converted on the host; READ uses byte 11 as chunk counter.
+
 ## Sequences
 
 ### App start / connect
@@ -380,8 +497,17 @@ Each item corresponds to an `# UNVERIFIED:` marker in the code (location in pare
    cause unclear. Hypothesis (user): profiles are stored per user, so the ScanSnap Home profiles still
    exist. Unverified; a private backup of the user list exists.
 9. **How long does the panel wait** for the host after "Scan"? (`button.py`)
-10. **UDP 53220**: notifications from the scanner during pairing, content not analysed.
+10. **UDP 53220**: notifications from the scanner during pairing, content not analysed. Hint: the iX500
+    broadcasts a 48-byte announcement there ([ScanSnap iX500](#announcement-udp-53220)); the iX1500
+    datagrams may have the same layout with `ssNR`.
 11. **Grayscale** (`escl`): with the gray D4 the image looks gray, but the JPEG has 3 channels.
     Whether the scanner can deliver true 1-channel JPEGs is open.
 12. **Feeder capacity of 50 sheets** in the eSCL capabilities (`escl.server.capabilities_xml`):
     origin not documented, not read from the device.
+13. **iX500, everything** (`ix1500/ix500.py`, `wire.frame_status`): taken from a third-party write-up,
+    not tested by us. In particular: the status at offset 8 (0x11 reply and scan frames); the meaning of
+    `00 06 1e 00` and the 1 at body offset 8 of 0x11; whether date, host ID and time zone bias are checked;
+    whether 0x13/0x30 and E6 are needed; the host IP field left at 0 in the frame header; D5 byte 3 = 0;
+    D4 blocks other than color/300 and a grayscale block; READ byte 10 as page counter and byte 11 as chunk
+    counter; the two bytes before each JPEG; whether pages arrive rotated; and the unknown bytes of the
+    132-byte probe reply used by `scansnap capture-key`.

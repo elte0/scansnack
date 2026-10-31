@@ -46,7 +46,8 @@ def build_probe(tag: bytes, flag: int, host_ip: str, host_mac: bytes, host_port:
 
 
 def parse_reply(data: bytes) -> ScannerInfo | None:
-    if len(data) < 144 or data[:4] != MAGIC:
+    """Reply of an iX1500 (``ssNR``, 144 B) or an iX500 (``VENS``, 132 B without serial number)."""
+    if not ((data[:4] == MAGIC and len(data) >= 144) or (data[:4] == wire.VENS and len(data) >= 132)):
         return None
     ip = str(ipaddress.IPv4Address(data[16:20]))
     data_port, control_port = struct.unpack_from(">II", data, 20)
@@ -58,7 +59,7 @@ def parse_reply(data: bytes) -> ScannerInfo | None:
         name=_cstr(data[40:104]),
         model=_cstr(data[104:120]),
         paired_host_id=data[124:132].hex(),
-        serial=_cstr(data[132:144]),
+        serial=_cstr(data[132:144]) if len(data) >= 144 else "",
     )
 
 

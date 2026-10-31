@@ -35,6 +35,7 @@ class HostIdentity:
     user_id: str  # 32 hex characters (upper case)
     mac: bytes  # 6 bytes
     host_port: int = 55265
+    pairing_key: str = ""  # iX500 only: key from ``scansnap capture-key``
 
     @property
     def host_id_bytes(self) -> bytes:

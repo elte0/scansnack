@@ -65,12 +65,37 @@ def _info_cdb(side: int) -> bytes:
 
 
 class Scanner:
-    """Scan sequence on an open scan channel."""
+    """Scan sequence on an open scan channel (iX1500). Subclasses adapt single commands to other models."""
 
     def __init__(self, channel: ScsiChannel):
         self.ch = channel
 
-    def _read_page(self, read_len: int) -> tuple[list[bytes], int]:
+    # --- model-specific parts ------------------------------------------------------------------
+    def open_job(self) -> None:
+        self.ch.checked(bytes.fromhex("d50000010808"), out=b"\0" * 8, in_len=8)
+
+    def setup(self, settings: ScanSettings) -> None:
+        ch = self.ch
+        ch.checked(bytes.fromhex("d80000000000"))
+        ch.checked(bytes.fromhex("e9000000000000200000"), out=window_block(settings))
+        ch.checked(bytes.fromhex("d40000005000"), out=mode_block(settings))
+        ch.request_sense()
+
+    def read_len(self, settings: ScanSettings) -> int:
+        return read_len(settings)
+
+    def read_cdb(self, sheet: int, side: int, chunk: int, length: int) -> bytes:
+        return _read_cdb(side, chunk, length)
+
+    def chunk_header(self, sheet: int, side: int, chunk: int) -> bytes | None:
+        """Expected first two data bytes of a chunk; None = do not check."""
+        return bytes([side, chunk])
+
+    def info_cdb(self, sheet: int, side: int) -> bytes:
+        return _info_cdb(side)
+
+    # --- sequence ------------------------------------------------------------------------------
+    def _read_page(self, sheet: int, read_len: int) -> tuple[list[bytes], int]:
         parts: list[list[bytes]] = [[], []]
         done = [False, False]
         chunk = [0, 0]
@@ -79,8 +104,9 @@ class Scanner:
             for side in (0, 1):
                 if done[side]:
                     continue
-                r = self.ch.command(_read_cdb(side, chunk[side], read_len), in_len=read_len)
-                if r.data[:2] != bytes([side, chunk[side]]):
+                r = self.ch.command(self.read_cdb(sheet, side, chunk[side], read_len), in_len=read_len)
+                header = self.chunk_header(sheet, side, chunk[side])
+                if header is not None and r.data[:2] != header:
                     raise ScsiError(f"unexpected chunk header {r.data[:2].hex()} for side {side}")
                 parts[side].append(r.data[2:])
                 chunk[side] += 1
@@ -96,12 +122,9 @@ class Scanner:
     def scan(self, settings: ScanSettings) -> Iterator[Sheet]:
         """Scans all sheets in the feeder. Raises NoPaper if the feeder is empty."""
         ch = self.ch
-        ch.checked(bytes.fromhex("d50000010808"), out=b"\0" * 8, in_len=8)
+        self.open_job()
         try:
-            ch.checked(bytes.fromhex("d80000000000"))
-            ch.checked(bytes.fromhex("e9000000000000200000"), out=window_block(settings))
-            ch.checked(bytes.fromhex("d40000005000"), out=mode_block(settings))
-            ch.request_sense()
+            self.setup(settings)
             pages = 0
             while True:
                 r = ch.command(bytes.fromhex("e00000000000"))
@@ -112,8 +135,8 @@ class Scanner:
                             raise NoPaper("no paper in feeder")
                         return
                     raise _sense_error("feed failed", sense)
-                (front, back), last = self._read_page(read_len(settings))
-                info = parse_image_info(ch.checked(_info_cdb(last), in_len=0x20).data)
+                (front, back), last = self._read_page(pages, self.read_len(settings))
+                info = parse_image_info(ch.checked(self.info_cdb(pages, last), in_len=0x20).data)
                 pages += 1
                 yield Sheet(front, back if settings.duplex else None, info)
         finally:
