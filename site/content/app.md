@@ -19,9 +19,9 @@ platforms:
     suffix: -linux-x86_64.tar.gz
 ---
 
-ScanSnack scans with a **ScanSnap iX1500** over Wi-Fi and saves every scan as a PDF, without
+ScanSnack scans with a **ScanSnap iX1500 or iX500** over Wi-Fi and saves every scan as a PDF, without
 ScanSnap Home, an account or a cloud service. It talks to the scanner directly, using the protocol
-described in the [protocol write-up](protocol.md).
+described in the [protocol write-up](protocol.md) and its [iX500 dialect](protocol-ix500.md).
 
 ## Features
 
@@ -32,6 +32,8 @@ described in the [protocol write-up](protocol.md).
 - **Double-sided**, **remove blank pages** and **remove background** (turns gray or yellowish paper into
   pure white).
 - **Cropped to the paper** – pages come out in the size of the sheet, the right way up.
+- **iX1500 and iX500**: the app recognizes the model by itself. With an iX500, the Scan button turns
+  "Load paper" and dims while the feeder is empty.
 - **Saved right away** – every scan becomes its own PDF in the folder you choose, named after date and
   time. Pages scanned before a paper jam are kept.
 - **Document list** – your scans stay in the list across restarts. Open a document to rotate, delete or
@@ -52,7 +54,7 @@ described in the [protocol write-up](protocol.md).
 What changed in each version is listed in the [changelog](changelog.md).
 
 > ScanSnack is an early version. It is developed and tested on macOS; the Windows and Linux builds are
-> made automatically and have not been tested with a scanner yet. Only the iX1500 is supported.
+> made automatically and have not been tested with a scanner yet. The iX1500 and the iX500 are supported.
 
 ## Getting started
 

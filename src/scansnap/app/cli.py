@@ -102,7 +102,12 @@ def _listen(args: argparse.Namespace, ip: str, ident: HostIdentity) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(prog="scansnap")
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["ix500"]:
+        from . import ix500_cli
+
+        return ix500_cli.main(argv[1:])
+    p = argparse.ArgumentParser(prog="scansnap", epilog="iX500: scansnap ix500 --help")
     p.add_argument("--ip", help="IP of the scanner (otherwise discovery)")
     p.add_argument("--identity", type=Path, default=DEFAULT_PATH)
     p.add_argument("--debug", action="store_true", help="all frames as hex on stderr")
