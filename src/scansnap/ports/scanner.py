@@ -45,6 +45,11 @@ class ScannerLocator(Protocol):
 
     def reachable(self, ip: str, timeout: float = 1.5) -> bool: ...
 
+    def identify(self, ip: str, timeout: float = 1.5) -> FoundScanner | None:
+        """The ScanSnap at ``ip`` without the network search, None if none answers. Needed because a scanner
+        does not answer the search while a host (this app, the vendor software) is connected to it."""
+        ...
+
     def open(self, ip: str, *, on_button: Callable[[], None] | None = None) -> ScannerPort:
         """Device with a persistent session; ``on_button`` runs (in a background thread) on "Scan" at the device."""
         ...

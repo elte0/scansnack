@@ -13,6 +13,7 @@ from ..ports.scanner import ScannerPort
 
 Model = Literal["ix500", "ix1500"]
 MAGICS: dict[bytes, Model] = {VENS: "ix500", SSNR: "ix1500"}
+NAMES: dict[Model, str] = {"ix500": "ScanSnap iX500", "ix1500": "ScanSnap iX1500"}
 ATTEMPTS = 3
 
 
@@ -31,6 +32,17 @@ class AutoLocator:
 
     def reachable(self, ip: str, timeout: float = 1.5) -> bool:
         return self.ix1500.reachable(ip, timeout)
+
+    def identify(self, ip: str, timeout: float = 1.5) -> FoundScanner | None:
+        """One greeting instead of asking both adapters (no UDP: see ``ports.scanner.ScannerLocator``)."""
+        try:
+            model = MAGICS.get(greeting_magic(ip, timeout=timeout))
+        except OSError:
+            return None
+        if model is None:
+            return None
+        self.models[ip] = model
+        return FoundScanner(ip, NAMES[model], NAMES[model])
 
     def model(self, ip: str) -> Model:
         """Model at ``ip`` (remembered per IP). Raises ConnectionError if no ScanSnap answers."""

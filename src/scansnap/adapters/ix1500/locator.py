@@ -7,6 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ...core.model import FoundScanner
+from ..scansnap_wifi.wire import SSNR, greeting_magic
 from .button import Notification
 from .control import CONTROL_PORT, HostIdentity
 from .device import Device
@@ -36,6 +37,14 @@ class Ix1500Locator:
                 return True
         except OSError:
             return False
+
+    def identify(self, ip: str, timeout: float = 1.5) -> FoundScanner | None:
+        """Over TCP 53219 (greeting magic), as the scanner ignores the UDP search while a host is connected."""
+        try:
+            magic = greeting_magic(ip, timeout=timeout)
+        except OSError:
+            return None
+        return FoundScanner(ip, "ScanSnap iX1500", "ScanSnap iX1500") if magic == SSNR else None
 
     def open(self, ip: str, *, on_button: Callable[[], None] | None = None) -> Device:
         def callback(_note: Notification) -> None:
