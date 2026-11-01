@@ -180,3 +180,50 @@ def test_window_closes_and_hands_over_to_installer(tmp_path: Path, monkeypatch: 
     w.show()
     w.restart_for_update(Path("/staged/ScanSnack"))
     assert installer.restarted == [Path("/staged/ScanSnack")] and not w.isVisible()
+
+
+def test_update_found_during_other_dialog_waits_until_it_closes(settings: QSettings) -> None:
+    c = checker(settings, updates(make_release()), [])
+    c.pause()  # e.g. "Connect Scanner" is open
+    c.check()
+    wait_for(lambda: c.pending is not None)
+    assert c.dialog is None
+    c.resume()
+    assert c.dialog is not None
+    c.dialog.reject()
+
+
+def test_dialog_asked_for_during_update_dialog_follows_it(settings: QSettings) -> None:
+    restarted: list[Path] = []
+    c = checker(settings, updates(make_release()), restarted)
+    ran: list[str] = []
+    c.after_dialog(lambda: ran.append("now"))
+    assert ran == ["now"]  # no update dialog: right away
+    c.check()
+    wait_for(lambda: c.dialog is not None)
+    assert c.dialog is not None
+    c.after_dialog(lambda: ran.append("later"))
+    assert ran == ["now"]
+    c.dialog.later_button.click()
+    assert ran == ["now", "later"]
+    c.check()
+    wait_for(lambda: c.dialog is not None)
+    assert c.dialog is not None
+    c.after_dialog(lambda: ran.append("never"))
+    c.dialog.install_button.click()
+    wait_for(lambda: bool(restarted))
+    assert ran == ["now", "later"]  # the app restarts: no scanner dialog
+
+
+def test_startup_offers_the_update_before_anything_else(settings: QSettings) -> None:
+    ran: list[str] = []
+    c = checker(settings, updates(make_release()), [])
+    c.check_first(lambda: ran.append("scanner"))
+    wait_for(lambda: c.dialog is not None)
+    assert c.dialog is not None and not ran  # the scanner dialog waits for the update dialog
+    c.dialog.later_button.click()
+    assert ran == ["scanner"]
+    c2 = checker(settings, updates(None), [])
+    c2.check_first(lambda: ran.append("no update"))
+    wait_for(lambda: len(ran) == 2)
+    assert ran[-1] == "no update" and c2.dialog is None
