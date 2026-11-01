@@ -24,7 +24,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import IO, cast
 
-from ...core.update import APP_NAME, Asset, Sha256, arch_name, os_name
+from ...core.update import APP_NAME, Asset, Sha256, arch_name, os_name, python_arch
 
 CHUNK = 256 * 1024
 WAIT_SECONDS = 120  # how long the helper waits for the old app to quit
@@ -136,8 +136,7 @@ class SelfInstaller:
         self.executable = (executable or Path(sys.executable)).resolve()
         self.sys_platform = sys_platform
         self.os = os_name(sys_platform)
-        # On Windows, the OS can be ARM64 while this Python/app runs under x64 emulation.
-        self.arch = arch_name(machine or (sysconfig.get_platform() if sys_platform == "win32" else platform.machine()))
+        self.arch = arch_name(machine) if machine else python_arch(sysconfig.get_platform(), platform.machine())
         self.frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
         self.opener = opener
         self.spawn = spawn

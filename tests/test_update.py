@@ -32,6 +32,7 @@ from scansnap.core.update import (
     parse_sha256sums,
     parse_version,
     pick_asset,
+    python_arch,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -76,10 +77,26 @@ def test_pick_asset_matches_build_names() -> None:
 
 @pytest.mark.parametrize(
     ("machine", "expected"),
-    [("AMD64", "x86_64"), ("ARM64", "arm64"), ("aarch64", "arm64"), ("win-amd64", "x86_64"), ("win-arm64", "arm64")],
+    [("AMD64", "x86_64"), ("ARM64", "arm64"), ("aarch64", "arm64"), ("x86_64", "x86_64")],
 )
 def test_architecture_aliases(machine: str, expected: str) -> None:
     assert arch_name(machine) == expected
+
+
+@pytest.mark.parametrize(
+    ("python_platform", "machine", "expected"),
+    [
+        ("win-arm64", "ARM64", "arm64"),  # native ARM64 Python
+        ("win-amd64", "ARM64", "x86_64"),  # x64 Python emulated on ARM64: stays x64
+        ("win-amd64", "AMD64", "x86_64"),
+        ("macosx-11.0-arm64", "arm64", "arm64"),
+        ("macosx-10.13-universal2", "x86_64", "x86_64"),  # universal Python: the machine decides
+        ("linux-x86_64", "x86_64", "x86_64"),
+        ("linux-aarch64", "aarch64", "arm64"),
+    ],
+)
+def test_python_arch(python_platform: str, machine: str, expected: str) -> None:
+    assert python_arch(python_platform, machine) == expected
 
 
 @pytest.mark.parametrize(("python_platform", "expected"), [("win-amd64", "x86_64"), ("win-arm64", "arm64")])

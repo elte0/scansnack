@@ -56,9 +56,21 @@ def os_name(sys_platform: str) -> str:
 
 
 def arch_name(machine: str) -> str:
-    """Machine name (or Windows ``sysconfig.get_platform()``) → package architecture."""
-    machine = machine.lower().removeprefix("win-")
+    """``platform.machine()`` → name part of the packages."""
+    machine = machine.lower()
     return ARCHES.get(machine, machine)
+
+
+def python_arch(python_platform: str, machine: str) -> str:
+    """Package architecture of the running Python, from ``sysconfig.get_platform()`` and ``platform.machine()``.
+
+    On Windows the Python build decides (``win-amd64``, ``win-arm64``), not the OS: an x64 app running
+    under emulation on ARM64 keeps getting x64 packages. Elsewhere ``platform.machine()`` already reports
+    the architecture the Python runs as.
+    """
+    if python_platform.lower().startswith("win-"):
+        return arch_name(python_platform[len("win-") :])
+    return arch_name(machine)
 
 
 def package_name(version: Version, os: str, arch: str) -> str:

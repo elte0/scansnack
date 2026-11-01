@@ -26,7 +26,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-from scansnap.core.update import arch_name, os_name, package_name, parse_version
+from scansnap.core.update import os_name, package_name, parse_version, python_arch
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
@@ -54,9 +54,8 @@ def run(*cmd: str | Path) -> None:
 
 
 def architecture() -> str:
-    """Match the Python binary, including x64 Python emulated on Windows ARM64."""
-    python_platform = sysconfig.get_platform()
-    return arch_name(python_platform if python_platform.startswith("win-") else platform.machine())
+    """Architecture of the running Python (an x64 Python emulated on Windows ARM64 builds x64)."""
+    return python_arch(sysconfig.get_platform(), platform.machine())
 
 
 def build() -> Path:
