@@ -9,6 +9,21 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Added
+
+- ScanSnap iX500 support in the app and on the command line (`scansnap ix500`): the app recognizes the
+  model on its own; discovery, device info with page and roller counters, scans at 150 to 600 dpi with page
+  size and multifeed detection, and scanning on the scanner's Scan button.
+- With an iX500, the Scan button shows "Load paper" and is dimmed while the feeder is empty.
+- Protocol write-up for the iX500 Wi-Fi dialect in `docs/protocol-ix500.md`.
+
+### Changed
+
+- The protocol docs now have one write-up per model: the iX1500 write-up moved to `docs/protocol-ix1500.md`,
+  and `docs/protocol.md` is an overview of the models, what they share and where they differ.
+- The disclaimer and the iX500 write-up name all sources of the iX500 findings, including the static
+  analysis of ScanSnap Home for interoperability.
+
 ## [0.3.2] - 2026-10-30
 
 ### Fixed

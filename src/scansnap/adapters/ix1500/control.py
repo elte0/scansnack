@@ -1,6 +1,6 @@
 """Control channel (TCP 53219). One TCP connection per command.
 
-Commands, JSON layout and status values: docs/protocol.md, section "Control channel (TCP 53219)".
+Commands, JSON layout and status values: docs/protocol-ix1500.md, section "Control channel (TCP 53219)".
 """
 
 from __future__ import annotations

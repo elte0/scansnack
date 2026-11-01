@@ -1,7 +1,7 @@
 # Disclaimer: reverse engineering and trademarks
 
-> **Summary.** This is an independent, unofficial project. It documents the ScanSnap iX1500 Wi-Fi
-> protocol so that a scanner its owner has lawfully acquired can be used with other software. It is not
+> **Summary.** This is an independent, unofficial project. It documents the Wi-Fi protocol of the
+> ScanSnap iX1500 and iX500 so that a scanner its owner has lawfully acquired can be used with other software. It is not
 > affiliated with, endorsed by or supported by PFU or Fujitsu. Use it at your own risk.
 
 ## Contents
@@ -36,7 +36,15 @@ are not meant to suggest an official product.
 The protocol description was obtained by observing the network traffic between the original host
 software (ScanSnap Home) and a scanner owned by the author, and by sending requests to that scanner
 and observing its responses. Some error texts were cross-checked against the open-source SANE
-`fujitsu` backend (see the [open questions](protocol.md#open-questions)).
+`fujitsu` backend (see the [open questions](protocol-ix1500.md#open-questions)).
+
+For the iX500, the scan parameter blocks, the page sizes and the encoding of the scanner's Wi-Fi password
+in the registration were taken from a static analysis of ScanSnap Home's iX500 Wi-Fi code, done only to
+make the scanner work with this independent client (see [Purpose: interoperability](#purpose-interoperability)).
+Only facts and constants needed to talk to the scanner were written down; no code of ScanSnap Home was
+copied. The independent write-up [bramheerink/scansnap](https://github.com/bramheerink/scansnap) was used
+for comparison only; none of its code (GPL-2.0) is part of this project. Sources per model are listed in
+the [iX1500](protocol-ix1500.md#sources-and-conventions) and [iX500](protocol-ix500.md#sources) write-ups.
 
 This repository contains no code, firmware or binaries of the manufacturer. The test fixtures and the
 profile template (`profile_template.json`) contain only protocol data as observed on the network.

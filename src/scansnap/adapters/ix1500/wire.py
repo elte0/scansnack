@@ -1,6 +1,6 @@
 """Framing of the ScanSnap Wi-Fi protocol: ``u32 length | b"ssNR"`` + header.
 
-Layout: docs/protocol.md, section "TCP framing".
+Layout: docs/protocol-ix1500.md, section "TCP framing".
 """
 
 from __future__ import annotations

@@ -57,7 +57,7 @@ from ...core.errors import FeedError, NoPaper
 from ...core.images import is_blank
 from ...core.model import FoundScanner, ScanSettings
 from ...ports.output import OutputPort
-from ...ports.scanner import ScannerLocator, ScannerPort
+from ...ports.scanner import PaperSensor, ScannerLocator, ScannerPort
 from . import primer
 from .updates import UpdateChecker, Updates
 
@@ -67,6 +67,7 @@ PAGE_ROLE = Qt.ItemDataRole.UserRole
 THUMB = 220
 DOC_THUMB = 56
 RECONNECT_MS = 20_000
+PAPER_MS = 250  # reads the state the device polls itself, no I/O in the GUI thread
 
 
 def _page_icon(thumb_png: bytes, rotation: int, size: int = THUMB) -> QIcon:
@@ -118,10 +119,10 @@ class ScanWorker(QObject):
             return
         try:
             device = self._device()
-            if device.connected:
-                return
-            device.connect()
-            self.status.emit("Connected to the scanner.")
+            was_connected = device.connected
+            device.connect()  # also restarts what failed earlier (button listener, heartbeat)
+            if not was_connected:
+                self.status.emit("Connected to the scanner.")
         except Exception as e:  # noqa: BLE001
             print(f"Connecting at startup failed: {e}", file=sys.stderr)
 
@@ -331,6 +332,7 @@ class MainWindow(QMainWindow):
         self.current: Document | None = None
         self.scan_target: Document | None = None
         self.scanning = False
+        self.paper: bool | None = None  # feeder state if the scanner reports it (PaperSensor)
 
         # --- left: presets and scan button -----------------------------------------
         self.presets = QListWidget()
@@ -503,6 +505,9 @@ class MainWindow(QMainWindow):
         self.reconnect_timer = QTimer(self, interval=RECONNECT_MS)
         self.reconnect_timer.timeout.connect(self._keep_connected)
         self.reconnect_timer.start()
+        self.paper_timer = QTimer(self, interval=PAPER_MS)
+        self.paper_timer.timeout.connect(self._check_paper)
+        self.paper_timer.start()
 
     # --- helpers ----------------------------------------------------------------------
     def _action(
@@ -581,7 +586,9 @@ class MainWindow(QMainWindow):
         self.save_button.setEnabled(has_pages and editable and (is_draft or (doc is not None and doc.dirty)))
         self.name.setEnabled(doc is not None and not missing)
         self.folder_button.setEnabled(not self.scanning)
-        self.scan_button.setEnabled(not self.scanning)
+        empty = self.paper is False and not self.scanning
+        self.scan_button.setEnabled(not self.scanning and not empty)
+        self.scan_button.setText("Load paper" if empty else "Scan")
         self.presets.setEnabled(not self.scanning)
 
     def _renumber(self) -> None:
@@ -743,6 +750,13 @@ class MainWindow(QMainWindow):
     def _keep_connected(self) -> None:
         if self.worker.ip and not self.scanning:
             self.request_connect.emit()
+
+    def _check_paper(self) -> None:
+        device = self.worker.device
+        paper = device.paper_loaded() if isinstance(device, PaperSensor) else None
+        if paper != self.paper:
+            self.paper = paper
+            self._update()
 
     @Slot()
     def panel_scan(self) -> None:

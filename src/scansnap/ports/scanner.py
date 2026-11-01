@@ -3,9 +3,18 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from ..core.model import FoundScanner, ScanSettings, Sheet
+
+
+@runtime_checkable
+class PaperSensor(Protocol):
+    """Optional for a ``ScannerPort``: whether paper is in the feeder, from a status the device polls itself."""
+
+    def paper_loaded(self) -> bool | None:
+        """True/False from the last status, None if unknown (not connected, scanning, no answer). Never blocks."""
+        ...
 
 
 class ScannerPort(Protocol):

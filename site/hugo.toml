@@ -8,7 +8,7 @@ enableRobotsTXT = false
 
 [params]
   repo = "https://github.com/elte0/scansnack"
-  description = "ScanSnack: scan with a ScanSnap iX1500 over Wi-Fi without ScanSnap Home, and an independent write-up of its protocol."
+  description = "ScanSnack: scan with a ScanSnap iX1500 or iX500 over Wi-Fi without ScanSnap Home, and an independent write-up of its protocol."
 
 [markup.goldmark.renderHooks.link]
   # Rewrite .md links from docs/ to the pages of the website
@@ -29,7 +29,7 @@ enableRobotsTXT = false
   [[module.mounts]]
     source = "../docs"
     target = "content"
-    includeFiles = ["protocol.md", "airscan.md", "disclaimer.md"]
+    includeFiles = ["protocol.md", "protocol-ix1500.md", "protocol-ix500.md", "airscan.md", "disclaimer.md"]
   [[module.mounts]]
     source = "../CHANGELOG.md"
     target = "content/changelog.md"

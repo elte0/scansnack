@@ -1,7 +1,7 @@
 [project]
 name = "scansnap-bridge"
 version = "0.3.2"
-description = "Wi-Fi client for the ScanSnap iX1500 (basis for an eSCL/AirScan bridge)"
+description = "Wi-Fi client for the ScanSnap iX1500 and iX500 (basis for an eSCL/AirScan bridge)"
 requires-python = ">=3.11"
 dependencies = [
     "pillow>=13.0.0",
@@ -84,6 +84,21 @@ name = "Adapters independent of each other"
 type = "independence"
 modules = [
     "scansnap.adapters.ix1500",
+    "scansnap.adapters.ix500",
+    "scansnap.adapters.escl",
+    "scansnap.adapters.library",
+    "scansnap.adapters.qt",
+    "scansnap.adapters.github",
+    "scansnap.adapters.selfupdate",
+]
+
+[[tool.importlinter.contracts]]
+name = "Shared ScanSnap Wi-Fi code depends on no adapter (ADR 0007)"
+type = "forbidden"
+source_modules = ["scansnap.adapters.scansnap_wifi"]
+forbidden_modules = [
+    "scansnap.adapters.ix1500",
+    "scansnap.adapters.ix500",
     "scansnap.adapters.escl",
     "scansnap.adapters.library",
     "scansnap.adapters.qt",

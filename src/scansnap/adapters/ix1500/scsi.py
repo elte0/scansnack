@@ -1,6 +1,6 @@
 """Scan channel (TCP 53218): SCSI commands, tunnelled over a persistent connection.
 
-Request/response layout and C2 status: docs/protocol.md, section "Scan channel (TCP 53218, SCSI tunnel)".
+Request/response layout and C2 status: docs/protocol-ix1500.md, section "Scan channel (TCP 53218, SCSI tunnel)".
 """
 
 from __future__ import annotations

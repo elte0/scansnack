@@ -1,6 +1,6 @@
 # ScanSnack
 
-Use the ScanSnap iX1500 over Wi-Fi without ScanSnap Home: an independent client for its proprietary
+Use the ScanSnap iX1500 or iX500 over Wi-Fi without ScanSnap Home: an independent client for their proprietary
 protocol, an AirScan bridge that makes the scanner show up in Image Capture and Preview on the Mac, a
 desktop app (PySide6) and an iOS app (BeeWare). The Python package is called `scansnap-bridge` and
 provides the commands `scansnap` and `scansnap-app`.
@@ -51,7 +51,8 @@ Ready-made apps for macOS (Apple Silicon and Intel), Windows and Linux are on th
 
 - [AirScan bridge](docs/airscan.md) – scanning from Image Capture and Preview: start, options, limits,
   troubleshooting
-- [Protocol](docs/protocol.md) – the Wi-Fi protocol (single source of truth), including open questions
+- [Protocol](docs/protocol.md) – overview of the Wi-Fi protocols, with one write-up per model
+  ([iX1500](docs/protocol-ix1500.md), [iX500](docs/protocol-ix500.md)), each including its open questions
 - [Architecture decisions](docs/adr/README.md) – architecture and protocol decisions (ADRs)
 - [Apps](docs/apps.md) – desktop and iOS app, eSCL bridge, packaging, releases
 - [Changelog](CHANGELOG.md) – what changed in each version
