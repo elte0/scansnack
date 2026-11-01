@@ -21,6 +21,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import tomllib
 from pathlib import Path
@@ -52,6 +53,12 @@ def run(*cmd: str | Path) -> None:
     subprocess.run([str(c) for c in cmd], check=True)
 
 
+def architecture() -> str:
+    """Match the Python binary, including x64 Python emulated on Windows ARM64."""
+    python_platform = sysconfig.get_platform()
+    return arch_name(python_platform if python_platform.startswith("win-") else platform.machine())
+
+
 def build() -> Path:
     """PyInstaller build; returns the executable."""
     if sys.platform == "darwin" and not (PACKAGING / f"{NAME}.icns").exists():
@@ -73,7 +80,7 @@ def pack() -> Path:
     # package name from core.update: the app's update check looks for it in the release
     ver = parse_version(version())
     assert ver is not None, version()
-    file = DIST / package_name(ver, os_name(sys.platform), arch_name(platform.machine()))
+    file = DIST / package_name(ver, os_name(sys.platform), architecture())
     base = DIST / file.name.removesuffix(".zip").removesuffix(".tar.gz")
     if sys.platform == "darwin":
         dmg = file
@@ -96,7 +103,11 @@ def pack() -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--no-pack", action="store_true", help="only build the app, no DMG/ZIP/tarball")
+    parser.add_argument("--target", help="require this OS-architecture (e.g. windows-arm64); does not cross-compile")
     args = parser.parse_args()
+    target = f"{os_name(sys.platform)}-{architecture()}"
+    if args.target and args.target != target:
+        parser.error(f"requested {args.target}, but this Python builds {target}; use a matching Python interpreter")
     exe = build()
     run(exe, "--selftest")
     print(f"App: {exe}")

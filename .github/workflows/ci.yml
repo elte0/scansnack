@@ -10,9 +10,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - os: windows-11-arm
+            python: cpython-3.14-windows-aarch64
     runs-on: ${{ matrix.os }}
     env:
-      UV_PYTHON: "3.14"
+      UV_PYTHON: ${{ matrix.python || '3.14' }}
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v6

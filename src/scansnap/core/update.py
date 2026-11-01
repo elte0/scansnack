@@ -56,8 +56,8 @@ def os_name(sys_platform: str) -> str:
 
 
 def arch_name(machine: str) -> str:
-    """``platform.machine()`` → name part of the packages."""
-    machine = machine.lower()
+    """Machine name (or Windows ``sysconfig.get_platform()``) → package architecture."""
+    machine = machine.lower().removeprefix("win-")
     return ARCHES.get(machine, machine)
 
 

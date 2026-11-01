@@ -15,6 +15,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import sysconfig
 import tarfile
 import tempfile
 import urllib.request
@@ -135,7 +136,8 @@ class SelfInstaller:
         self.executable = (executable or Path(sys.executable)).resolve()
         self.sys_platform = sys_platform
         self.os = os_name(sys_platform)
-        self.arch = arch_name(machine or platform.machine())
+        # On Windows, the OS can be ARM64 while this Python/app runs under x64 emulation.
+        self.arch = arch_name(machine or (sysconfig.get_platform() if sys_platform == "win32" else platform.machine()))
         self.frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
         self.opener = opener
         self.spawn = spawn

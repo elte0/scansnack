@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import io
-import platform
 import sys
 from importlib.metadata import version
 
@@ -17,7 +16,7 @@ from ..adapters.selfupdate.installer import SelfInstaller
 from ..core.document import ScanPage
 from ..core.images import process
 from ..core.pdf import jpegs_to_pdf
-from ..core.update import Version, arch_name, os_name, parse_version
+from ..core.update import Version, parse_version
 from .locator import AutoLocator
 
 DIST_NAME = "scansnap-bridge"
@@ -59,8 +58,8 @@ def main() -> None:
         GitHubReleases(),
         installer,
         app_version(),
-        os_name(sys.platform),
-        arch_name(platform.machine()),
+        installer.os,
+        installer.arch,
         check_on_start=installer.frozen,  # started from source: only via the menu
     )
     sys.exit(window.run(AutoLocator(), lambda data: Library(data / "library.json"), args.ip, qt_args, updates))

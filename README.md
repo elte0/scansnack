@@ -43,7 +43,7 @@ The host identity (host ID, user ID, MAC) is stored in `~/.config/scansnap-bridg
 
 ## Download
 
-Ready-made apps for macOS (Apple Silicon and Intel), Windows and Linux are on the
+Ready-made apps for macOS (Apple Silicon and Intel), Windows (x64 and ARM64) and Linux are on the
 [Releases](https://github.com/elte0/scansnack/releases) page. To build one yourself:
 `uv run --extra app python tools/build_app.py` (see [Apps](docs/apps.md#executables-and-releases)).
 
