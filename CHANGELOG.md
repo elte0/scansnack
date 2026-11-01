@@ -12,7 +12,8 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 ### Fixed
 
 - When an update is available at startup and no scanner is connected, the update window and the
-  *Connect Scanner* window now open one after the other instead of together, so both can be used.
+  *Connect Scanner* window no longer open together and block each other: the update is offered first,
+  and *Connect Scanner* follows once that window is closed.
 
 ## [0.4.1] - 2026-11-01
 

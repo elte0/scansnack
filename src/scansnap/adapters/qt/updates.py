@@ -153,8 +153,10 @@ class UpdateDialog(QDialog):
 class UpdateChecker(QObject):
     """Queries the release source in the background and shows the dialog if needed.
 
-    Only one modal dialog at a time: while another one is open (``pause``), a found update waits until
-    ``resume``; a dialog that must wait for the update dialog goes through ``after_dialog``.
+    At startup the update comes first (``check_first``): the rest of the startup (e.g. "Connect Scanner")
+    runs once the check found nothing or the update dialog closed. Only one modal dialog at a time: while
+    another one is open (``pause``), a found update waits until ``resume``; a dialog that must wait for
+    the update dialog goes through ``after_dialog``.
     """
 
     checked = Signal(object, str, bool)  # Release | None, error message, started by hand?
@@ -169,6 +171,7 @@ class UpdateChecker(QObject):
         self.paused = 0  # number of other modal dialogs that are open
         self.pending: Release | None = None  # found while paused
         self.waiting: list[Callable[[], object]] = []  # run when the update dialog closes without an update
+        self.then: Callable[[], object] | None = None  # rest of the startup, after the check
         self.checked.connect(self._checked)
 
     @property
@@ -177,6 +180,11 @@ class UpdateChecker(QObject):
 
     def set_check_on_start(self, on: bool) -> None:
         self.settings.setValue(AUTO_KEY, "true" if on else "false")
+
+    def check_first(self, then: Callable[[], object]) -> None:
+        """Startup: check for an update and offer it; run ``then`` afterwards (not if the app restarts)."""
+        self.then = then
+        self.check()
 
     def check(self, *, manual: bool = False) -> None:
         source = self.updates.source
@@ -191,8 +199,19 @@ class UpdateChecker(QObject):
 
     @Slot(object, str, bool)
     def _checked(self, release: Release | None, error: str, manual: bool) -> None:
+        then = None
+        if not manual:  # the startup check: the rest of the startup waits for it
+            then, self.then = self.then, None
+        if not self._offer(release, error, manual):
+            if then is not None:
+                then()
+        elif then is not None:
+            self.waiting.append(then)  # after the update dialog
+
+    def _offer(self, release: Release | None, error: str, manual: bool) -> bool:
+        """Shows (or, while paused, holds back) the update dialog; False if there is nothing to offer."""
         if self.dialog is not None:
-            return
+            return True
         current = self.updates.current
         if error or release is None or not is_newer(release, current):
             if manual:
@@ -202,13 +221,14 @@ class UpdateChecker(QObject):
                     else f"ScanSnack {format_version(current)} is the latest version."
                 )
                 QMessageBox.information(self.window, "Software Update", text)
-            return
+            return False
         if not manual and self.settings.value(SKIP_KEY, "") == release.label:
-            return
+            return False
         if self.paused:
             self.pending = release
-            return
+            return True
         self.show_dialog(release)
+        return True
 
     def pause(self) -> None:
         """Another modal dialog opens: do not show the update dialog on top of it."""

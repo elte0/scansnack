@@ -213,3 +213,17 @@ def test_dialog_asked_for_during_update_dialog_follows_it(settings: QSettings) -
     c.dialog.install_button.click()
     wait_for(lambda: bool(restarted))
     assert ran == ["now", "later"]  # the app restarts: no scanner dialog
+
+
+def test_startup_offers_the_update_before_anything_else(settings: QSettings) -> None:
+    ran: list[str] = []
+    c = checker(settings, updates(make_release()), [])
+    c.check_first(lambda: ran.append("scanner"))
+    wait_for(lambda: c.dialog is not None)
+    assert c.dialog is not None and not ran  # the scanner dialog waits for the update dialog
+    c.dialog.later_button.click()
+    assert ran == ["scanner"]
+    c2 = checker(settings, updates(None), [])
+    c2.check_first(lambda: ran.append("no update"))
+    wait_for(lambda: len(ran) == 2)
+    assert ran[-1] == "no update" and c2.dialog is None

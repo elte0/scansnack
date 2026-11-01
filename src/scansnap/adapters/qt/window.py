@@ -977,10 +977,13 @@ class MainWindow(QMainWindow):
         self.docs.pop(doc.key, None)
         self._select(self.drafts[0] if self.drafts else None)
 
-    def check_updates_on_start(self) -> None:
+    def start(self) -> None:
+        """After the window is shown: offer an update first, then check the scanner."""
         checker = self.update_checker
         if checker is not None and self.updates is not None and self.updates.check_on_start and checker.check_on_start:
-            checker.check()
+            checker.check_first(self.check_scanner)
+        else:
+            self.check_scanner()
 
     def restart_for_update(self, staged: Path) -> None:
         """New version is unpacked: close the app (asks about unsaved changes), start the helper."""
@@ -1051,6 +1054,5 @@ def run(
     primer.apply()
     window = MainWindow(make_output(data_dir()), locator, updates)
     window.show()
-    QTimer.singleShot(200, window.check_scanner)
-    QTimer.singleShot(1500, window.check_updates_on_start)
+    QTimer.singleShot(200, window.start)
     return app.exec()
