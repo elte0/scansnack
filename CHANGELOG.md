@@ -9,6 +9,8 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-01
+
 ### Added
 
 - ScanSnap iX500 support in the app and on the command line (`scansnap ix500`): the app recognizes the
@@ -70,7 +72,8 @@ First release with ready-made apps.
   scan dialog).
 - Protocol write-up, disclaimer and website on GitHub Pages.
 
-[Unreleased]: https://github.com/elte0/scansnack/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/elte0/scansnack/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/elte0/scansnack/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/elte0/scansnack/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/elte0/scansnack/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/elte0/scansnack/compare/v0.2.0...v0.3.0
