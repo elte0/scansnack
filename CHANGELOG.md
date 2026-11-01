@@ -9,6 +9,11 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Fixed
+
+- When an update is available at startup and no scanner is connected, the update window and the
+  *Connect Scanner* window now open one after the other instead of together, so both can be used.
+
 ## [0.4.1] - 2026-11-01
 
 ### Fixed

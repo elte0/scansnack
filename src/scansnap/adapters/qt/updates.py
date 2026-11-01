@@ -151,7 +151,11 @@ class UpdateDialog(QDialog):
 
 
 class UpdateChecker(QObject):
-    """Queries the release source in the background and shows the dialog if needed."""
+    """Queries the release source in the background and shows the dialog if needed.
+
+    Only one modal dialog at a time: while another one is open (``pause``), a found update waits until
+    ``resume``; a dialog that must wait for the update dialog goes through ``after_dialog``.
+    """
 
     checked = Signal(object, str, bool)  # Release | None, error message, started by hand?
 
@@ -162,6 +166,9 @@ class UpdateChecker(QObject):
         self.settings = settings
         self.restart = restart
         self.dialog: UpdateDialog | None = None
+        self.paused = 0  # number of other modal dialogs that are open
+        self.pending: Release | None = None  # found while paused
+        self.waiting: list[Callable[[], object]] = []  # run when the update dialog closes without an update
         self.checked.connect(self._checked)
 
     @property
@@ -198,7 +205,28 @@ class UpdateChecker(QObject):
             return
         if not manual and self.settings.value(SKIP_KEY, "") == release.label:
             return
+        if self.paused:
+            self.pending = release
+            return
         self.show_dialog(release)
+
+    def pause(self) -> None:
+        """Another modal dialog opens: do not show the update dialog on top of it."""
+        self.paused += 1
+
+    def resume(self) -> None:
+        """The other dialog closed: show an update found in the meantime."""
+        self.paused = max(0, self.paused - 1)
+        release, self.pending = self.pending, None
+        if not self.paused and release is not None and self.dialog is None:
+            self.show_dialog(release)
+
+    def after_dialog(self, callback: Callable[[], object]) -> None:
+        """Run ``callback`` now, or once the update dialog has closed (not at all if the app restarts)."""
+        if self.dialog is None:
+            callback()
+        else:
+            self.waiting.append(callback)
 
     def show_dialog(self, release: Release) -> UpdateDialog:
         dialog = UpdateDialog(release, self.updates, self.settings, self.window)
@@ -214,5 +242,9 @@ class UpdateChecker(QObject):
 
     def _closed(self, dialog: UpdateDialog) -> None:
         self.dialog = None
+        waiting, self.waiting = self.waiting, []
         if dialog.staged is not None:
             self.restart(dialog.staged)
+            return
+        for callback in waiting:
+            callback()

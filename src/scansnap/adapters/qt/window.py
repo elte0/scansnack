@@ -742,7 +742,15 @@ class MainWindow(QMainWindow):
 
     def ask_scanner(self, message: str = "") -> bool:
         dialog = ScannerDialog(self.worker.ip, self.locator, message, self)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
+        checker = self.update_checker
+        if checker is not None:
+            checker.pause()  # an update found meanwhile waits until this dialog is closed
+        try:
+            accepted = dialog.exec() == QDialog.DialogCode.Accepted
+        finally:
+            if checker is not None:
+                checker.resume()
+        if not accepted:
             return False
         self.worker.ip = dialog.value()
         self.settings.setValue("ip", self.worker.ip)
@@ -755,7 +763,9 @@ class MainWindow(QMainWindow):
         """At startup: without a saved or reachable IP, show the scanner dialog first.
         The check runs in the background (never network I/O in the GUI thread)."""
         if not self.worker.ip:
-            self.ask_scanner("Welcome! Connect your ScanSnap first: enter its IP address or search the network.")
+            self._ask_scanner_at_start(
+                "Welcome! Connect your ScanSnap first: enter its IP address or search the network."
+            )
             return
         ip = self.worker.ip
         threading.Thread(target=lambda: self.reachable_checked.emit(self.locator.reachable(ip)), daemon=True).start()
@@ -765,10 +775,18 @@ class MainWindow(QMainWindow):
         if ok:
             self.request_connect.emit()  # connect in the background, the first scan then starts right away
         else:
-            self.ask_scanner(
+            self._ask_scanner_at_start(
                 f"No scanner responds at {self.worker.ip}. Is it switched on? "
                 "Enter a different IP address or search the network."
             )
+
+    def _ask_scanner_at_start(self, message: str) -> None:
+        """Startup prompt: if the update dialog is already open, ask after it has closed."""
+        checker = self.update_checker
+        if checker is None:
+            self.ask_scanner(message)
+        else:
+            checker.after_dialog(lambda: self.ask_scanner(message))
 
     def _keep_connected(self) -> None:
         if self.worker.ip and not self.scanning:
