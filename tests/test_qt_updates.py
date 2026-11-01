@@ -167,6 +167,9 @@ def test_window_closes_and_hands_over_to_installer(tmp_path: Path, monkeypatch: 
         def reachable(self, ip: str, timeout: float = 1.5) -> bool:
             return False
 
+        def identify(self, ip: str, timeout: float = 1.5) -> None:
+            return None
+
         def open(self, ip: str, *, on_button: Callable[[], None] | None = None) -> object:
             raise AssertionError
 

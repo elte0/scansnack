@@ -25,15 +25,19 @@ from scansnap.ports.scanner import ScannerPort
 class FakeLocator:
     """No network: the search finds nothing, reachability is fixed, ``open`` returns ``device``."""
 
-    def __init__(self, device: ScannerPort | None = None, reachable: bool = True):
+    def __init__(self, device: ScannerPort | None = None, reachable: bool = True, known: FoundScanner | None = None):
         self.device = device
         self.is_reachable = reachable
+        self.known = known  # answers ``identify`` (a connected scanner that ignores the search)
 
     def discover(self, timeout: float = 3.0) -> list[FoundScanner]:
         return []
 
     def reachable(self, ip: str, timeout: float = 1.5) -> bool:
         return self.is_reachable
+
+    def identify(self, ip: str, timeout: float = 1.5) -> FoundScanner | None:
+        return self.known if self.known and self.known.ip == ip else None
 
     def open(self, ip: str, *, on_button: Callable[[], None] | None = None) -> ScannerPort:
         assert self.device is not None
@@ -302,3 +306,43 @@ def test_panel_button_starts_scan_with_current_settings(window: app_main.MainWin
     window.panel_scan()
     window.panel_scan()  # second press during the scan: ignored
     assert len(requested) == 1 and requested[0].duplex and window.scanning
+
+
+def test_settings_honour_the_test_location(tmp_path: Path) -> None:
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path / "settings"))
+    assert Path(app_main.app_settings().fileName()).is_relative_to(tmp_path)
+
+
+def search(dialog: app_main.ScannerDialog) -> str:
+    dialog.search.click()
+    for _ in range(500):
+        app().processEvents()
+        if dialog.search.isEnabled():
+            break
+        time.sleep(0.01)
+    return dialog.info.text()
+
+
+def test_search_finds_a_connected_scanner_at_the_entered_address() -> None:
+    app()
+    known = FoundScanner("192.0.2.9", "ScanSnap iX1500", "ScanSnap iX1500")
+    text = search(app_main.ScannerDialog("192.0.2.9", FakeLocator(known=known)))
+    assert text.startswith("Found ScanSnap iX1500 at 192.0.2.9.") and "connected" in text
+
+
+def test_dialog_grows_with_a_long_message() -> None:
+    app()
+    dialog = app_main.ScannerDialog("192.0.2.9", FakeLocator())
+    dialog.show()
+    search(dialog)
+    assert dialog.info.height() >= dialog.info.heightForWidth(dialog.info.width())
+    dialog.close()
+
+
+def test_search_without_any_answer_mentions_scansnap_home() -> None:
+    app()
+    known = FoundScanner("192.0.2.9", "ScanSnap iX1500", "ScanSnap iX1500")
+    for ip in ("", "192.0.2.10"):
+        text = search(app_main.ScannerDialog(ip, FakeLocator(known=known)))
+        assert text.startswith("No scanner found.") and "ScanSnap Home" in text

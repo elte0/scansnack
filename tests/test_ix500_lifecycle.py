@@ -183,6 +183,23 @@ def test_no_answer_is_an_error_not_an_iX1500(monkeypatch: pytest.MonkeyPatch) ->
         locator_mod.AutoLocator().model("192.0.2.21")
 
 
+def test_identify_names_the_model_from_the_greeting(monkeypatch: pytest.MonkeyPatch) -> None:
+    magics = {"192.0.2.30": b"ssNR", "192.0.2.31": b"VENS", "192.0.2.32": b"HTTP"}
+
+    def greeting(ip: str, timeout: float = 2.0) -> bytes:
+        if ip not in magics:
+            raise ConnectionRefusedError("nothing there")
+        return magics[ip]
+
+    monkeypatch.setattr(locator_mod, "greeting_magic", greeting)
+    loc = locator_mod.AutoLocator()
+    found = loc.identify("192.0.2.30")
+    assert found is not None and found.model == "ScanSnap iX1500" and loc.model("192.0.2.30") == "ix1500"
+    found = loc.identify("192.0.2.31")
+    assert found is not None and found.model == "ScanSnap iX500"
+    assert loc.identify("192.0.2.32") is None and loc.identify("192.0.2.33") is None
+
+
 def test_empty_password_means_no_password(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from scansnap.adapters.ix500.discovery import ScannerInfo
 
