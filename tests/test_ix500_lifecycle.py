@@ -362,6 +362,8 @@ def test_poller_scan_and_release_share_the_single_scan_channel(tmp_path: Path, m
     d._registered = True  # pyright: ignore[reportPrivateUsage]
     stop = threading.Event()
     poller = threading.Thread(target=d._poll, args=(stop,), daemon=True)  # pyright: ignore[reportPrivateUsage]
+    # scan() calls connect(), which must not start a second poller next to this one
+    d._poller, d._poll_stop = poller, stop  # pyright: ignore[reportPrivateUsage]
     poller.start()
     try:
         deadline = time.monotonic() + 3
