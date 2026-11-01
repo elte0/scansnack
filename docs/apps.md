@@ -114,7 +114,7 @@ limitations, troubleshooting): [AirScan bridge](airscan.md). The desktop app doe
 - Feeder (ADF) only, JPEG/PDF; Bonjour `_uscan._tcp` via zeroconf. Runs `claim` automatically if our
   own profile is missing.
 - macOS "Black & White" = `ColorMode=Grayscale8` → gray D4 (the JPEG still has 3 channels, see
-  [protocol](protocol.md#open-questions)).
+  [protocol](protocol-ix1500.md#open-questions)).
 - Cropping + rotation in `Device.scan` (`core.images.process`, one re-encode with the same quantisation
   tables); A4 test 210×298 mm confirmed in the macOS scan dialog. `--no-crop` turns it off; dark paper →
   no cropping.

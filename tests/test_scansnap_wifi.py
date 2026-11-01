@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import socket
 import struct
+import threading
 
 from scansnap.adapters.ix1500 import button as ix1500_button
 from scansnap.adapters.ix1500 import discovery as ix1500_discovery
@@ -90,3 +92,18 @@ def test_short_scsi_reply_is_rejected() -> None:
     port, _ = _serve_once(wire.server_frame(magic=wire.VENS) + wire.server_frame(magic=wire.VENS))
     with ScsiChannel("127.0.0.1", MAC, magic=wire.VENS, port=port, timeout=2) as ch, pytest.raises(wire.ProtocolError):
         ch.checked(bytes.fromhex("d80000000000"))  # 16-byte frame instead of the 40-byte SCSI reply
+
+
+def test_greeting_magic_reads_the_model_from_the_greeting() -> None:
+    with socket.create_server(("127.0.0.1", 0)) as srv:
+        port = srv.getsockname()[1]
+
+        def greet() -> None:
+            conn, _ = srv.accept()
+            with conn:
+                conn.sendall(wire.server_frame(magic=wire.VENS))
+
+        t = threading.Thread(target=greet, daemon=True)
+        t.start()
+        assert wire.greeting_magic("127.0.0.1", port) == wire.VENS
+        t.join(2)

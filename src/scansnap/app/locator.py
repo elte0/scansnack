@@ -2,31 +2,18 @@
 
 from __future__ import annotations
 
-import socket
 from collections.abc import Callable
 from typing import Literal
 
 from ..adapters.ix500.locator import Ix500Locator
 from ..adapters.ix1500.locator import Ix1500Locator
+from ..adapters.scansnap_wifi.wire import SSNR, VENS, greeting_magic
 from ..core.model import FoundScanner
 from ..ports.scanner import ScannerPort
 
 Model = Literal["ix500", "ix1500"]
-CONTROL_PORT = 53219
-MAGICS: dict[bytes, Model] = {b"VENS": "ix500", b"ssNR": "ix1500"}
+MAGICS: dict[bytes, Model] = {VENS: "ix500", SSNR: "ix1500"}
 ATTEMPTS = 3
-
-
-def greeting_magic(ip: str, timeout: float = 2.0) -> bytes:
-    """Magic of the 16-byte greeting every connection to the control port gets (TCP, no UDP needed)."""
-    with socket.create_connection((ip, CONTROL_PORT), timeout=timeout) as s:
-        head = b""
-        while len(head) < 8:
-            chunk = s.recv(8 - len(head))
-            if not chunk:
-                break
-            head += chunk
-    return head[4:8]
 
 
 class AutoLocator:

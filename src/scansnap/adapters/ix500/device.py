@@ -21,7 +21,7 @@ from .scanner import DPIS, Multifeed, Scanner, release
 from .scsi import ScsiChannel, ScsiError
 
 DISCOVERY_ATTEMPTS = 3
-PAPER_POLL = 0.25  # the iX1500's interval (docs/protocol.md); ScanSnap Home does not poll the iX500
+PAPER_POLL = 0.25  # the iX1500's interval (docs/protocol-ix1500.md); ScanSnap Home does not poll the iX500
 POLL_RETRY = 1.0  # after a failed C2
 POLL_FAILURES = 4  # failed C2 in a row that end the session (scanner gone without a power-off notice)
 FEEDER_EMPTY = 0x80  # C2 byte 3: 0x80 with an empty feeder, 0 with paper (live 2026-10-30)

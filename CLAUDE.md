@@ -34,16 +34,18 @@ src/scansnap/
 
 ## Reverse engineering
 
-- `docs/protocol.md` is the single source of truth for the protocol (packets, sequences, states, open
-  questions). Update it with every new finding. Never invent anything.
+- One write-up per model is the single source of truth for its protocol (packets, sequences, states, open
+  questions): `docs/protocol-ix1500.md`, `docs/protocol-ix500.md`. `docs/protocol.md` is only the overview
+  (models, what they share, where they differ); a new model gets its own `docs/protocol-<model>.md`, listed
+  there and mounted in `site/hugo.toml`. Update the write-ups with every new finding. Never invent anything.
 - Keep observations apart from assumptions: mark anything unconfirmed in the code with `# UNVERIFIED:`
-  and list it in `protocol.md` under "Open questions".
+  and list it in the model's write-up under "Open questions".
 - Golden tests: captures extracted from pcap files in `tests/fixtures/captures/` (`tools/make_fixtures.py`,
   anonymised), replayed by the fake scanner `tests/mock_scanner.py`. Tests never require a real device.
   Never "adjust" captures to make a test pass.
 - Never commit raw captures (`captures/`), test logs or `ssh-identity.json` (device data or scanned
-  documents). In the docs, refer to them only as private sources (see "Sources and conventions" in
-  `protocol.md`), never by file name.
+  documents). In the docs, refer to them only as private sources (see the sources section of each
+  write-up), never by file name.
 - Keep `docs/disclaimer.md` (reverse engineering, trademarks) in place and linked from the README.
 
 ## Decisions
@@ -83,7 +85,7 @@ A task is only done when all checks are green and the changelog and feature list
 
 ## Documentation site
 
-Hugo site "ScanSnack" in `site/`; it mounts `docs/protocol.md`, `docs/airscan.md`, `docs/disclaimer.md` and
+Hugo site "ScanSnack" in `site/`; it mounts `docs/protocol*.md`, `docs/airscan.md`, `docs/disclaimer.md` and
 `CHANGELOG.md` (page "Changelog") as content, so those files stay the only source. The app page `site/content/app.md`
 holds the feature list (see [Feature list and changelog](#feature-list-and-changelog)). Its screenshots
 (`tools/screenshots.py`) and download links (latest release) are generated in the Pages build. Build

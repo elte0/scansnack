@@ -1,7 +1,7 @@
 """UDP notifications from the scanner (48 B): ``u32 0x30 | magic | u32 event | u32 0 | u8 counter at 16``,
 scanner IP at 20 and MAC at 24 where the model fills them in.
 
-Layout: docs/protocol.md, section "Scan button on the touch panel"; docs/protocol-ix500.md, "Notifications".
+Layout: docs/protocol-ix1500.md, section "Scan button on the touch panel"; docs/protocol-ix500.md, "Notifications".
 """
 
 from __future__ import annotations

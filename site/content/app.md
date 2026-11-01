@@ -21,7 +21,7 @@ platforms:
 
 ScanSnack scans with a **ScanSnap iX1500 or iX500** over Wi-Fi and saves every scan as a PDF, without
 ScanSnap Home, an account or a cloud service. It talks to the scanner directly, using the protocol
-described in the [protocol write-up](protocol.md) and its [iX500 dialect](protocol-ix500.md).
+described in the [protocol write-ups](protocol.md).
 
 ## Features
 

@@ -1,13 +1,14 @@
 ---
-status: proposed
-date: 2026-10-30
+status: accepted
+date: 2026-11-01
 ---
 
 # Shared ScanSnap Wi-Fi protocol package
 
 ## Context and problem statement
 
-The iX500 speaks an older dialect of the iX1500 Wi-Fi protocol ([protocol-ix500](../protocol-ix500.md)):
+The iX500 speaks an older dialect of the iX1500 Wi-Fi protocol ([iX500 protocol](../protocol-ix500.md),
+[overview](../protocol.md)):
 the same TCP framing, SCSI tunnel, discovery probes and UDP notifications, with the magic `VENS` instead of
 `ssNR`. Adapters must not import each other (ADR 0002), so an iX500 adapter could only reuse the iX1500 code
 by copying it. Where does the code both models share live?
@@ -31,3 +32,5 @@ binds it to its magic and adds only what differs: registration, discovery reply,
 * Good: `adapters/ix1500` is unchanged; `tests/test_scansnap_wifi.py` checks that the shared code produces
   the iX1500's bytes with `ssNR`, so moving the iX1500 over is mechanical.
 * Bad: until the iX1500 moves over, its own framing, SCSI channel, discovery and button listener exist twice.
+* The protocol docs follow the same split: one write-up per model (`docs/protocol-ix1500.md`,
+  `docs/protocol-ix500.md`), and `docs/protocol.md` as the overview of what the models share.

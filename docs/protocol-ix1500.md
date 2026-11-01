@@ -8,7 +8,8 @@
 > This document describes the frames, the sequences ScanSnap Home uses, the device states, and
 > everything that is still unknown.
 
-This is the single source of truth for the protocol. Everything here was observed in network captures
+This is the single source of truth for the iX1500 protocol; the [overview](protocol.md) lists the other
+models and what they share. Everything here was observed in network captures
 of ScanSnap Home or in live tests against the device. Guesses appear only under
 [Open questions](#open-questions) and are marked `# UNVERIFIED:` in the code.
 
@@ -380,7 +381,9 @@ Each item corresponds to an `# UNVERIFIED:` marker in the code (location in pare
    cause unclear. Hypothesis (user): profiles are stored per user, so the ScanSnap Home profiles still
    exist. Unverified; a private backup of the user list exists.
 9. **How long does the panel wait** for the host after "Scan"? (`button.py`)
-10. **UDP 53220**: notifications from the scanner during pairing, content not analysed.
+10. **UDP 53220**: notifications from the scanner during pairing, content not analysed. On the iX500
+    the scanner sends a 48-byte power-on notice to this port ([iX500 protocol](protocol-ix500.md#notifications-udp-48-b));
+    whether the iX1500's datagrams have the same layout is not checked.
 11. **Grayscale** (`escl`): with the gray D4 the image looks gray, but the JPEG has 3 channels.
     Whether the scanner can deliver true 1-channel JPEGs is open.
 12. **Feeder capacity of 50 sheets** in the eSCL capabilities (`escl.server.capabilities_xml`):

@@ -1,6 +1,6 @@
 """Scan sequence D5, D8, E9, D4, 03, (E0, 28 reads, 28 info)*, D6 on the scan channel.
 
-Flow and parameter blocks: docs/protocol.md, section "Scan sequence".
+Flow and parameter blocks: docs/protocol-ix1500.md, section "Scan sequence".
 """
 
 from __future__ import annotations

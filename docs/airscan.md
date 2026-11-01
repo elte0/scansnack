@@ -78,7 +78,7 @@ is through.
 |---|---|
 | Source | Document feeder only (the iX1500 has no flatbed) |
 | Duplex | Supported: both sides of every sheet |
-| Kind | *Color* scans in color; *Black & White* scans in grayscale (the JPEG still has three color channels, see [open questions](protocol.md#open-questions)) |
+| Kind | *Color* scans in color; *Black & White* scans in grayscale (the JPEG still has three color channels, see [open questions](protocol-ix1500.md#open-questions)) |
 | Resolution | 150, 300 or 600 dpi; other values are rounded to the nearest of these |
 | Format | JPEG (one image per page) or PDF (all pages in one file); other formats are created by the macOS app from the JPEGs |
 | Size / scan area | Ignored: every page is cropped to the paper. With `--no-crop` you get the whole scan area instead |

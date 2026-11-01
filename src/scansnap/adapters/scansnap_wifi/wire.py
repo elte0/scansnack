@@ -1,6 +1,6 @@
 """TCP framing of the ScanSnap Wi-Fi protocol: ``u32 length | magic`` + header.
 
-Layout: docs/protocol.md, section "TCP framing". The iX1500 uses ``ssNR``, the iX500 ``VENS``.
+Layout: docs/protocol-ix1500.md, section "TCP framing". The iX1500 uses ``ssNR``, the iX500 ``VENS``.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import sys
 
 SSNR = b"ssNR"
 VENS = b"VENS"
+CONTROL_PORT = 53219
 CLIENT_HEADER_LEN = 32
 SERVER_HEADER_LEN = 16
 # Largest frame the client accepts: one image read (0x300000) plus headers, with headroom.
@@ -65,3 +66,18 @@ def read_frame(sock: socket.socket, *, magic: bytes) -> bytes:
 
 def frame_status(frame: bytes) -> int:
     return struct.unpack_from(">I", frame, 12)[0]
+
+
+def greeting_magic(ip: str, port: int = CONTROL_PORT, timeout: float = 2.0) -> bytes:
+    """Magic of the 16-byte greeting every connection to ``port`` gets; tells the models apart without UDP.
+
+    Returns fewer than 4 bytes if the peer closes early. Raises OSError if nothing answers.
+    """
+    with socket.create_connection((ip, port), timeout=timeout) as s:
+        head = b""
+        while len(head) < 8:
+            chunk = s.recv(8 - len(head))
+            if not chunk:
+                break
+            head += chunk
+    return head[4:8]

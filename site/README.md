@@ -1,10 +1,10 @@
 # Documentation site
 
 A minimal [Hugo](https://gohugo.io/) site, "ScanSnack", that presents the app and publishes the protocol
-write-up on GitHub Pages.
+write-ups on GitHub Pages.
 
 > **Summary.** Apart from the home page and the app page (`content/app.md`) the site has no content of
-> its own: it mounts `docs/protocol.md`, `docs/airscan.md`, `docs/disclaimer.md` and `CHANGELOG.md` (see `hugo.toml`), so
+> its own: it mounts `docs/protocol*.md`, `docs/airscan.md`, `docs/disclaimer.md` and `CHANGELOG.md` (see `hugo.toml`), so
 > those files stay the single source. Screenshots and download links of the app page are generated at
 > build time, so they follow the code and the latest release. No theme, no external dependencies.
 

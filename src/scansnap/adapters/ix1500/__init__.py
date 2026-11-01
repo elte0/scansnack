@@ -1,1 +1,1 @@
-"""Proprietary Wi-Fi protocol of the ScanSnap iX1500 (protocol: docs/protocol.md)."""
+"""Proprietary Wi-Fi protocol of the ScanSnap iX1500 (protocol: docs/protocol-ix1500.md)."""

@@ -1,14 +1,31 @@
 # ScanSnap iX500 Wi-Fi Protocol
 
-> **Summary.** The iX500 speaks an older dialect of the iX1500 protocol ([protocol.md](protocol.md)):
+> **Summary.** The iX500 speaks an older dialect of the [iX1500 protocol](protocol-ix1500.md):
 > the same ports and TCP framing with the magic `VENS` instead of `ssNR`, a short registration that
 > carries an encoded password, no users or profiles, and UDP notifications for the Scan button, power
 > off and power on. Pages arrive as color JPEGs; gray and other conversions happen on the host.
 
-Code: `src/scansnap/adapters/ix500/`. Sources: network captures of ScanSnap Home 4.1.0 with an iX500
-(firmware 0U00), live tests with this client, and static analysis of ScanSnap Home's own iX500 Wi-Fi code
-for the parameter blocks. Captures are private; values below use example addresses. Guesses are marked
-`UNVERIFIED` here and `# UNVERIFIED:` in the code.
+This is the single source of truth for the iX500 protocol; the [overview](protocol.md) lists the other
+models and what they share. Code: `src/scansnap/adapters/ix500/`, on top of the shared
+`src/scansnap/adapters/scansnap_wifi/`. Guesses are marked `UNVERIFIED` here and `# UNVERIFIED:` in the code.
+
+## Sources
+
+| Source | Content | Public |
+|---|---|---|
+| Captures | ScanSnap Home 4.1.0 with an iX500 (firmware 0U00): start-up, registration, scans, Scan button, power cycles | no (they contain scanned documents) |
+| Live tests | this client against the same iX500 on macOS | no |
+| Static analysis | ScanSnap Home's iX500 Wi-Fi code: parameter blocks, page sizes, password encoding | – (only facts and constants, no code) |
+| Third-party write-up | [bramheerink/scansnap](https://github.com/bramheerink/scansnap), commit `5706688` (GPL-2.0) | yes |
+
+Values below use example addresses and serials. The static analysis was done for interoperability only
+(see the [disclaimer](disclaimer.md#how-the-information-was-obtained)).
+
+The third-party write-up agrees on the ports, the `VENS` framing, the discovery reply and the scan sequence.
+Where it differs, this write-up follows the captures: its registration table puts date, host ID and time
+zone at body offsets 48, 56 and 64, but the packet in its own code has them at 68, 76 and 84, as below;
+and its 12-byte "pairing key" is the encoded factory password (four digits, three characters each).
+No code was taken from it.
 
 This is an independent interoperability project, not affiliated with PFU or Fujitsu. See the
 [disclaimer](disclaimer.md).

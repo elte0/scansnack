@@ -1,4 +1,4 @@
-"""Read-only device information over the scan channel (docs/protocol-ix500.md, "Device info queries")."""
+"""Read-only device information over the scan channel (docs/protocol-ix500.md, "Device info (read-only)")."""
 
 from __future__ import annotations
 

@@ -17,6 +17,13 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 - With an iX500, the Scan button shows "Load paper" and is dimmed while the feeder is empty.
 - Protocol write-up for the iX500 Wi-Fi dialect in `docs/protocol-ix500.md`.
 
+### Changed
+
+- The protocol docs now have one write-up per model: the iX1500 write-up moved to `docs/protocol-ix1500.md`,
+  and `docs/protocol.md` is an overview of the models, what they share and where they differ.
+- The disclaimer and the iX500 write-up name all sources of the iX500 findings, including the static
+  analysis of ScanSnap Home for interoperability.
+
 ## [0.3.2] - 2026-10-30
 
 ### Fixed

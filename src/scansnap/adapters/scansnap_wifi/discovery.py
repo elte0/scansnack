@@ -1,6 +1,6 @@
 """UDP discovery and heartbeat (the scanner listens on 52217).
 
-Probe layout: docs/protocol.md, section "Discovery and heartbeat (UDP 52217)". The replies differ per model and
+Probe layout: docs/protocol-ix1500.md, section "Discovery and heartbeat (UDP 52217)". The replies differ per model and
 are parsed in the model's adapter.
 """
 

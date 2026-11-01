@@ -1,6 +1,6 @@
 """UDP discovery and heartbeat (the scanner listens on 52217).
 
-Layout of probe and reply: docs/protocol.md, section "Discovery and heartbeat (UDP 52217)".
+Layout of probe and reply: docs/protocol-ix1500.md, section "Discovery and heartbeat (UDP 52217)".
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """Scan button on the touch panel: UDP notification to ``host_port`` of the selected host.
 
-Layout: docs/protocol.md, section "Scan button on the touch panel". Only the UDP notification is evaluated
+Layout: docs/protocol-ix1500.md, section "Scan button on the touch panel". Only the UDP notification is evaluated
 (C2 can miss the short pulse).
 """
 

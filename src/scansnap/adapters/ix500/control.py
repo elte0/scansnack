@@ -1,6 +1,6 @@
 """Control channel (TCP 53219): registration (0x11), device name (0x13), Wi-Fi status (0x30).
 
-One TCP connection per command. Layout: docs/protocol-ix500.md, section "Startup / registration".
+One TCP connection per command. Layout: docs/protocol-ix500.md, section "Registration (control 0x11)".
 """
 
 from __future__ import annotations
