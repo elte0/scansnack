@@ -174,7 +174,23 @@ class Control:
         selected user; then run ``claim`` again. Finally, pairing is completed as in the
         pairing capture with 0x30 → 0x12 → 0x11 (flag 0).
         """
+        try:
+            return self._write_own_profile(host_ip)
+        finally:
+            # Always, also after errors: otherwise the scanner stays in the pairing state and the touch
+            # panel shows "Processing" until it is switched off.
+            self.finish_pairing(host_ip)
+
+    def _write_own_profile(self, host_ip: str) -> dict[str, Any]:
         current = self.get_users()
+        conn_user: dict[str, Any] = current.get("conn_user") or {}
+        if "select" not in conn_user:
+            # UNVERIFIED: seen in a user report ("conn_user" error on an iX1500); which reply the scanner
+            # sent is unknown. Without the current "select" we cannot write a list the scanner accepts.
+            raise wire.ProtocolError(
+                f"0x0100 reply has no conn_user.select (keys: {sorted(current)}); "
+                "is a computer selected on the touch panel?"
+            )
         name = self.identity.name[:MAX_NAME_LEN]
         color_id = 2
         me = {
@@ -187,7 +203,7 @@ class Control:
             "color_id": color_id,
         }
         # Replace our own entry in place: the scanner rejects a reordered list.
-        users = [me if u.get("host_id") == self.identity.host_id else u for u in current["conn_user"]["users"]]
+        users = [me if u.get("host_id") == self.identity.host_id else u for u in conn_user.get("users", [])]
         if me not in users:
             users.append(me)
         profiles = current.get("profiles", [])
@@ -203,16 +219,13 @@ class Control:
             disp_order=max((p.get("disp_order", 0) for p in others), default=0) + 1,
         )
         payload = {
-            "conn_user": {"users": users, "select": current["conn_user"]["select"]},
+            "conn_user": {"users": users, "select": conn_user["select"]},
             "version": current.get("version", 3),
             "profiles": [*others, own],
         }
-        try:
-            self.json_call(SUB_SET_PROFILES, payload)
-            # 0x0610 does not work in the pairing state (fffffffe); the profile is selected before every scan.
-            self.announce(host_ip)
-        finally:
-            self.finish_pairing(host_ip)
+        self.json_call(SUB_SET_PROFILES, payload)
+        # 0x0610 does not work in the pairing state (fffffffe); the profile is selected before every scan.
+        self.announce(host_ip)
         return payload
 
     def finish_pairing(self, host_ip: str) -> int:
@@ -242,7 +255,11 @@ class Control:
         self.state()
         self.cmd12()
         self.register(host_ip)
-        self.announce(host_ip)
+        try:
+            self.announce(host_ip)
+        except BaseException:
+            self.finish_pairing(host_ip)  # do not leave the scanner in the pairing state
+            raise
         return host_ip
 
     def connect(self) -> str:

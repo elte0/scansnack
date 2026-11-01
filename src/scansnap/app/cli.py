@@ -6,6 +6,7 @@ import argparse
 import sys
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 from ..adapters.ix1500 import wire
 from ..adapters.ix1500.button import Notification
@@ -150,8 +151,10 @@ def main(argv: list[str] | None = None) -> None:
     if args.cmd == "status":
         users = Control(ip, ident).get_users()
         print(f"Own host ID: {ident.host_id}")
-        print("Users:", [(u["name"], u["host_id"]) for u in users["conn_user"]["users"]])
-        print("Selected (JSON):", users["conn_user"].get("select"))
+        conn_user: dict[str, Any] = users.get("conn_user") or {}
+        print("Users:", [(u.get("name"), u.get("host_id")) for u in conn_user.get("users", [])])
+        print("Selected (JSON):", conn_user.get("select"))
+        print("Reply keys (0x0100):", sorted(users))
         print("Profiles:", [(p.get("prof_name"), p.get("user_name")) for p in users.get("profiles", [])])
         with ScsiChannel(ip, ident.mac) as ch:
             print("Selected (C2):", ch.hardware_status()[32:40].hex())

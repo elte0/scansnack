@@ -343,6 +343,10 @@ Confirmed in private live test logs of `claim` and a subsequent scan:
 4. Finish pairing: 0x30 → 0x12 → 0x11 flag 0. Without this step C2 stays at 0xe1,
    0x11/0 → `fffffffc`, 0x0610 → `fffffffe`.
 
+Our client runs step 4 also when steps 2–3 fail; a scanner left in the pairing state shows
+"Processing" on the touch panel until it is switched off (user report, see
+[Open questions](#open-questions)).
+
 Then select the user (`scansnap-bridge`) on the touch panel – `select` (= C2 bytes 32–39) can only be
 changed on the panel. From then on, scans run under our own identity.
 
@@ -392,3 +396,6 @@ Each item corresponds to an `# UNVERIFIED:` marker in the code (location in pare
     Whether the scanner can deliver true 1-channel JPEGs is open.
 12. **Feeder capacity of 50 sheets** in the eSCL capabilities (`escl.server.capabilities_xml`):
     origin not documented, not read from the device.
+13. **0x0100 reply without `conn_user`** (`control.Control._write_own_profile`): a user reported the
+    error "conn_user" during `claim` on an iX1500, i.e. the reply lacked `conn_user` (or its `select`).
+    Which reply the scanner sent, and in which state, is unknown; the captures always contain it.

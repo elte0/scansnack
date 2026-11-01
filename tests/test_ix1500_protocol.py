@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from mock_scanner import FIXTURES, MockScanner
-from scansnap.adapters.ix1500 import discovery
+from scansnap.adapters.ix1500 import discovery, wire
 from scansnap.adapters.ix1500.control import (
     SUB_ANNOUNCE,
     SUB_SET_PROFILES,
@@ -249,6 +249,28 @@ def test_claim_builds_own_profile_and_finishes_pairing() -> None:
     assert own["host_id"] == ident.host_id and len(own["name"]) == 30
     (prof,) = payload["profiles"]
     assert prof["user_id"] == "OWNUSER" and prof["host_address"] == "192.168.178.37" and prof["scan_info"]
+
+
+@pytest.mark.parametrize("users", [{"profiles": [], "version": 3}, {"conn_user": {"users": []}}])
+def test_claim_without_conn_user_fails_clearly_and_still_finishes_pairing(users: dict[str, Any]) -> None:
+    ident = HostIdentity("scansnap-bridge", "8ff7d20fae1b79f6", "OWNUSER", bytes(6))
+    ctl = RecordingControl(ident, users)
+    with pytest.raises(wire.ProtocolError, match="conn_user"):
+        ctl.claim("192.168.178.37")
+    assert ctl.payloads == []
+    assert ctl.calls == ["0x0100", "0x30", "0x12", "0x11/0"]
+
+
+def test_handshake_finishes_pairing_when_announce_fails() -> None:
+    class FailingAnnounce(RecordingControl):
+        def announce(self, host_ip: str) -> Any:
+            super().announce(host_ip)
+            raise wire.ProtocolError("rejected")
+
+    ctl = FailingAnnounce(HostIdentity("scansnap-bridge", "8ff7d20fae1b79f6", "OWNUSER", bytes(6)))
+    with pytest.raises(wire.ProtocolError):
+        ctl.handshake()
+    assert ctl.calls[-4:] == ["0x0210", "0x30", "0x12", "0x11/0"]
 
 
 def test_claim_keeps_user_order_when_already_registered() -> None:

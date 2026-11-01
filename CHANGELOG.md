@@ -9,6 +9,12 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Fixed
+
+- iX1500: if setting up the app's own user on the scanner fails (for example with the error
+  "conn_user"), the app now always ends the pairing step, so the touch panel no longer hangs on
+  "Processing" until the scanner is switched off. The error message now says what the scanner replied.
+
 ## [0.5.0] - 2026-11-01
 
 ### Added
