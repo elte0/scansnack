@@ -18,6 +18,7 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
   size and multifeed detection, and scanning on the scanner's Scan button.
 - With an iX500, the Scan button shows "Load paper" and is dimmed while the feeder is empty.
 - Protocol write-up for the iX500 Wi-Fi dialect in `docs/protocol-ix500.md`.
+- A list of all ScanSnap models and whether ScanSnack supports them (`docs/models.md`, also on the website).
 
 ### Changed
 

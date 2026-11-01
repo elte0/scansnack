@@ -24,6 +24,7 @@ Fujitsu. See the [disclaimer](disclaimer.md).
 | ScanSnap iX500 | [iX500 protocol](protocol-ix500.md) | `src/scansnap/adapters/ix500/` | tested live (firmware 0U00) |
 
 Each write-up is the single source of truth for its model, including its own list of open questions.
+Which other ScanSnap models exist and why they are not supported is in the [model list](models.md).
 Code shared by both models (framing, SCSI tunnel, discovery probes, UDP notifications) lives in
 `src/scansnap/adapters/scansnap_wifi/` ([ADR 0007](adr/0007-shared-scansnap-wifi-package.md)).
 

@@ -85,7 +85,7 @@ A task is only done when all checks are green and the changelog and feature list
 
 ## Documentation site
 
-Hugo site "ScanSnack" in `site/`; it mounts `docs/protocol*.md`, `docs/airscan.md`, `docs/disclaimer.md` and
+Hugo site "ScanSnack" in `site/`; it mounts `docs/protocol*.md`, `docs/models.md`, `docs/airscan.md`, `docs/disclaimer.md` and
 `CHANGELOG.md` (page "Changelog") as content, so those files stay the only source. The app page `site/content/app.md`
 holds the feature list (see [Feature list and changelog](#feature-list-and-changelog)). Its screenshots
 (`tools/screenshots.py`) and download links (latest release) are generated in the Pages build. Build
