@@ -13,6 +13,22 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 - Native Windows 11 ARM64 app downloads, including automatic updates, for PCs such as Snapdragon laptops.
 
+## [0.4.2] - 2026-11-01
+
+### Fixed
+
+- When an update is available at startup and no scanner is connected, the update window and the
+  *Connect Scanner* window no longer open together and block each other: the update is offered first,
+  and *Connect Scanner* follows once that window is closed.
+
+## [0.4.1] - 2026-11-01
+
+### Fixed
+
+- *Search Network* finds the scanner even while it is connected (to the app, ScanSnap Home or another
+  computer): such a scanner ignores the search, so the app now asks the entered address directly.
+- Running the test suite no longer overwrites the app's saved scanner IP address with a sample address.
+
 ## [0.4.0] - 2026-11-01
 
 ### Added
@@ -77,7 +93,9 @@ First release with ready-made apps.
   scan dialog).
 - Protocol write-up, disclaimer and website on GitHub Pages.
 
-[Unreleased]: https://github.com/elte0/scansnack/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/elte0/scansnack/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/elte0/scansnack/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/elte0/scansnack/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/elte0/scansnack/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/elte0/scansnack/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/elte0/scansnack/compare/v0.3.0...v0.3.1

@@ -137,7 +137,11 @@ Observed:
 
 - On start-up, ScanSnap Home sends all three probes from port 55264 (port field 55264), three times,
   0.3 s apart.
-- Broadcast discovery does not always get an answer, so in practice pass the scanner's address with `--ip`.
+- While a host holds a session (ScanSnack, ScanSnap Home), the scanner answers no probe, neither broadcast
+  nor unicast. After the session is closed it stays silent for a while: no answer after 1 s and 5 s; the
+  unicast probe was answered again after 15 s in one test and after 88 s in another. This explains why
+  broadcast discovery seemed unreliable; pass the scanner's address with `--ip` in that case. The greeting
+  on TCP 53219 still arrives, so the app identifies a connected scanner by its address.
 - Unicast probes: only `ssNR`/0x0100/seq 0 and `ssNR`/0x1000/seq 1 are answered.
 - ScanSnap Home heartbeat: `ssNR`, seq 1, flag 0x1000 every ~0.5 s, starting only ~5 s after the app
   starts. The scanner answers with 12 bytes `ssNR 8001 0000 0000…` (often several times), but unreliably.

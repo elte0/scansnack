@@ -202,8 +202,16 @@ class ScannerDialog(QDialog):
         self.setMinimumWidth(440)
         self.finished_task.connect(self._task_done)
 
-    def _busy(self, text: str) -> None:
+    def _say(self, text: str) -> None:
+        """Show ``text``; the window grows with it (Qt does not do this for wrapped labels on its own)."""
         self.info.setText(text)
+        layout = self.layout()
+        if layout is not None:
+            layout.activate()
+        self.resize(self.width(), max(self.height(), self.heightForWidth(self.width())))
+
+    def _busy(self, text: str) -> None:
+        self._say(text)
         self.spinner.show()
         for w in (self.search, self.connect_button, self.ip):
             w.setEnabled(False)
@@ -218,7 +226,14 @@ class ScannerDialog(QDialog):
 
     def _search(self) -> None:
         self._busy("Searching the network …")
-        self._run("search", lambda: self.locator.discover(timeout=2.5))
+        ip = self.value()
+
+        def search() -> tuple[list[FoundScanner], FoundScanner | None]:
+            found = self.locator.discover(timeout=2.5)
+            # a connected scanner does not answer the search: ask the entered address directly
+            return found, None if found or not ip else self.locator.identify(ip)
+
+        self._run("search", search)
 
     def _check(self) -> None:
         ip = self.value()
@@ -231,16 +246,24 @@ class ScannerDialog(QDialog):
     def _task_done(self, task: str, result: object) -> None:
         self._idle()
         if task == "search":
-            found = cast(list[FoundScanner], result)
+            found, known = cast(tuple[list[FoundScanner], FoundScanner | None], result)
             if found:
                 self.ip.setText(found[0].ip)
-                self.info.setText(f"Found {found[0].name} ({found[0].model}) at {found[0].ip}.")
+                self._say(f"Found {found[0].name} ({found[0].model}) at {found[0].ip}.")
+            elif known:
+                self._say(
+                    f"Found {known.model} at {known.ip}. It does not answer the network search while it is "
+                    "connected (to this app, ScanSnap Home or another computer)."
+                )
             else:
-                self.info.setText("No scanner found. Make sure it is on and in the same network, or enter its IP.")
+                self._say(
+                    "No scanner found. Make sure it is on and in the same network, or enter its IP. While "
+                    "ScanSnap Home or another computer is connected to it, the scanner does not answer the search."
+                )
         elif result:
             self.accept()
         else:
-            self.info.setText(f"No scanner responds at {self.value()}.")
+            self._say(f"No scanner responds at {self.value()}.")
 
     def value(self) -> str:
         return self.ip.text().strip()
@@ -322,7 +345,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, library: OutputPort, locator: ScannerLocator, updates: Updates | None = None):
         super().__init__()
-        self.settings = QSettings("scansnap-bridge", "app")
+        self.settings = app_settings()
         self.setWindowTitle(APP_NAME)
         self.resize(1240, 760)
         self.library = library
@@ -719,7 +742,15 @@ class MainWindow(QMainWindow):
 
     def ask_scanner(self, message: str = "") -> bool:
         dialog = ScannerDialog(self.worker.ip, self.locator, message, self)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
+        checker = self.update_checker
+        if checker is not None:
+            checker.pause()  # an update found meanwhile waits until this dialog is closed
+        try:
+            accepted = dialog.exec() == QDialog.DialogCode.Accepted
+        finally:
+            if checker is not None:
+                checker.resume()
+        if not accepted:
             return False
         self.worker.ip = dialog.value()
         self.settings.setValue("ip", self.worker.ip)
@@ -732,7 +763,9 @@ class MainWindow(QMainWindow):
         """At startup: without a saved or reachable IP, show the scanner dialog first.
         The check runs in the background (never network I/O in the GUI thread)."""
         if not self.worker.ip:
-            self.ask_scanner("Welcome! Connect your ScanSnap first: enter its IP address or search the network.")
+            self._ask_scanner_at_start(
+                "Welcome! Connect your ScanSnap first: enter its IP address or search the network."
+            )
             return
         ip = self.worker.ip
         threading.Thread(target=lambda: self.reachable_checked.emit(self.locator.reachable(ip)), daemon=True).start()
@@ -742,10 +775,18 @@ class MainWindow(QMainWindow):
         if ok:
             self.request_connect.emit()  # connect in the background, the first scan then starts right away
         else:
-            self.ask_scanner(
+            self._ask_scanner_at_start(
                 f"No scanner responds at {self.worker.ip}. Is it switched on? "
                 "Enter a different IP address or search the network."
             )
+
+    def _ask_scanner_at_start(self, message: str) -> None:
+        """Startup prompt: if the update dialog is already open, ask after it has closed."""
+        checker = self.update_checker
+        if checker is None:
+            self.ask_scanner(message)
+        else:
+            checker.after_dialog(lambda: self.ask_scanner(message))
 
     def _keep_connected(self) -> None:
         if self.worker.ip and not self.scanning:
@@ -936,10 +977,13 @@ class MainWindow(QMainWindow):
         self.docs.pop(doc.key, None)
         self._select(self.drafts[0] if self.drafts else None)
 
-    def check_updates_on_start(self) -> None:
+    def start(self) -> None:
+        """After the window is shown: offer an update first, then check the scanner."""
         checker = self.update_checker
         if checker is not None and self.updates is not None and self.updates.check_on_start and checker.check_on_start:
-            checker.check()
+            checker.check_first(self.check_scanner)
+        else:
+            self.check_scanner()
 
     def restart_for_update(self, staged: Path) -> None:
         """New version is unpacked: close the app (asks about unsaved changes), start the helper."""
@@ -974,6 +1018,12 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
 
+def app_settings() -> QSettings:
+    """The app's settings. Unlike ``QSettings(org, app)``, this honours ``QSettings.setDefaultFormat`` and
+    ``setPath``, so tests and the screenshot tool never touch the user's real settings."""
+    return QSettings(QSettings.defaultFormat(), QSettings.Scope.UserScope, "scansnap-bridge", "app")
+
+
 def data_dir() -> Path:
     """Location for app data (document list, thumbnails); needs a running QApplication."""
     path = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
@@ -1000,10 +1050,9 @@ def run(
     app.setApplicationName(APP_NAME)
     app.setOrganizationName("scansnap-bridge")
     if ip:
-        QSettings("scansnap-bridge", "app").setValue("ip", ip)
+        app_settings().setValue("ip", ip)
     primer.apply()
     window = MainWindow(make_output(data_dir()), locator, updates)
     window.show()
-    QTimer.singleShot(200, window.check_scanner)
-    QTimer.singleShot(1500, window.check_updates_on_start)
+    QTimer.singleShot(200, window.start)
     return app.exec()
