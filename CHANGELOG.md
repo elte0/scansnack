@@ -9,6 +9,8 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-01
+
 ### Added
 
 - Native Windows 11 ARM64 app downloads, including automatic updates, for PCs such as Snapdragon laptops.
@@ -93,7 +95,8 @@ First release with ready-made apps.
   scan dialog).
 - Protocol write-up, disclaimer and website on GitHub Pages.
 
-[Unreleased]: https://github.com/elte0/scansnack/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/elte0/scansnack/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/elte0/scansnack/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/elte0/scansnack/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/elte0/scansnack/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/elte0/scansnack/compare/v0.3.2...v0.4.0
