@@ -21,11 +21,12 @@ import platform
 import shutil
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import tomllib
 from pathlib import Path
 
-from scansnap.core.update import arch_name, os_name, package_name, parse_version
+from scansnap.core.update import os_name, package_name, parse_version, python_arch
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
@@ -52,6 +53,11 @@ def run(*cmd: str | Path) -> None:
     subprocess.run([str(c) for c in cmd], check=True)
 
 
+def architecture() -> str:
+    """Architecture of the running Python (an x64 Python emulated on Windows ARM64 builds x64)."""
+    return python_arch(sysconfig.get_platform(), platform.machine())
+
+
 def build() -> Path:
     """PyInstaller build; returns the executable."""
     if sys.platform == "darwin" and not (PACKAGING / f"{NAME}.icns").exists():
@@ -73,7 +79,7 @@ def pack() -> Path:
     # package name from core.update: the app's update check looks for it in the release
     ver = parse_version(version())
     assert ver is not None, version()
-    file = DIST / package_name(ver, os_name(sys.platform), arch_name(platform.machine()))
+    file = DIST / package_name(ver, os_name(sys.platform), architecture())
     base = DIST / file.name.removesuffix(".zip").removesuffix(".tar.gz")
     if sys.platform == "darwin":
         dmg = file
@@ -96,7 +102,11 @@ def pack() -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--no-pack", action="store_true", help="only build the app, no DMG/ZIP/tarball")
+    parser.add_argument("--target", help="require this OS-architecture (e.g. windows-arm64); does not cross-compile")
     args = parser.parse_args()
+    target = f"{os_name(sys.platform)}-{architecture()}"
+    if args.target and args.target != target:
+        parser.error(f"requested {args.target}, but this Python builds {target}; use a matching Python interpreter")
     exe = build()
     run(exe, "--selftest")
     print(f"App: {exe}")

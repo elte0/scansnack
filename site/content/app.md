@@ -12,8 +12,11 @@ platforms:
     detail: Intel
     suffix: -macos-x86_64.dmg
   - name: Windows
-    detail: Windows 10/11, 64-bit
+    detail: Windows 10/11, x64 (Intel/AMD)
     suffix: -windows-x86_64.zip
+  - name: Windows
+    detail: Windows 11, ARM64 (Snapdragon)
+    suffix: -windows-arm64.zip
   - name: Linux
     detail: x86_64, tar.gz
     suffix: -linux-x86_64.tar.gz
@@ -25,6 +28,7 @@ described in the [protocol write-ups](protocol.md).
 
 ## Features
 
+- **Native desktop builds** – macOS (Apple Silicon and Intel), Windows (x64 and ARM64) and Linux (x86_64).
 - **Scan over Wi-Fi** – connect by IP address or let the app search the network. The connection is kept
   open, so the *Scan* button on the scanner's touch panel starts a scan in the app.
 - **Profiles** – color or black & white documents at 300 dpi, a quick 150 dpi mode and photos at

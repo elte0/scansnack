@@ -9,6 +9,10 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Added
+
+- Native Windows 11 ARM64 app downloads, including automatic updates, for PCs such as Snapdragon laptops.
+
 ## [0.4.2] - 2026-11-01
 
 ### Fixed

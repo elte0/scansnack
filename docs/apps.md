@@ -57,12 +57,19 @@ Code: `packaging/`, `tools/build_app.py`.
 |---|---|---|
 | macOS arm64 / x86_64 | `ScanSnack.app`, `ScanSnack-<ver>-macos-<arch>.dmg` | bundle ID `com.elte0.scansnack`, Info.plist including `NSLocalNetworkUsageDescription`, ad-hoc signed, checked with `codesign --verify` |
 | Windows x86_64 | `ScanSnack/ScanSnack.exe`, `ScanSnack-<ver>-windows-x86_64.zip` | no console window, icon `ScanSnack.ico` |
+| Windows ARM64 | `ScanSnack/ScanSnack.exe`, `ScanSnack-<ver>-windows-arm64.zip` | native Windows 11 ARM64; no console window, icon `ScanSnack.ico` |
 | Linux x86_64 | `ScanSnack/ScanSnack`, `ScanSnack-<ver>-linux-x86_64.tar.gz` | ships `scansnack.desktop` + `scansnack.png`; needs the Qt system libraries (`libxcb-cursor0`, `libegl1` …) |
 
 - The architecture is that of the running Python (no universal2: Pillow ships separate wheels).
+- On Windows ARM64, build with native Python explicitly:
+  `uv run --python cpython-3.14-windows-aarch64 --extra app python tools/build_app.py --target windows-arm64`.
+  Use a separate checkout/environment for x64 builds. `--target` checks the interpreter before building;
+  it does not cross-compile. An x64 Python running under emulation still builds and updates the x64 app.
 - Mac arm64 ~107 MB, DMG ~46 MB. On first launch macOS asks for local network access.
-- Tested: Mac locally; all four targets build and pass `--selftest` in GitHub Actions; the Linux build
+- Tested: Mac locally; the four original targets build and pass `--selftest` in GitHub Actions; the Linux build
   also starts offscreen. Windows, Intel Mac and Linux have not been tried with the scanner.
+- Windows ARM64: native Python 3.14, all tests, and the packaged app's `--selftest` pass locally.
+  It has its own CI test job and release build; its first hosted run and a real scanner test are pending.
 
 **Auto-update** (ADR 0005): `core/update.py` (versions, package names, checksums), `ports/updates.py`
 (`ReleaseSource`, `Installer`), `adapters/github` (GitHub Releases API), `adapters/selfupdate`
@@ -90,7 +97,8 @@ checks that both match).
   → push → calls `Release`. The bump also turns the *Unreleased* section of `CHANGELOG.md` into
   `## [X.Y.Z] - date` (`tools/changelog.py release`) and stops if *Unreleased* has no entries.
 - `Release` (`.github/workflows/release.yml`): for every tag `v*.*.*` (also one pushed by hand) builds on
-  macos-latest (arm64), macos-15-intel, windows-latest and ubuntu-22.04, then creates a GitHub release
+  macos-latest (arm64), macos-15-intel, windows-latest (x64), windows-11-arm (ARM64) and ubuntu-22.04,
+  then creates a GitHub release
   with all packages. Checks that the tag matches the version. The release notes are the version's
   section of `CHANGELOG.md` (`tools/changelog.py notes`) plus the download table; a tag without a
   changelog section falls back to GitHub's generated notes. Tags pushed by a workflow with

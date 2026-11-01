@@ -19,17 +19,20 @@ from typing import IO, Any
 
 import pytest
 
+import scansnap.adapters.selfupdate.installer as installer_module
 from scansnap.adapters.github.releases import GitHubReleases, parse_release
 from scansnap.adapters.selfupdate.installer import SelfInstaller, child_env, windows_script
 from scansnap.core.update import (
     Asset,
     ChecksumMismatch,
     Release,
+    arch_name,
     is_newer,
     package_name,
     parse_sha256sums,
     parse_version,
     pick_asset,
+    python_arch,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -56,12 +59,55 @@ def test_versions() -> None:
 
 
 def test_pick_asset_matches_build_names() -> None:
-    names = [package_name((0, 3, 0), o, a) for o, a in (("macos", "arm64"), ("windows", "x86_64"))]
-    assert names == ["ScanSnack-0.3.0-macos-arm64.dmg", "ScanSnack-0.3.0-windows-x86_64.zip"]
+    names = [
+        package_name((0, 3, 0), o, a) for o, a in (("macos", "arm64"), ("windows", "x86_64"), ("windows", "arm64"))
+    ]
+    assert names == [
+        "ScanSnack-0.3.0-macos-arm64.dmg",
+        "ScanSnack-0.3.0-windows-x86_64.zip",
+        "ScanSnack-0.3.0-windows-arm64.zip",
+    ]
     assets = tuple(Asset(n, f"https://x/{n}", 1, None) for n in [*names, "SHA256SUMS"])
     r = release(assets=assets)
     assert pick_asset(r, "windows", "x86_64") == assets[1]
+    assert pick_asset(r, "windows", "arm64") == assets[2]
+    assert pick_asset(release(assets=assets[:2]), "windows", "arm64") is None
     assert pick_asset(r, "linux", "x86_64") is None
+
+
+@pytest.mark.parametrize(
+    ("machine", "expected"),
+    [("AMD64", "x86_64"), ("ARM64", "arm64"), ("aarch64", "arm64"), ("x86_64", "x86_64")],
+)
+def test_architecture_aliases(machine: str, expected: str) -> None:
+    assert arch_name(machine) == expected
+
+
+@pytest.mark.parametrize(
+    ("python_platform", "machine", "expected"),
+    [
+        ("win-arm64", "ARM64", "arm64"),  # native ARM64 Python
+        ("win-amd64", "ARM64", "x86_64"),  # x64 Python emulated on ARM64: stays x64
+        ("win-amd64", "AMD64", "x86_64"),
+        ("macosx-11.0-arm64", "arm64", "arm64"),
+        ("macosx-10.13-universal2", "x86_64", "x86_64"),  # universal Python: the machine decides
+        ("linux-x86_64", "x86_64", "x86_64"),
+        ("linux-aarch64", "aarch64", "arm64"),
+    ],
+)
+def test_python_arch(python_platform: str, machine: str, expected: str) -> None:
+    assert python_arch(python_platform, machine) == expected
+
+
+@pytest.mark.parametrize(("python_platform", "expected"), [("win-amd64", "x86_64"), ("win-arm64", "arm64")])
+def test_windows_update_uses_python_architecture(
+    monkeypatch: pytest.MonkeyPatch,
+    python_platform: str,
+    expected: str,
+) -> None:
+    monkeypatch.setattr(installer_module.platform, "machine", lambda: "ARM64")
+    monkeypatch.setattr(installer_module.sysconfig, "get_platform", lambda: python_platform)
+    assert SelfInstaller(sys_platform="win32").arch == expected
 
 
 def test_build_tool_uses_package_names() -> None:
@@ -210,7 +256,8 @@ def test_package_without_app_is_refused(tmp_path: Path) -> None:
         inst.prepare(asset, lambda _d, _t: None)
 
 
-def test_zip_for_windows(tmp_path: Path) -> None:
+@pytest.mark.parametrize(("machine", "arch"), [("AMD64", "x86_64"), ("ARM64", "arm64")])
+def test_zip_for_windows(tmp_path: Path, machine: str, arch: str) -> None:
     folder = tmp_path / "ScanSnack"
     folder.mkdir()
     (folder / "ScanSnack.exe").write_text("old")
@@ -218,10 +265,10 @@ def test_zip_for_windows(tmp_path: Path) -> None:
     with zipfile.ZipFile(buf, "w") as z:
         z.writestr("ScanSnack/ScanSnack.exe", "new")
     payload = buf.getvalue()
-    asset = Asset("ScanSnack-0.3.0-windows-x86_64.zip", "https://dl/w.zip", len(payload), sha(payload))
+    asset = Asset(f"ScanSnack-0.3.0-windows-{arch}.zip", "https://dl/w.zip", len(payload), sha(payload))
     spawned: list[list[str]] = []
     inst = SelfInstaller(
-        executable=folder / "ScanSnack.exe", sys_platform="win32", machine="AMD64", frozen=True,
+        executable=folder / "ScanSnack.exe", sys_platform="win32", machine=machine, frozen=True,
         opener=FakeHttp({asset.url: payload}), spawn=lambda cmd, _env: spawned.append(cmd), environ={},
     )  # fmt: skip
     staged = inst.prepare(asset, lambda _d, _t: None)
