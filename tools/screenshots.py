@@ -168,6 +168,9 @@ class SampleLocator:
     def reachable(self, ip: str, timeout: float = 1.5) -> bool:
         return True
 
+    def identify(self, ip: str, timeout: float = 1.5) -> FoundScanner | None:
+        return FoundScanner(IP, "ScanSnap", "iX1500")
+
     def open(self, ip: str, *, on_button: Callable[[], None] | None = None) -> SampleScanner:
         return self.device
 
@@ -215,7 +218,7 @@ def main() -> None:
             f = app.font()
             f.setFamily("Inter")
             app.setFont(f)
-        QSettings("scansnap-bridge", "app").setValue("ip", IP)
+        qt_window.app_settings().setValue("ip", IP)
         set_scheme(app, "light")
 
         locator = SampleLocator()

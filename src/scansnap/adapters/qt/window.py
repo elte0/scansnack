@@ -202,8 +202,16 @@ class ScannerDialog(QDialog):
         self.setMinimumWidth(440)
         self.finished_task.connect(self._task_done)
 
-    def _busy(self, text: str) -> None:
+    def _say(self, text: str) -> None:
+        """Show ``text``; the window grows with it (Qt does not do this for wrapped labels on its own)."""
         self.info.setText(text)
+        layout = self.layout()
+        if layout is not None:
+            layout.activate()
+        self.resize(self.width(), max(self.height(), self.heightForWidth(self.width())))
+
+    def _busy(self, text: str) -> None:
+        self._say(text)
         self.spinner.show()
         for w in (self.search, self.connect_button, self.ip):
             w.setEnabled(False)
@@ -218,7 +226,14 @@ class ScannerDialog(QDialog):
 
     def _search(self) -> None:
         self._busy("Searching the network …")
-        self._run("search", lambda: self.locator.discover(timeout=2.5))
+        ip = self.value()
+
+        def search() -> tuple[list[FoundScanner], FoundScanner | None]:
+            found = self.locator.discover(timeout=2.5)
+            # a connected scanner does not answer the search: ask the entered address directly
+            return found, None if found or not ip else self.locator.identify(ip)
+
+        self._run("search", search)
 
     def _check(self) -> None:
         ip = self.value()
@@ -231,16 +246,24 @@ class ScannerDialog(QDialog):
     def _task_done(self, task: str, result: object) -> None:
         self._idle()
         if task == "search":
-            found = cast(list[FoundScanner], result)
+            found, known = cast(tuple[list[FoundScanner], FoundScanner | None], result)
             if found:
                 self.ip.setText(found[0].ip)
-                self.info.setText(f"Found {found[0].name} ({found[0].model}) at {found[0].ip}.")
+                self._say(f"Found {found[0].name} ({found[0].model}) at {found[0].ip}.")
+            elif known:
+                self._say(
+                    f"Found {known.model} at {known.ip}. It does not answer the network search while it is "
+                    "connected (to this app, ScanSnap Home or another computer)."
+                )
             else:
-                self.info.setText("No scanner found. Make sure it is on and in the same network, or enter its IP.")
+                self._say(
+                    "No scanner found. Make sure it is on and in the same network, or enter its IP. While "
+                    "ScanSnap Home or another computer is connected to it, the scanner does not answer the search."
+                )
         elif result:
             self.accept()
         else:
-            self.info.setText(f"No scanner responds at {self.value()}.")
+            self._say(f"No scanner responds at {self.value()}.")
 
     def value(self) -> str:
         return self.ip.text().strip()
@@ -322,7 +345,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, library: OutputPort, locator: ScannerLocator, updates: Updates | None = None):
         super().__init__()
-        self.settings = QSettings("scansnap-bridge", "app")
+        self.settings = app_settings()
         self.setWindowTitle(APP_NAME)
         self.resize(1240, 760)
         self.library = library
@@ -974,6 +997,12 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
 
+def app_settings() -> QSettings:
+    """The app's settings. Unlike ``QSettings(org, app)``, this honours ``QSettings.setDefaultFormat`` and
+    ``setPath``, so tests and the screenshot tool never touch the user's real settings."""
+    return QSettings(QSettings.defaultFormat(), QSettings.Scope.UserScope, "scansnap-bridge", "app")
+
+
 def data_dir() -> Path:
     """Location for app data (document list, thumbnails); needs a running QApplication."""
     path = Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
@@ -1000,7 +1029,7 @@ def run(
     app.setApplicationName(APP_NAME)
     app.setOrganizationName("scansnap-bridge")
     if ip:
-        QSettings("scansnap-bridge", "app").setValue("ip", ip)
+        app_settings().setValue("ip", ip)
     primer.apply()
     window = MainWindow(make_output(data_dir()), locator, updates)
     window.show()

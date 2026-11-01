@@ -9,6 +9,12 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Fixed
+
+- *Search Network* finds the scanner even while it is connected (to the app, ScanSnap Home or another
+  computer): such a scanner ignores the search, so the app now asks the entered address directly.
+- Running the test suite no longer overwrites the app's saved scanner IP address with a sample address.
+
 ## [0.4.0] - 2026-11-01
 
 ### Added
