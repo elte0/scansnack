@@ -15,6 +15,7 @@ from ..adapters.ix1500.control import profile_template
 from ..adapters.library.library import Library
 from ..adapters.selfupdate.installer import SelfInstaller
 from ..core.document import ScanPage
+from ..core.fixes import Fixes
 from ..core.images import process
 from ..core.pdf import jpegs_to_pdf
 from ..core.report import LogBuffer, Tee
@@ -71,7 +72,8 @@ def main() -> None:
     def library(data: Path) -> Library:
         return Library(data / "library.json")
 
-    sys.exit(window.run(AutoLocator(), library, args.ip, qt_args, updates, log, current))
+    fixes = Fixes()  # switched in the menu "Fixes", shared with the scanner adapters
+    sys.exit(window.run(AutoLocator(fixes), library, args.ip, qt_args, updates, log, current, fixes))
 
 
 if __name__ == "__main__":

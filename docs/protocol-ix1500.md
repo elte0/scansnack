@@ -343,6 +343,10 @@ Confirmed in private live test logs of `claim` and a subsequent scan:
 4. Finish pairing: 0x30 → 0x12 → 0x11 flag 0. Without this step C2 stays at 0xe1,
    0x11/0 → `fffffffc`, 0x0610 → `fffffffe`.
 
+If step 4 is skipped after an error in steps 2–3, the scanner stays in the pairing state and the touch
+panel shows "Processing" until it is switched off (user report, [issue #19](https://github.com/elte0/scansnack/issues/19)).
+With the opt-in fix *#19* (app menu *Fixes*) our client runs step 4 after every error.
+
 Then select the user (`scansnap-bridge`) on the touch panel – `select` (= C2 bytes 32–39) can only be
 changed on the panel. From then on, scans run under our own identity.
 
@@ -392,3 +396,7 @@ Each item corresponds to an `# UNVERIFIED:` marker in the code (location in pare
     Whether the scanner can deliver true 1-channel JPEGs is open.
 12. **Feeder capacity of 50 sheets** in the eSCL capabilities (`escl.server.capabilities_xml`):
     origin not documented, not read from the device.
+13. **0x0100 reply without `conn_user`** (`control.Control.claim`): a user reported the error
+    "conn_user" during `claim` on an iX1500 ([issue #19](https://github.com/elte0/scansnack/issues/19)),
+    i.e. the reply lacked `conn_user` (or its `select`). Which reply the scanner sent, and in which state,
+    is unknown; the captures always contain it.

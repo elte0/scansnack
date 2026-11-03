@@ -6,6 +6,7 @@ import socket
 from collections.abc import Callable
 from pathlib import Path
 
+from ...core.fixes import Fixes
 from ...core.model import FoundScanner
 from ..scansnap_wifi.wire import SSNR, greeting_magic
 from .button import Notification
@@ -18,8 +19,9 @@ from .identity import DEFAULT_PATH, load_or_create
 class Ix1500Locator:
     """The host identity is only loaded or created when needed."""
 
-    def __init__(self, identity_path: Path = DEFAULT_PATH, name: str | None = None):
+    def __init__(self, identity_path: Path = DEFAULT_PATH, name: str | None = None, fixes: Fixes | None = None):
         self.identity_path, self.name = identity_path, name
+        self.fixes = fixes or Fixes()
         self._ident: HostIdentity | None = None
 
     @property
@@ -51,4 +53,4 @@ class Ix1500Locator:
             if on_button is not None:
                 on_button()
 
-        return Device(ip, self.identity, keep_alive=True, on_button=callback if on_button else None)
+        return Device(ip, self.identity, keep_alive=True, on_button=callback if on_button else None, fixes=self.fixes)

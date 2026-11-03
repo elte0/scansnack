@@ -8,6 +8,7 @@ import threading
 import time
 from collections.abc import Callable, Generator, Iterator
 
+from ...core.fixes import Fixes
 from ...core.images import process
 from ...core.model import ScanSettings, Sheet
 from ...core.report import DeviceDiagnostics
@@ -144,12 +145,14 @@ class Device:
         crop: bool = True,
         keep_alive: bool = False,
         on_button: Callable[[Notification], None] | None = None,
+        fixes: Fixes | None = None,
     ):
         # The scanner delivers the pages rotated by 180° (live test 2026-10-29, front and back)
         # and with the whole scan area (background around the paper).
         self.ip, self.ident, self.profile_id = ip, ident, profile_id
         self.rotate, self.crop, self.keep_alive = rotate, crop, keep_alive
-        self.ctl = Control(ip, ident)
+        self.fixes = fixes or Fixes()
+        self.ctl = Control(ip, ident, fixes=self.fixes)
         self.on_button = on_button
         self._session: Session | None = None
         self._button: ButtonListener | None = None
@@ -167,6 +170,7 @@ class Device:
             "Heartbeat running": str(s is not None and s.heartbeat_running),
             "Scan button listener": str(self._button is not None),
             "Own profile ID set": str(bool(self.profile_id)),
+            "Fixes switched on": ", ".join(self.fixes.ids) or "none",
         }
         private = (self.ip, self.ident.name, self.ident.host_id, self.ident.user_id, self.ident.mac.hex())
         return DeviceDiagnostics(fields, private + ((self.profile_id,) if self.profile_id else ()))

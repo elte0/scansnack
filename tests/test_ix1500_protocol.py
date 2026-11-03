@@ -8,7 +8,7 @@ import pytest
 from PIL import Image
 
 from mock_scanner import FIXTURES, MockScanner
-from scansnap.adapters.ix1500 import discovery
+from scansnap.adapters.ix1500 import discovery, wire
 from scansnap.adapters.ix1500.control import (
     SUB_ANNOUNCE,
     SUB_SET_PROFILES,
@@ -22,6 +22,7 @@ from scansnap.adapters.ix1500.discovery import ScannerInfo, parse_reply
 from scansnap.adapters.ix1500.scanner import Scanner, mode_block, window_block
 from scansnap.adapters.ix1500.scsi import ScsiChannel
 from scansnap.core.errors import FeedError, NoPaper
+from scansnap.core.fixes import IX1500_PAIRING_CLEANUP, Fixes
 from scansnap.core.model import ScanSettings as Settings
 from scansnap.core.model import Sheet
 
@@ -182,8 +183,8 @@ def test_heartbeat_probe_and_reply_counting() -> None:
 class RecordingControl(Control):
     """Control without a network: logs the commands in ``calls``."""
 
-    def __init__(self, ident: HostIdentity, users: dict[str, Any] | None = None):
-        super().__init__("127.0.0.1", ident)
+    def __init__(self, ident: HostIdentity, users: dict[str, Any] | None = None, fixes: Fixes | None = None):
+        super().__init__("127.0.0.1", ident, fixes=fixes)
         self.users = users or {}
         self.calls: list[str] = []
         self.payloads: list[tuple[int, Any]] = []
@@ -249,6 +250,68 @@ def test_claim_builds_own_profile_and_finishes_pairing() -> None:
     assert own["host_id"] == ident.host_id and len(own["name"]) == 30
     (prof,) = payload["profiles"]
     assert prof["user_id"] == "OWNUSER" and prof["host_address"] == "192.168.178.37" and prof["scan_info"]
+
+
+NO_CONN_USER: list[dict[str, Any]] = [{"profiles": [], "version": 3}, {"conn_user": {"users": []}}]
+FIX_19 = Fixes([IX1500_PAIRING_CLEANUP.id])
+
+
+@pytest.mark.parametrize("users", NO_CONN_USER)
+def test_claim_without_conn_user_keeps_previous_behaviour_by_default(users: dict[str, Any]) -> None:
+    ctl = RecordingControl(HostIdentity("scansnap-bridge", "8ff7d20fae1b79f6", "OWNUSER", bytes(6)), users)
+    with pytest.raises(KeyError):
+        ctl.claim("192.168.178.37")
+    assert ctl.calls == ["0x0100"]  # pairing is not finished: the panel hangs on "Processing" (#19)
+
+
+@pytest.mark.parametrize("users", NO_CONN_USER)
+def test_fix_19_claim_without_conn_user_fails_clearly_and_finishes_pairing(users: dict[str, Any]) -> None:
+    ident = HostIdentity("scansnap-bridge", "8ff7d20fae1b79f6", "OWNUSER", bytes(6))
+    ctl = RecordingControl(ident, users, FIX_19)
+    with pytest.raises(wire.ProtocolError, match="conn_user"):
+        ctl.claim("192.168.178.37")
+    assert ctl.payloads == []
+    assert ctl.calls == ["0x0100", "0x30", "0x12", "0x11/0"]
+
+
+def test_fix_19_claim_succeeds_like_before() -> None:
+    ident = HostIdentity("scansnap-bridge", "8ff7d20fae1b79f6", "OWNUSER", bytes(6))
+    current: dict[str, Any] = {
+        "conn_user": {"users": [], "select": {"id": "0f1e2d3c4b5a6978", "kind": 1}},
+        "profiles": [],
+        "version": 3,
+    }
+    before, after = RecordingControl(ident, current), RecordingControl(ident, current, FIX_19)
+    old, new = before.claim("192.168.178.37"), after.claim("192.168.178.37")
+    assert before.calls == after.calls == ["0x0100", "0x0210", "0x30", "0x12", "0x11/0"]
+    for p in (old, new):
+        p["profiles"][0].pop("prof_id")  # random for a new profile
+    assert old == new
+
+
+class FailingAnnounce(RecordingControl):
+    def announce(self, host_ip: str) -> Any:
+        super().announce(host_ip)
+        raise wire.ProtocolError("rejected")
+
+
+@pytest.mark.parametrize(
+    ("fixes", "tail"), [(None, ["0x11/5", "0x0210"]), (FIX_19, ["0x0210", "0x30", "0x12", "0x11/0"])]
+)
+def test_pairing_handshake_finishes_pairing_on_error_only_with_fix_19(fixes: Fixes | None, tail: list[str]) -> None:
+    ctl = FailingAnnounce(HostIdentity("scansnap-bridge", "8ff7d20fae1b79f6", "OWNUSER", bytes(6)), fixes=fixes)
+    with pytest.raises(wire.ProtocolError):
+        ctl.handshake()
+    assert ctl.calls[-len(tail) :] == tail
+
+
+def test_fixes_ignore_unknown_ids_and_switch() -> None:
+    fixes = Fixes(["gone", IX1500_PAIRING_CLEANUP.id])
+    assert fixes.ids == [IX1500_PAIRING_CLEANUP.id]
+    fixes.set(IX1500_PAIRING_CLEANUP, False)
+    assert not fixes.enabled(IX1500_PAIRING_CLEANUP) and fixes.ids == []
+    label = IX1500_PAIRING_CLEANUP.label
+    assert label.startswith("#19: ") and len(label.split(": ", 1)[1].split()) <= 5
 
 
 def test_claim_keeps_user_order_when_already_registered() -> None:

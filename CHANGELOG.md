@@ -15,6 +15,16 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
   shows a detailed report (app version, system, scanner model and state, error and recent log) with
   personal data removed. You can check and edit it, then send it to scansnack@posteo.de with your mail
   program in one click, copy it or save it.
+- New *Fixes* menu: switch on fixes that are still being tested, each labelled with its issue number.
+  The previous behaviour stays the default until a fix is confirmed.
+- Fix to try: *#19: Scan hangs on “Processing”* (iX1500). When setting up the app's user on the scanner
+  fails (for example with the error "conn_user"), the app always ends pairing, so the touch panel no longer
+  hangs on "Processing" until the scanner is switched off, and the error says what the scanner replied.
+
+### Fixed
+
+- `scansnap status` no longer fails when the scanner's user list has no `conn_user`; it also prints the
+  keys of the reply.
 
 ## [0.5.0] - 2026-11-01
 
