@@ -8,6 +8,7 @@ from typing import Literal
 from ..adapters.ix500.locator import Ix500Locator
 from ..adapters.ix1500.locator import Ix1500Locator
 from ..adapters.scansnap_wifi.wire import SSNR, VENS, greeting_magic
+from ..core.fixes import Fixes
 from ..core.model import FoundScanner
 from ..ports.scanner import ScannerPort
 
@@ -20,8 +21,8 @@ ATTEMPTS = 3
 class AutoLocator:
     """Finds both models; :meth:`open` picks the adapter from the greeting magic of the given IP."""
 
-    def __init__(self) -> None:
-        self.ix1500 = Ix1500Locator()
+    def __init__(self, fixes: Fixes | None = None) -> None:
+        self.ix1500 = Ix1500Locator(fixes=fixes)
         self.ix500 = Ix500Locator()
         self.models: dict[str, Model] = {}
 

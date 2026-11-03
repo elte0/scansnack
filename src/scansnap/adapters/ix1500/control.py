@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from importlib.resources import files
 from typing import Any
 
+from ...core.fixes import IX1500_PAIRING_CLEANUP, Fixes
 from . import wire
 
 CONTROL_PORT = 53219
@@ -97,8 +98,21 @@ def profile_template() -> dict[str, Any]:
 
 
 class Control:
-    def __init__(self, ip: str, identity: HostIdentity, port: int = CONTROL_PORT, timeout: float = 10.0):
+    def __init__(
+        self,
+        ip: str,
+        identity: HostIdentity,
+        port: int = CONTROL_PORT,
+        timeout: float = 10.0,
+        fixes: Fixes | None = None,
+    ):
         self.ip, self.port, self.identity, self.timeout = ip, port, identity, timeout
+        self.fixes = fixes or Fixes()
+
+    @property
+    def pairing_cleanup(self) -> bool:
+        """Fix #19 switched on: always leave the pairing state, also after errors."""
+        return self.fixes.enabled(IX1500_PAIRING_CLEANUP)
 
     def _call(self, command: int, body: bytes = b"", extra: bytes = b"\0\0\0\0") -> bytes:
         with socket.create_connection((self.ip, self.port), timeout=self.timeout) as s:
@@ -174,7 +188,33 @@ class Control:
         selected user; then run ``claim`` again. Finally, pairing is completed as in the
         pairing capture with 0x30 → 0x12 → 0x11 (flag 0).
         """
-        current = self.get_users()
+        if not self.pairing_cleanup:
+            # Previous behaviour, the default until fix #19 is confirmed: an error before 0x0110 (e.g. a reply
+            # without conn_user → KeyError) skips finish_pairing and leaves the scanner in the pairing state.
+            payload = self._claim_payload(self.get_users(), host_ip)
+            try:
+                self._set_profiles_and_announce(host_ip, payload)
+            finally:
+                self.finish_pairing(host_ip)
+            return payload
+        try:
+            current = self.get_users()
+            if "select" not in (current.get("conn_user") or {}):
+                # UNVERIFIED: seen in a user report (issue #19, "conn_user" error on an iX1500); which reply the
+                # scanner sent is unknown. Without the current "select" we cannot write a list it accepts.
+                raise wire.ProtocolError(
+                    f"0x0100 reply has no conn_user.select (keys: {sorted(current)}); "
+                    "is a computer selected on the touch panel?"
+                )
+            payload = self._claim_payload(current, host_ip)
+            self._set_profiles_and_announce(host_ip, payload)
+            return payload
+        finally:
+            # Always, also after errors: otherwise the touch panel shows "Processing" until power-off (#19).
+            self.finish_pairing(host_ip)
+
+    def _claim_payload(self, current: dict[str, Any], host_ip: str) -> dict[str, Any]:
+        """0x0110 payload: the user list with our entry in its place, all profiles plus our own."""
         name = self.identity.name[:MAX_NAME_LEN]
         color_id = 2
         me = {
@@ -207,13 +247,12 @@ class Control:
             "version": current.get("version", 3),
             "profiles": [*others, own],
         }
-        try:
-            self.json_call(SUB_SET_PROFILES, payload)
-            # 0x0610 does not work in the pairing state (fffffffe); the profile is selected before every scan.
-            self.announce(host_ip)
-        finally:
-            self.finish_pairing(host_ip)
         return payload
+
+    def _set_profiles_and_announce(self, host_ip: str, payload: dict[str, Any]) -> None:
+        self.json_call(SUB_SET_PROFILES, payload)
+        # 0x0610 does not work in the pairing state (fffffffe); the profile is selected before every scan.
+        self.announce(host_ip)
 
     def finish_pairing(self, host_ip: str) -> int:
         """Completion as in the pairing capture. Without it the scanner stays in the pairing state
@@ -242,7 +281,12 @@ class Control:
         self.state()
         self.cmd12()
         self.register(host_ip)
-        self.announce(host_ip)
+        try:
+            self.announce(host_ip)
+        except BaseException:
+            if self.pairing_cleanup:
+                self.finish_pairing(host_ip)  # fix #19: do not leave the scanner in the pairing state
+            raise
         return host_ip
 
     def connect(self) -> str:

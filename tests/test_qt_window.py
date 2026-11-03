@@ -20,6 +20,7 @@ from scansnap.adapters.qt import window as app_main
 from scansnap.adapters.qt.report import ReportDialog
 from scansnap.core.document import Entry, Preset, ScanPage, thumbnail
 from scansnap.core.errors import FeedError
+from scansnap.core.fixes import IX1500_PAIRING_CLEANUP, Fixes
 from scansnap.core.model import FoundScanner, ScanSettings, Sheet
 from scansnap.core.report import DeviceDiagnostics
 from scansnap.ports.scanner import ScannerPort
@@ -409,3 +410,34 @@ def test_report_dialog_sends_with_the_mail_program(monkeypatch: pytest.MonkeyPat
     dialog.send()
     assert QGuiApplication.clipboard().text() == "x\n" * 20000
     assert "clipboard" in dialog.status.text()
+
+
+def test_fixes_menu_switches_a_fix_and_remembers_it(tmp_path: Path) -> None:
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path / "settings"))
+    qapp = app()
+
+    def open_window(fixes: Fixes) -> app_main.MainWindow:
+        return app_main.MainWindow(Library(tmp_path / "library.json"), FakeLocator(), fixes=fixes)
+
+    fixes = Fixes()
+    win = open_window(fixes)
+    assert "Fixes" in [a.text() for a in win.menuBar().actions()]
+    act = win.fix_actions[IX1500_PAIRING_CLEANUP.id]
+    assert act.text() == "#19: Scan hangs on “Processing”" and not act.isChecked()
+    act.setChecked(True)
+    assert fixes.enabled(IX1500_PAIRING_CLEANUP)
+    win.close()
+    qapp.processEvents()
+
+    again = Fixes()
+    win = open_window(again)
+    assert again.enabled(IX1500_PAIRING_CLEANUP)  # restored from the settings
+    win.fix_actions[IX1500_PAIRING_CLEANUP.id].setChecked(False)
+    assert not again.enabled(IX1500_PAIRING_CLEANUP)
+    win.close()
+    qapp.processEvents()
+
+
+def test_no_fixes_menu_without_fixes(window: app_main.MainWindow) -> None:
+    assert "Fixes" not in [a.text() for a in window.menuBar().actions()]

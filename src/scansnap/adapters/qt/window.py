@@ -56,6 +56,8 @@ from PySide6.QtWidgets import (
 from ...core import report as error_report
 from ...core.document import FEED_HELP, PRESETS, Entry, Preset, ScanPage, default_name, thumbnail
 from ...core.errors import FeedError, NoPaper
+from ...core.fixes import AVAILABLE as AVAILABLE_FIXES
+from ...core.fixes import Fix, Fixes
 from ...core.images import is_blank
 from ...core.model import FoundScanner, ScanSettings
 from ...ports.output import OutputPort
@@ -359,6 +361,7 @@ class MainWindow(QMainWindow):
         *,
         log: error_report.LogBuffer | None = None,
         version: str = "unknown",
+        fixes: Fixes | None = None,
     ):
         super().__init__()
         self.log = log
@@ -511,6 +514,10 @@ class MainWindow(QMainWindow):
         menu.addAction(self._action("Connect Scanner …", "Ctrl+K", lambda: self.ask_scanner()))
         self.updates = updates
         self.update_checker: UpdateChecker | None = None
+        self.fixes = fixes
+        self.fix_actions: dict[str, QAction] = {}
+        if fixes is not None and AVAILABLE_FIXES:
+            self._build_fixes_menu(fixes)
         help_menu = self.menuBar().addMenu("Help")
         if updates is not None:
             self.update_checker = checker = UpdateChecker(self, updates, self.settings, self.restart_for_update)
@@ -554,6 +561,26 @@ class MainWindow(QMainWindow):
         self.paper_timer.start()
 
     # --- helpers ----------------------------------------------------------------------
+    def _build_fixes_menu(self, fixes: Fixes) -> None:
+        """Menu "Fixes": switch on a fix for testing; the previous behaviour stays the default (``core.fixes``)."""
+        stored = str(self.settings.value("fixes", "")).split(",")
+        menu = self.menuBar().addMenu("Fixes")
+        for fix in AVAILABLE_FIXES:
+            fixes.set(fix, fix.id in stored)
+            act = QAction(fix.label, self, checkable=True)
+            act.setChecked(fixes.enabled(fix))
+            act.setToolTip(f"Try the fix for issue #{fix.issue}; switch off to go back to the previous behaviour.")
+
+            def toggled(on: bool, fix: Fix = fix) -> None:
+                fixes.set(fix, on)
+                self.settings.setValue("fixes", ",".join(fixes.ids))
+                state = "on" if on else "off"
+                self.statusBar().showMessage(f"Fix {fix.label} switched {state}.")
+
+            act.toggled.connect(toggled)
+            menu.addAction(act)
+            self.fix_actions[fix.id] = act
+
     def _action(
         self, text: str, shortcut: str | None, slot: Callable[[], object], bar: QToolBar | None = None
     ) -> QAction:
@@ -1133,16 +1160,18 @@ def run(
     updates: Updates | None = None,
     log: error_report.LogBuffer | None = None,
     version: str = "unknown",
+    fixes: Fixes | None = None,
 ) -> int:
     """Starts the UI. ``make_output`` gets the app data directory and returns the document library.
-    ``log`` holds the recent stderr output for error reports."""
+    ``log`` holds the recent stderr output for error reports. ``fixes`` (shared with the scanner adapters)
+    gets the menu "Fixes"."""
     app = QApplication([sys.argv[0], *(qt_args or [])])
     app.setApplicationName(APP_NAME)
     app.setOrganizationName("scansnap-bridge")
     if ip:
         app_settings().setValue("ip", ip)
     primer.apply()
-    window = MainWindow(make_output(data_dir()), locator, updates, log=log, version=version)
+    window = MainWindow(make_output(data_dir()), locator, updates, log=log, version=version, fixes=fixes)
     install_excepthook(window)
     window.show()
     QTimer.singleShot(200, window.start)

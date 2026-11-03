@@ -48,6 +48,9 @@ described in the [protocol write-ups](protocol.md).
   with everything needed to find the problem (app version, system, scanner model and state, error and
   recent log), with IP and MAC addresses, serial numbers, names, folders, file names and passwords
   removed. Check or edit it, then send it with your mail program; nothing is sent without you.
+- **Try fixes early** – the *Fixes* menu lists fixes that are still being tested, each with its issue
+  number (for example *#19: Scan hangs on “Processing”*). Switch one on to try it; switch it off to go
+  back to the previous behaviour. The choice is remembered and shows up in error reports.
 - **Light and dark mode** – follows the system setting.
 - **Updates with one click** – on start the app checks GitHub for a new release and offers to install it;
   it then restarts as the new version. *Later* asks again next time, *Skip This Version* waits for the
