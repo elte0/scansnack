@@ -6,6 +6,7 @@ import argparse
 import io
 import sys
 from importlib.metadata import version
+from pathlib import Path
 
 from PIL import Image
 
@@ -16,6 +17,7 @@ from ..adapters.selfupdate.installer import SelfInstaller
 from ..core.document import ScanPage
 from ..core.images import process
 from ..core.pdf import jpegs_to_pdf
+from ..core.report import LogBuffer, Tee
 from ..core.update import Version, parse_version
 from .locator import AutoLocator
 
@@ -50,6 +52,8 @@ def main() -> None:
     args, qt_args = parser.parse_known_args()
     if args.selftest:
         sys.exit(selftest())
+    log = LogBuffer()  # recent output for error reports (Help → Send Error Report)
+    sys.stderr = Tee(sys.stderr, log)  # pyright: ignore[reportAttributeAccessIssue]
     from ..adapters.qt import window  # only here: --selftest and tests without importing Qt
     from ..adapters.qt.updates import Updates
 
@@ -62,7 +66,12 @@ def main() -> None:
         installer.arch,
         check_on_start=installer.frozen,  # started from source: only via the menu
     )
-    sys.exit(window.run(AutoLocator(), lambda data: Library(data / "library.json"), args.ip, qt_args, updates))
+    current = ".".join(map(str, app_version()))
+
+    def library(data: Path) -> Library:
+        return Library(data / "library.json")
+
+    sys.exit(window.run(AutoLocator(), library, args.ip, qt_args, updates, log, current))
 
 
 if __name__ == "__main__":

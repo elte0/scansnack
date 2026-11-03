@@ -15,3 +15,4 @@ decision and sets the old one to "superseded by NNNN".
 | [0005](0005-own-updater-on-github-releases.md) | Own small updater on top of GitHub Releases | accepted |
 | [0006](0006-english-as-repository-language.md) | English as the only repository language | accepted |
 | [0007](0007-shared-scansnap-wifi-package.md) | Shared ScanSnap Wi-Fi protocol package | accepted |
+| [0008](0008-error-reports-by-email.md) | Error reports sent by the user's own mail program | accepted |

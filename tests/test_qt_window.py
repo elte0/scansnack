@@ -10,15 +10,18 @@ pytest.importorskip("PySide6")
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PIL import Image, ImageDraw
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, QUrl
+from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from helpers import jpeg as make_jpeg
 from scansnap.adapters.library.library import Library
 from scansnap.adapters.qt import window as app_main
+from scansnap.adapters.qt.report import ReportDialog
 from scansnap.core.document import Entry, Preset, ScanPage, thumbnail
 from scansnap.core.errors import FeedError
 from scansnap.core.model import FoundScanner, ScanSettings, Sheet
+from scansnap.core.report import DeviceDiagnostics
 from scansnap.ports.scanner import ScannerPort
 
 
@@ -346,3 +349,63 @@ def test_search_without_any_answer_mentions_scansnap_home() -> None:
     for ip in ("", "192.0.2.10"):
         text = search(app_main.ScannerDialog(ip, FakeLocator(known=known)))
         assert text.startswith("No scanner found.") and "ScanSnap Home" in text
+
+
+class RejectingDevice(JamDevice):
+    """Fails like the iX500 report: the scanner rejects the registration; knows its own diagnostics."""
+
+    def diagnostics(self) -> DeviceDiagnostics:
+        return DeviceDiagnostics({"Model": "iX500", "Last step": "registering (0x11)"}, ("A0XX012345",))
+
+    def scan(self, settings: ScanSettings, *, whiten: bool = False) -> Iterator[Sheet]:
+        raise RuntimeError("registration rejected, status -3: unknown reason (serial A0XX012345)")
+        yield  # pragma: no cover
+
+
+def test_unexpected_scan_error_offers_a_report_without_personal_data(
+    window: app_main.MainWindow, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    window.worker.ip = "192.168.178.29"
+    window.worker.locator = FakeLocator(RejectingDevice())
+    boxes: list[str] = []
+
+    def error_box(_self: app_main.MainWindow, _title: str, text: str, details: str = "") -> None:
+        boxes.append(text)
+
+    monkeypatch.setattr(app_main.MainWindow, "error_box", error_box)
+    window.worker.scan(app_main.PRESETS[0])  # in this thread: "done" calls scan_done directly
+    assert boxes == ["Scan failed: registration rejected, status -3: unknown reason (serial A0XX012345)"]
+    text = window.report_text()
+    assert "registration rejected, status -3" in text and "RuntimeError" in text
+    assert "Model: iX500" in text and "Last step: registering (0x11)" in text and "Last scan: " in text
+    assert "A0XX012345" not in text and "192.168" not in text
+
+
+def test_paper_errors_do_not_offer_a_report(window: app_main.MainWindow, monkeypatch: pytest.MonkeyPatch) -> None:
+    no_dialogs(monkeypatch)
+
+    def error_box(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("no report for paper problems")
+
+    monkeypatch.setattr(app_main.MainWindow, "error_box", error_box)
+    window.scan_done("No paper in the feeder.", False)
+
+
+def test_report_dialog_sends_with_the_mail_program(monkeypatch: pytest.MonkeyPatch) -> None:
+    app()
+    opened: list[str] = []
+
+    def open_url(url: QUrl) -> bool:
+        opened.append(url.toString(QUrl.ComponentFormattingOption.FullyEncoded))
+        return True
+
+    monkeypatch.setattr(QDesktopServices, "openUrl", open_url)
+    dialog = ReportDialog("ScanSnack error report\nApp version: 0.5.0\n", "ScanSnack error report")
+    dialog.send()
+    (url,) = opened
+    assert url.startswith("mailto:scansnack@posteo.de?subject=ScanSnack%20error%20report&body=")
+    assert "App%20version%3A%200.5.0" in url
+    dialog.text.setPlainText("x\n" * 20000)  # too long for a link: shortened, the full text on the clipboard
+    dialog.send()
+    assert QGuiApplication.clipboard().text() == "x\n" * 20000
+    assert "clipboard" in dialog.status.text()

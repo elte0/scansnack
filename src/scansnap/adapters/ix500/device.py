@@ -12,6 +12,7 @@ from PIL import Image
 
 from ...core.images import process
 from ...core.model import ScanSettings, Sheet
+from ...core.report import DeviceDiagnostics
 from . import wire
 from .control import Control, HostIdentity, RegistrationError, default_password
 from .discovery import Heartbeat, ScannerInfo, discover, local_ip_for
@@ -76,6 +77,38 @@ class Device:
         self._poll_stop: threading.Event | None = None  # one event per poller thread
         self._poller: threading.Thread | None = None
         self._scan_ch: ScsiChannel | None = None  # open while a scan runs; disconnect() interrupts it
+        self.inquiry: tuple[str, str, str] | None = None  # vendor, product, firmware from the last registration
+        self.stage = "idle"  # last step started, for error reports
+
+    def diagnostics(self) -> DeviceDiagnostics:
+        """``ports.scanner.Diagnosable``."""
+        info, ident = self.info, self.ident
+        fields = {"Model": info.model if info else "iX500 family (VENS), not identified yet"}
+        if info:
+            fields["Interface version"] = str(info.if_version)
+        if self.inquiry:
+            fields["Product"] = f"{self.inquiry[0]} {self.inquiry[1]}"
+            fields["Firmware"] = self.inquiry[2]
+        fields |= {
+            "Registered": str(self._registered),
+            "Last step": self.stage,
+            "Password": "set" if self.password or (ident and ident.password) else "factory default",
+            "Paired with another host": str(
+                bool(info and ident and info.paired_host_id and info.paired_host_id != ident.host_id.hex())
+            ),
+            "Heartbeat running": str(self._heartbeat is not None and self._heartbeat.alive),
+            "Notification listeners": str(len(self._listeners)),
+            "Paper poller running": str(self._poller is not None and self._poller.is_alive()),
+            "Paper loaded": str(self._paper),
+            "Page size": self.page,
+            "Multifeed": self.multifeed,
+        }
+        private: list[str] = [self.ip, self.password or ""]
+        if info:
+            private += [info.mac, info.name, info.serial, info.paired_ip, info.paired_host_id]
+        if ident:
+            private += [ident.host_id.hex(), ident.mac.hex(), ident.password or ""]
+        return DeviceDiagnostics(fields, tuple(private))
 
     @property
     def connected(self) -> bool:
@@ -130,17 +163,21 @@ class Device:
     def _register(self) -> None:
         if self.ident is None:
             raise ConnectionError("not connected")
+        self.stage = "discovery"
         self.info = self._discover(self.ident.mac)
         # an explicit "" means the scanner has no password; None falls back to the factory default
         password = next((p for p in (self.password, self.ident.password) if p is not None), None)
         if password is None:
             password = default_password(self.info.serial)
         ctl = Control(self.ip, self.ident)
+        self.stage = "registering (0x11)"
         ctl.register(local_ip_for(self.ip), self.info.if_version, password)
+        self.stage = "inquiry after registering"
         with ScsiChannel(self.ip, self.ident.mac, timeout=10.0) as ch:
-            ch.inquiry()
+            self.inquiry = ch.inquiry()
             ch.hardware_status()
         self._registered = True
+        self.stage = "registered"
 
     def connect(self) -> None:
         """Registers if needed and (re)starts whatever of heartbeat, listeners and poller is missing."""
@@ -228,6 +265,7 @@ class Device:
         with self._poll_lock:  # wait for an in-flight C2 of the poller
             pass
         failed = False
+        self.stage = f"scanning ({settings.mode}, {dpi} dpi, page {self.page}, multifeed {self.multifeed})"
         try:
             with ScsiChannel(self.ip, self.ident.mac) as ch:
                 self._scan_ch = ch
@@ -240,6 +278,8 @@ class Device:
             raise
         finally:
             self._scan_ch = None
+            if not failed:
+                self.stage = "scan finished, releasing"
             try:
                 release(self.ip, self.ident.mac)
             except (OSError, ScsiError, wire.ProtocolError) as e:

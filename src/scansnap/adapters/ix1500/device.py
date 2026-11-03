@@ -10,6 +10,7 @@ from collections.abc import Callable, Generator, Iterator
 
 from ...core.images import process
 from ...core.model import ScanSettings, Sheet
+from ...core.report import DeviceDiagnostics
 from . import wire
 from .button import ButtonListener, Notification
 from .control import Control, HostIdentity
@@ -90,6 +91,10 @@ class Session:
         self._announcer.start()
 
     @property
+    def heartbeat_running(self) -> bool:
+        return self._hb is not None
+
+    @property
     def alive(self) -> bool:
         return self.ch is not None and self.ch.polling
 
@@ -148,6 +153,23 @@ class Device:
         self.on_button = on_button
         self._session: Session | None = None
         self._button: ButtonListener | None = None
+        self.stage = "idle"  # last step started, for error reports
+
+    def diagnostics(self) -> DeviceDiagnostics:
+        """``ports.scanner.Diagnosable``."""
+        s = self._session
+        fields = {
+            "Model": "ScanSnap iX1500 (ssNR)",
+            "Connected": str(self.connected),
+            "Last step": self.stage,
+            "Persistent session": str(self.keep_alive),
+            "Scan channel open": str(s is not None and s.ch is not None),
+            "Heartbeat running": str(s is not None and s.heartbeat_running),
+            "Scan button listener": str(self._button is not None),
+            "Own profile ID set": str(bool(self.profile_id)),
+        }
+        private = (self.ip, self.ident.name, self.ident.host_id, self.ident.user_id, self.ident.mac.hex())
+        return DeviceDiagnostics(fields, private + ((self.profile_id,) if self.profile_id else ()))
 
     @property
     def connected(self) -> bool:
@@ -161,8 +183,10 @@ class Device:
         if self._session is not None and self._session.alive:
             return self._session
         self.disconnect()
+        self.stage = "opening session"
         s = Session(self.ctl, self.ip, self.ident, announce_every=ANNOUNCE_EVERY)
         s.open()
+        self.stage = "connected"
         self._session = s
         if self.on_button and self._button is None:
             try:
@@ -185,10 +209,12 @@ class Device:
         The scanner occasionally loses its profiles (e.g. after switching users on the panel).
         """
         # UNVERIFIED: the cause of profiles disappearing without a user switch is unknown.
+        self.stage = "reading profiles (0x0100)"
         profiles = self.ctl.get_users().get("profiles", [])
         if any(p.get("user_id") == self.ident.user_id for p in profiles):
             return
         print("No profile of our own on the scanner – running claim", file=sys.stderr)
+        self.stage = "pairing (claim)"
         self.disconnect()  # pairing needs a connection sequence of its own
         with session(self.ctl, self.ip, self.ident, pair=True):
             self.ctl.claim(self.ctl.local_ip())
@@ -237,6 +263,7 @@ class Device:
         self, ch: ScsiChannel, settings: ScanSettings, select: bool, whiten: bool, *, resume_polling: bool = False
     ) -> Iterator[Sheet]:
         if select:
+            self.stage = "selecting profile"
             prof_id = self.profile_id
             if prof_id:
                 self.ctl.get_users()  # like ScanSnap Home: 0x0100 right before 0x0610
@@ -245,9 +272,11 @@ class Device:
                 prof_id = prof["prof_id"]
                 print(f"Profile: {prof.get('prof_name')} ({prof.get('user_name')}, {prof_id})", file=sys.stderr)
             self.ctl.select_profile(prof_id)
+        self.stage = "starting scan"
         if not ch.stop_polling():
             raise ConnectionError("scanner does not respond to C2")
         try:
+            self.stage = f"scanning ({settings.mode}, {settings.dpi} dpi, {'duplex' if settings.duplex else 'simplex'})"
             for sheet in Scanner(ch).scan(settings):
                 if self.rotate or self.crop or whiten:
 
@@ -256,6 +285,7 @@ class Device:
 
                     sheet = Sheet(fix(sheet.front), sheet.back and fix(sheet.back), sheet.info)
                 yield sheet
+            self.stage = "scan finished"
         finally:
             if resume_polling:
                 ch.start_polling()  # like ScanSnap Home: continue C2 after the scan

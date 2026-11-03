@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterator
 from typing import Protocol, runtime_checkable
 
 from ..core.model import FoundScanner, ScanSettings, Sheet
+from ..core.report import DeviceDiagnostics
 
 
 @runtime_checkable
@@ -14,6 +15,15 @@ class PaperSensor(Protocol):
 
     def paper_loaded(self) -> bool | None:
         """True/False from the last status, None if unknown (not connected, scanning, no answer). Never blocks."""
+        ...
+
+
+@runtime_checkable
+class Diagnosable(Protocol):
+    """Optional for a ``ScannerPort``: device and connection state for an error report (``core.report``)."""
+
+    def diagnostics(self) -> DeviceDiagnostics:
+        """Only what is known already (model, firmware, session state, last step). Never blocks."""
         ...
 
 
