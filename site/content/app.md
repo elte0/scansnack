@@ -44,6 +44,10 @@ described in the [protocol write-ups](protocol.md).
   reorder pages (drag and drop) and rename it; *Save Changes* rewrites the PDF.
 - **Clear help for paper problems** – paper jam, double feed, open cover and similar errors come with a
   hint on what to do.
+- **Error reports in one click** – when a scan fails unexpectedly, *Send Error Report …* opens a report
+  with everything needed to find the problem (app version, system, scanner model and state, error and
+  recent log), with IP and MAC addresses, serial numbers, names, folders, file names and passwords
+  removed. Check or edit it, then send it with your mail program; nothing is sent without you.
 - **Light and dark mode** – follows the system setting.
 - **Updates with one click** – on start the app checks GitHub for a new release and offers to install it;
   it then restarts as the new version. *Later* asks again next time, *Skip This Version* waits for the

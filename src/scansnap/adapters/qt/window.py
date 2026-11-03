@@ -14,6 +14,7 @@ import traceback
 import uuid
 from collections.abc import Callable
 from pathlib import Path
+from types import TracebackType
 from typing import cast
 
 from PySide6.QtCore import QEvent, QObject, QSettings, QSize, QStandardPaths, Qt, QThread, QTimer, QUrl, Signal, Slot
@@ -52,13 +53,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ...core import report as error_report
 from ...core.document import FEED_HELP, PRESETS, Entry, Preset, ScanPage, default_name, thumbnail
 from ...core.errors import FeedError, NoPaper
 from ...core.images import is_blank
 from ...core.model import FoundScanner, ScanSettings
 from ...ports.output import OutputPort
-from ...ports.scanner import PaperSensor, ScannerLocator, ScannerPort
+from ...ports.scanner import Diagnosable, PaperSensor, ScannerLocator, ScannerPort
 from . import primer
+from .report import ReportDialog, qt_fields
 from .updates import UpdateChecker, Updates
 
 APP_NAME = "ScanSnack"
@@ -102,6 +105,8 @@ class ScanWorker(QObject):
         self.locator = locator
         self.device: ScannerPort | None = None
         self.device_ip = ""
+        self.last_preset: Preset | None = None
+        self.last_traceback = ""  # of the last unexpected scan error, for the error report
 
     def _device(self) -> ScannerPort:
         """Persistently connected device for the current IP (disconnect the old one when the IP changes)."""
@@ -133,6 +138,7 @@ class ScanWorker(QObject):
     @Slot(object)
     def scan(self, preset: Preset) -> None:
         count = skipped = 0
+        self.last_preset, self.last_traceback = preset, ""
         try:
             device = self._device()
             self.status.emit("Scanning …" if device.connected else "Connecting to the scanner …")
@@ -158,10 +164,12 @@ class ScanWorker(QObject):
                 text += f"\n\nThe {count} page(s) scanned before are kept."
             self.done.emit(text, False)
         except OSError as e:
-            traceback.print_exc(file=sys.stderr)
+            self.last_traceback = traceback.format_exc()
+            print(self.last_traceback, file=sys.stderr, end="")
             self.done.emit(f"Cannot reach the scanner at {self.ip}: {e}", True)
         except Exception as e:  # noqa: BLE001 – errors go to the UI as a message
-            traceback.print_exc(file=sys.stderr)
+            self.last_traceback = traceback.format_exc()
+            print(self.last_traceback, file=sys.stderr, end="")
             self.done.emit(f"Scan failed: {e}", False)
 
 
@@ -343,8 +351,19 @@ class MainWindow(QMainWindow):
     request_connect = Signal()
     reachable_checked = Signal(bool)  # result of the check at startup (from a background thread)
 
-    def __init__(self, library: OutputPort, locator: ScannerLocator, updates: Updates | None = None):
+    def __init__(
+        self,
+        library: OutputPort,
+        locator: ScannerLocator,
+        updates: Updates | None = None,
+        *,
+        log: error_report.LogBuffer | None = None,
+        version: str = "unknown",
+    ):
         super().__init__()
+        self.log = log
+        self.version = version
+        self.last_error = ""
         self.settings = app_settings()
         self.setWindowTitle(APP_NAME)
         self.resize(1240, 760)
@@ -492,9 +511,9 @@ class MainWindow(QMainWindow):
         menu.addAction(self._action("Connect Scanner …", "Ctrl+K", lambda: self.ask_scanner()))
         self.updates = updates
         self.update_checker: UpdateChecker | None = None
+        help_menu = self.menuBar().addMenu("Help")
         if updates is not None:
             self.update_checker = checker = UpdateChecker(self, updates, self.settings, self.restart_for_update)
-            help_menu = self.menuBar().addMenu("Help")
             check = self._action("Check for Updates …", None, lambda: checker.check(manual=True))
             check.setMenuRole(QAction.MenuRole.ApplicationSpecificRole)  # macOS: into the app menu
             help_menu.addAction(check)
@@ -502,6 +521,8 @@ class MainWindow(QMainWindow):
             auto.setChecked(checker.check_on_start)
             auto.toggled.connect(checker.set_check_on_start)
             help_menu.addAction(auto)
+            help_menu.addSeparator()
+        help_menu.addAction(self._action("Send Error Report …", None, lambda: self.show_report()))
         self.pages.itemSelectionChanged.connect(self._update)
 
         self.statusBar().showMessage("Ready.")
@@ -852,10 +873,56 @@ class MainWindow(QMainWindow):
         if not error:
             return
         self.statusBar().showMessage(error)
+        self.last_error = error
         if connection_problem:
             self.ask_scanner(error)
+        elif self.worker.last_traceback:  # unexpected: offer a report
+            self.error_box("Scan", error)
         else:
             QMessageBox.warning(self, "Scan", error)
+
+    # --- error reports ----------------------------------------------------------------
+    def error_box(self, title: str, text: str, details: str = "") -> None:
+        """Warning with a button that opens the error report for this error."""
+        box = QMessageBox(QMessageBox.Icon.Warning, title, text, QMessageBox.StandardButton.Ok, self)
+        report = box.addButton("Send Error Report …", QMessageBox.ButtonRole.ActionRole)
+        box.exec()
+        if box.clickedButton() is report:
+            self.show_report(text, details)
+
+    def report_text(self, error: str | None = None, details: str | None = None) -> str:
+        """The error report for ``error`` (default: the last scan error), personal data removed."""
+        worker = self.worker
+        fields = qt_fields()
+        if (p := worker.last_preset) is not None:
+            fields["Last scan"] = (
+                f"{p.name}: {p.mode}, {p.dpi} dpi, {'duplex' if p.duplex else 'simplex'}, "
+                f"skip blank {p.skip_blank}, whiten {p.whiten}"
+            )
+        device = worker.device
+        diagnostics = device.diagnostics() if isinstance(device, Diagnosable) else None
+        if diagnostics is None and device is not None:
+            diagnostics = error_report.DeviceDiagnostics({"Adapter": type(device).__name__})
+        private = [worker.ip, str(self.folder)]
+        for doc in [*self.docs.values(), *self.drafts]:
+            private += [doc.name, doc.entry.file.stem if doc.entry else ""]
+        return error_report.build(
+            error_report.ReportInput(
+                self.version,
+                self.last_error if error is None else error,
+                worker.last_traceback if details is None else details,
+                fields,
+                diagnostics,
+                self.log.text() if self.log else "",
+                private,
+            )
+        )
+
+    def show_report(self, error: str | None = None, details: str | None = None) -> None:
+        text = self.report_text(error, details)
+        first = (self.last_error if error is None else error).splitlines()
+        subject = f"ScanSnack {self.version} error report" + (f": {first[0][:80]}" if first else "")
+        ReportDialog(text, error_report.scrub(subject, [self.worker.ip]), self).exec()
 
     # --- pages ------------------------------------------------------------------------
     def rotate_selected(self, degrees: int) -> None:
@@ -1038,21 +1105,45 @@ def adopt_previous(path: Path, previous_name: str) -> None:
         old.rename(path)
 
 
+def install_excepthook(window: MainWindow) -> None:
+    """An unexpected error in the GUI thread: print it (into the log) and offer an error report."""
+    showing = False
+
+    def hook(kind: type[BaseException], error: BaseException, tb: TracebackType | None) -> None:
+        nonlocal showing
+        details = "".join(traceback.format_exception(kind, error, tb))
+        print(details, file=sys.stderr, end="")
+        if showing or not issubclass(kind, Exception):
+            return
+        showing = True
+        try:
+            window.last_error = f"Unexpected error: {error}"
+            window.error_box("ScanSnack", f"Something went wrong: {error}", details)
+        finally:
+            showing = False
+
+    sys.excepthook = hook
+
+
 def run(
     locator: ScannerLocator,
     make_output: Callable[[Path], OutputPort],
     ip: str | None = None,
     qt_args: list[str] | None = None,
     updates: Updates | None = None,
+    log: error_report.LogBuffer | None = None,
+    version: str = "unknown",
 ) -> int:
-    """Starts the UI. ``make_output`` gets the app data directory and returns the document library."""
+    """Starts the UI. ``make_output`` gets the app data directory and returns the document library.
+    ``log`` holds the recent stderr output for error reports."""
     app = QApplication([sys.argv[0], *(qt_args or [])])
     app.setApplicationName(APP_NAME)
     app.setOrganizationName("scansnap-bridge")
     if ip:
         app_settings().setValue("ip", ip)
     primer.apply()
-    window = MainWindow(make_output(data_dir()), locator, updates)
+    window = MainWindow(make_output(data_dir()), locator, updates, log=log, version=version)
+    install_excepthook(window)
     window.show()
     QTimer.singleShot(200, window.start)
     return app.exec()

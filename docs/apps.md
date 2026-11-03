@@ -86,6 +86,14 @@ to the release page); *Check for Updates on Start* switches the check off.
 - Tested: unit tests (including the real `sh` helper swapping a fake app) and an update of a real Linux
   build; the macOS DMG path and the Windows PowerShell helper are not yet tried on a real system.
 
+**Error reports** (ADR 0008): after an unexpected scan error (not paper problems) the message box has a
+*Send Error Report …* button, and *Help → Send Error Report …* is always there; unexpected errors in the
+window open the same box. The report (`core/report.py`) holds app version, OS, Python/Qt, the scanner
+adapter's diagnostics (`ports.scanner.Diagnosable`: model, firmware if known, connection state, last
+protocol step), the error with traceback and the last 400 stderr lines; personal data is removed before
+it is shown. The dialog (`adapters/qt/report.py`) lets the user edit it and opens a `mailto:` message to
+scansnack@posteo.de (shortened on Windows, the full text on the clipboard), or copies or saves it.
+
 **Version:** the only source is `[project] version` in `pyproject.toml` (major.minor.patch). The spec and
 `uv.lock` read it; `tools/bump_version.py` also updates `ios/pyproject.toml` (`tests/test_version.py`
 checks that both match).

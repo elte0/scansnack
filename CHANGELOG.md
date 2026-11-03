@@ -9,6 +9,13 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Added
+
+- Error reports: after an unexpected scan error, or any time from *Help → Send Error Report …*, the app
+  shows a detailed report (app version, system, scanner model and state, error and recent log) with
+  personal data removed. You can check and edit it, then send it to scansnack@posteo.de with your mail
+  program in one click, copy it or save it.
+
 ## [0.5.0] - 2026-11-01
 
 ### Added
