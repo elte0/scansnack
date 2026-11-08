@@ -15,6 +15,7 @@ models and what they share. Code: `src/scansnap/adapters/ix500/`, on top of the 
 |---|---|---|
 | Captures | ScanSnap Home 4.1.0 with an iX500 (firmware 0U00): start-up, registration, scans, Scan button, power cycles | no (they contain scanned documents) |
 | Live tests | this client against the same iX500 on macOS | no |
+| Live tests, second device | this client against another iX500 (firmware 0M00) that a second computer with ScanSnap Home also uses, over USB and Wi-Fi | no |
 | Static analysis | ScanSnap Home's iX500 Wi-Fi code: parameter blocks, page sizes, password encoding | – (only facts and constants, no code) |
 | Third-party write-up | [bramheerink/scansnap](https://github.com/bramheerink/scansnap), commit `5706688` (GPL-2.0) | yes |
 
@@ -64,12 +65,12 @@ answered. Reply, 132 B:
 | Offset | Content |
 |---|---|
 | 0 | `VENS` |
-| 8 | u16 interface version (6), u16 device type (0x30) |
+| 8 | u16 interface version (6 on firmware 0U00, 4 on 0M00), u16 device type (0x30) |
 | 12 | `ffffffff` |
 | 16 | scanner IP |
 | 20, 24 | u32 scan port 53218, u32 control port 53219 |
 | 28 | scanner MAC |
-| 36 | u32, 4 while a host is registered, 1 right after power on (UNVERIFIED: state) |
+| 36 | u32, 4 while a host is registered, 1 right after power on or after the USB cable was unplugged, 2 while connected over USB (UNVERIFIED: state) |
 | 40 | name, 64 B, e.g. `iX500-A0XX012345` (model and serial) |
 | 104 | model, 16 B, `ScanSnap iX500  ` |
 | 120 | IP of the registered host |
@@ -96,15 +97,27 @@ ScanSnap Home sends it at start-up and after every power-on notice. Frame 0x80 B
 | 76 | 8 B host ID |
 | 84 | i32 time zone bias in seconds (−UTC offset), only for interface version > 3 |
 
-Reply 20 B: `u32 length | VENS | i32 status`. Statuses seen live:
+Reply 20 B: `u32 length | VENS | i32 status | u32 | u32 0`. On firmware 0M00 the u32 at 12 is
+`0x00040000` in every reply, accepted or not (UNVERIFIED: the interface version). Statuses seen live:
 
 | Status | When |
 |---|---|
 | 0 | accepted |
 | −2 | registration without the password |
+| −3 | wrong password |
+| −4 | the scanner is in use by another host, over USB or Wi-Fi |
 | −7 | host ID that is not in the scanner's host table |
 
-UNVERIFIED: the other negative statuses (ScanSnap Home knows −1 to −7) and the status for a wrong password.
+−4 was seen in two situations. While the scanner was connected over USB to another computer, discovery
+showed state 2 and no registered host (0.0.0.0); after unplugging the cable it showed state 1 and the next
+registration was accepted. After a power cycle, ScanSnap Home on that computer registered over Wi-Fi
+first; discovery showed state 4 with that computer's IP, and every registration was answered −4 for over
+a minute. A `D6` release on the scan channel, with this client's MAC or the other host's, did not help:
+the scanner sends the greeting and closes the connection without a reply. The third-party write-up names
+−3 "unknown pairing key" and −4 "session busy / stale session", which matches.
+
+UNVERIFIED: −1, −5 and −6 (ScanSnap Home knows −1 to −7); whether −4 needs ScanSnap Home running on the
+USB host, and when a host registered over Wi-Fi stops blocking others.
 The scanner also accepts the iX1500's 352 B body (header `01 00 1e 00`) once the password field is set;
 the client sends the 96 B body ScanSnap Home sends.
 
@@ -207,11 +220,16 @@ or black and white on the host, as it also crops, deskews and drops blank pages.
 
 Not supported on the iX500 (sense 5/20/00): `dd` (read time) and the `dc` host-ID commands of newer models.
 
+Firmware 0M00 also answers both `e7` queries and `eb` with sense 5/20/00; `d9` and `e6` work there
+(three equal counters, `10 1e 00 00`). Its firmware is still in INQUIRY: revision `0M00` after the
+product `ScanSnap iX500  `. The serial number is then only in the discovery name.
+
 ## Open questions
 
-1. Negative 0x11 statuses other than −2 and −7, and the control 0x30 status.
+1. Negative 0x11 statuses −1, −5 and −6, the exact conditions of −4, and the control 0x30 status.
 2. Images larger than one read (0x300000 B): the client repeats the read, never observed.
 3. Labels of the second and third counters.
 4. Sense texts other than 3/80/01 and 3/80/03.
 5. The E6 power-off block: whether byte 1 is minutes and what byte 0 (0x10) means.
 6. The one-byte image index after 128 sheets in one job (the client wraps it at 256).
+7. Discovery state 2: seen only while connected over USB; other meanings unknown.

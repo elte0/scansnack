@@ -20,18 +20,26 @@ SCANNER_TIMEOUT = 0x1E  # sent by ScanSnap Home in every registration
 PASSWORD_KEY = "pFusCANsNapFiPfu"
 
 
-# Seen live; UNVERIFIED: the other negative statuses and the one for a wrong password.
+IN_USE = -4
+# Seen live; UNVERIFIED: the other negative statuses.
 REGISTRATION_STATUS = {
     -2: "the scanner wants its Wi-Fi password",
+    -3: "wrong Wi-Fi password",
+    IN_USE: "the scanner is in use by another computer (over Wi-Fi or USB). "
+    "Quit ScanSnap Home there or unplug the scanner's USB cable, then restart the scanner and try again",
     -7: "this host ID is not paired with the scanner (pairing is done over USB)",
 }
 
 
 class RegistrationError(Exception):
-    def __init__(self, status: int):
+    def __init__(self, status: int, holder: str | None = None):
+        """``holder``: IP of the host the scanner reports as registered, if known."""
         reason = REGISTRATION_STATUS.get(status, "unknown reason")
+        if status == IN_USE and holder:
+            reason = reason.replace("another computer", f"another computer ({holder})", 1)
         super().__init__(f"registration rejected, status {status}: {reason}")
         self.status = status
+        self.holder = holder
 
 
 @dataclass(frozen=True)

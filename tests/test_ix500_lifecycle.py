@@ -228,6 +228,36 @@ def test_empty_password_means_no_password(tmp_path: Path, monkeypatch: pytest.Mo
         assert sent[-1] == expected
 
 
+def test_scanner_in_use_names_the_other_computer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from scansnap.adapters.ix500.control import RegistrationError
+    from scansnap.adapters.ix500.discovery import ScannerInfo
+
+    class Busy:
+        def __init__(self, *_args: object) -> None:
+            pass
+
+        def register(self, _ip: str, _ver: int, _password: str | None) -> None:
+            raise RegistrationError(-4)
+
+    monkeypatch.setattr(device_mod, "Control", Busy)
+    monkeypatch.setattr(device_mod, "local_ip_for", _zero_mac)
+    # registered over Wi-Fi: discovery names the other host; over USB it shows 0.0.0.0
+    for paired_ip, expected in (("192.0.2.7", "another computer (192.0.2.7)"), ("0.0.0.0", "another computer (over")):
+        info = ScannerInfo(
+            "127.0.0.1", 53218, 53219, "", "iX500-A0XX012345", "ScanSnap iX500", 4, paired_ip, "", "A0XX012345"
+        )
+        d = Device("127.0.0.1", tmp_path / "id.json")
+        d.ident = IDENT
+
+        def known(_mac: bytes, info: ScannerInfo = info) -> ScannerInfo:
+            return info
+
+        monkeypatch.setattr(d, "_discover", known)
+        with pytest.raises(RegistrationError, match=r"status -4") as err:
+            d._register()  # pyright: ignore[reportPrivateUsage]
+        assert expected in str(err.value)
+
+
 class _NoChannel:
     def __init__(self, *_args: object, **_kwargs: object) -> None:
         pass

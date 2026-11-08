@@ -9,6 +9,12 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Changed
+
+- iX500: when another computer is using the scanner over Wi-Fi or USB, the error now says so, names that
+  computer's address if the scanner reports it, and explains what to do instead of "unknown reason". A
+  wrong scanner password is reported as such.
+
 ## [0.6.0] - 2026-11-03
 
 ### Added

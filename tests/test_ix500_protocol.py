@@ -153,4 +153,7 @@ def test_read_info_decodes_serial_and_counters() -> None:
 def test_registration_errors_name_the_known_reasons() -> None:
     assert "password" in str(control.RegistrationError(-2))
     assert "not paired" in str(control.RegistrationError(-7))
-    assert "unknown reason" in str(control.RegistrationError(-4))
+    assert "wrong Wi-Fi password" in str(control.RegistrationError(-3))
+    assert "in use by another computer (over" in str(control.RegistrationError(-4))
+    assert "another computer (192.0.2.7)" in str(control.RegistrationError(-4, holder="192.0.2.7"))
+    assert "unknown reason" in str(control.RegistrationError(-1))
