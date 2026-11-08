@@ -14,7 +14,7 @@ from ...core.images import process
 from ...core.model import ScanSettings, Sheet
 from ...core.report import DeviceDiagnostics
 from . import wire
-from .control import Control, HostIdentity, RegistrationError, default_password
+from .control import IN_USE, Control, HostIdentity, RegistrationError, default_password
 from .discovery import Heartbeat, ScannerInfo, discover, local_ip_for
 from .identity import DEFAULT_PATH, load_or_create, local_mac
 from .notify import BUTTON, POWER_OFF, POWER_ON, STARTUP_PORT, Listener, Notification
@@ -171,7 +171,13 @@ class Device:
             password = default_password(self.info.serial)
         ctl = Control(self.ip, self.ident)
         self.stage = "registering (0x11)"
-        ctl.register(local_ip_for(self.ip), self.info.if_version, password)
+        try:
+            ctl.register(local_ip_for(self.ip), self.info.if_version, password)
+        except RegistrationError as e:
+            holder = self.info.paired_ip if self.info.paired_ip not in ("", "0.0.0.0") else None
+            if e.status != IN_USE or holder is None:
+                raise
+            raise RegistrationError(e.status, holder) from e
         self.stage = "inquiry after registering"
         with ScsiChannel(self.ip, self.ident.mac, timeout=10.0) as ch:
             self.inquiry = ch.inquiry()
