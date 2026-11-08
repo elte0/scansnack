@@ -9,6 +9,8 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-08
+
 ### Changed
 
 - iX500: when another computer is using the scanner over Wi-Fi or USB, the error now says so, names that
@@ -120,7 +122,8 @@ First release with ready-made apps.
   scan dialog).
 - Protocol write-up, disclaimer and website on GitHub Pages.
 
-[Unreleased]: https://github.com/elte0/scansnack/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/elte0/scansnack/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/elte0/scansnack/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/elte0/scansnack/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/elte0/scansnack/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/elte0/scansnack/compare/v0.4.1...v0.4.2
