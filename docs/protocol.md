@@ -22,6 +22,7 @@ Fujitsu. See the [disclaimer](disclaimer.md).
 |---|---|---|---|
 | ScanSnap iX1500 | [iX1500 protocol](protocol-ix1500.md) | `src/scansnap/adapters/ix1500/` | tested live |
 | ScanSnap iX500 | [iX500 protocol](protocol-ix500.md) | `src/scansnap/adapters/ix500/` | tested live (firmware 0U00) |
+| ScanSnap iX1300 | [iX1300 protocol](protocol-ix1300.md) | | front-slot scan captured |
 
 Each write-up is the single source of truth for its model, including its own list of open questions.
 Which other ScanSnap models exist and why they are not supported is in the [model list](models.md).
@@ -53,6 +54,9 @@ Code shared by both models (framing, SCSI tunnel, discovery probes, UDP notifica
 | Scan button | UDP datagram from the touch panel | UDP notification 0x01 to the registered host |
 | C2 status length | 0x30 B | 0x20 B |
 | Gray scans | gray D4 block (JPEG still has three channels) | always color, converted on the host |
+
+The iX1300 uses `VENS` framing and the iX500 scan notification layout, with a 48-byte C2 status
+response. The [iX1300 write-up](protocol-ix1300.md) describes the observed scan channels.
 
 Details and evidence are in the write-ups.
 

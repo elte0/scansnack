@@ -9,6 +9,10 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Added
+
+- Protocol notes for front-slot scans over Wi-Fi on the ScanSnap iX1300.
+
 ## [0.6.1] - 2026-11-08
 
 ### Changed
