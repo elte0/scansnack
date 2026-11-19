@@ -22,7 +22,7 @@ Fujitsu. See the [disclaimer](disclaimer.md).
 |---|---|---|---|
 | ScanSnap iX1500 | [iX1500 protocol](protocol-ix1500.md) | `src/scansnap/adapters/ix1500/` | tested live |
 | ScanSnap iX500 | [iX500 protocol](protocol-ix500.md) | `src/scansnap/adapters/ix500/` | tested live (firmware 0U00) |
-| ScanSnap iX1300 | [iX1300 protocol](protocol-ix1300.md) | | front-slot scan captured |
+| ScanSnap iX1300 | [iX1300 protocol](protocol-ix1300.md) | | reconnect and front-slot scan captured |
 
 Each write-up is the single source of truth for its model, including its own list of open questions.
 Which other ScanSnap models exist and why they are not supported is in the [model list](models.md).

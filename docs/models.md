@@ -10,7 +10,7 @@ models without Wi-Fi cannot be supported. How the supported models speak over Wi
 | ScanSnap iX1600 | Wi-Fi + USB | Not supported | Wi-Fi protocol not examined yet; captures welcome. |
 | ScanSnap iX1500 | Wi-Fi + USB | Supported | Developed and tested on this model; see the [iX1500 protocol](protocol-ix1500.md). |
 | ScanSnap iX1400 | USB | Not supported | USB only; ScanSnack talks to scanners over the network. |
-| ScanSnap iX1300 | Wi-Fi + USB | Not supported | [Front-slot scan protocol documented](protocol-ix1300.md). Host registration needs verification. |
+| ScanSnap iX1300 | Wi-Fi + USB | Not supported | [Front-slot scan protocol documented](protocol-ix1300.md). Reconnect and scan captured. A replacement host needs live verification. |
 | ScanSnap iX500 | Wi-Fi + USB | Supported | Tested on firmware 0U00; needs a one-time Wi-Fi setup with ScanSnap Home, see below. See the [iX500 protocol](protocol-ix500.md). |
 | ScanSnap iX100 | Wi-Fi + USB | Not supported | Wi-Fi protocol not examined yet; captures welcome. |
 | ScanSnap SV600 | USB | Not supported | USB only; ScanSnack talks to scanners over the network. |

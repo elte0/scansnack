@@ -4,9 +4,17 @@ A capture of ScanSnap Home receiving one Return Scan over Wi-Fi shows the iX500'
 
 This is an independent interoperability write-up. See the [disclaimer](disclaimer.md) and the [protocol overview](protocol.md).
 
-## Source
+## Sources
 
-One private packet capture of a single test sheet fed through the iX1300's front Return Scan slot. The capture covers idle polling, a scan notification and the resulting scan. The host ran ScanSnap Home on macOS. Replaying the image reads through ScanSnack's iX500 reader at commit `eb80600` decoded both JPEGs. The raw capture contains private network and image data.
+Two private packet captures of ScanSnap Home on macOS. The first covers idle polling and one successful front-slot scan. Replaying its image reads through ScanSnack's iX500 reader at commit `eb80600` decoded both JPEGs. The second covers reconnecting a configured host and a scan that ended in a paper jam. The captures may contain private network and image data.
+
+## Discovery and registration
+
+On wake, the scanner broadcast 48-byte `VENS` notifications with event `0x21` to UDP port 53220. ScanSnap Home sent the three discovery probe variants documented in the [iX1500 write-up](protocol-ix1500.md#discovery-and-heartbeat-udp-52217). It received a 144-byte `VENS` discovery reply with interface version 16. The iX500 discovery parser decoded its shared fields. The serial at offsets 132–143 matched the suffix of the device name.
+
+The control channel on TCP 53219 saw `0x13 → 0x11 → 0x62 → 0x30`. The scanner accepted the `0x11` registration with status 0. The request used the same host ID as the discovery reply, notification port 55265 and a zero password flag and field. Rebuilding it with the [iX500's 96-byte registration layout](protocol-ix500.md#registration-control-0x11) matched every byte of the captured body. The 20-byte reply began with `00000014 56454e53 00000000 00100000`.
+
+The `0x62` request had a 16-byte body and received a 28-byte reply. Its purpose and whether a client needs it are open.
 
 ## Notifications and polling
 
@@ -47,9 +55,13 @@ D4 (80 bytes):
 00000000000000000000000000000000
 ```
 
+## Paper jam
+
+The jammed scan used the same E9 and D4 settings as the successful scan. It received status 2 (CHECK CONDITION) on its first image read and returned only the two-byte image header. The following REQUEST SENSE returned `f0 00 23 00 2f ff d4 0a 00 00 00 00 80 01 00 00 00 00`. The shared SCSI parser decoded sense key/ASC/ASCQ `3/80/01` with end-of-image clear, the paper jam path. There was no JPEG payload. A later `D6` on a separate connection returned status 0.
+
 ## Open questions
 
-- The capture contains no traffic on TCP 53219. The registration request and what the scanner requires to notify a new host need a separate capture.
+- Registration was observed with an already configured host. A different host's address and interface MAC, with the observed paired host ID, still need a live test.
 - The notification does not distinguish paper insertion from a physical Scan button press. Those actions need separate observations.
 - The capture covers one front-slot profile. A top-feeder scan with the same profile would help distinguish feeder selection from other model-specific settings.
-- The capture ends during status polling after the empty-feeder response. It does not establish whether ScanSnap Home sends a separate release command later.
+- The successful capture ends during status polling after the empty-feeder response. A separate `D6` was observed during reconnect and after the jam, but the successful scan does not establish its release sequence.
