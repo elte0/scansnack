@@ -8,9 +8,9 @@ import threading
 import time
 from collections.abc import Callable, Generator, Iterator
 
-from ...core.fixes import Fixes
+from ...core.fixes import IX1500_HOLD_PAPER_FAULTS, Fixes
 from ...core.images import process
-from ...core.model import ScanSettings, Sheet
+from ...core.model import Decide, Fault, ScanSettings, Sheet
 from ...core.report import DeviceDiagnostics
 from . import wire
 from .button import ButtonListener, Notification
@@ -49,6 +49,7 @@ class Session:
         self._hb: Heartbeat | None = None
         self._stop = threading.Event()
         self._announcer: threading.Thread | None = None
+        self.host_ip: str | None = None
 
     def open(self) -> ScsiChannel:
         ch = ScsiChannel(self.ip, self.ident.mac)
@@ -57,7 +58,7 @@ class Session:
             ch.start_polling()
             host_ip = None
             if self.handshake:
-                host_ip = self.ctl.handshake() if self.pair else self.ctl.connect()
+                host_ip = self.host_ip = self.ctl.handshake() if self.pair else self.ctl.connect()
                 print(f"Connected (host {host_ip}, ID {self.ident.host_id})", file=sys.stderr)
         finally:
             ch.close()
@@ -78,6 +79,11 @@ class Session:
             raise
         time.sleep(1.0)
         return self.ch
+
+    def announce(self) -> None:
+        """0x0210 now, e.g. while a scan holds ``lock`` and waits for the user (ScanSnap Home keeps sending it)."""
+        if self.host_ip:
+            self.ctl.announce(self.host_ip)
 
     def _start_announcer(self, host_ip: str) -> None:
         def run() -> None:
@@ -157,6 +163,12 @@ class Device:
         self._session: Session | None = None
         self._button: ButtonListener | None = None
         self.stage = "idle"  # last step started, for error reports
+        self.decide: Decide | None = None
+        self._held = False  # the current scan waited for the user after a paper fault
+
+    def set_fault_handler(self, decide: Decide | None) -> None:
+        """``ports.scanner.HoldsBatch``: the default ``decide`` for :meth:`scan`."""
+        self.decide = decide
 
     def diagnostics(self) -> DeviceDiagnostics:
         """``ports.scanner.Diagnosable``."""
@@ -232,17 +244,23 @@ class Device:
         pair: bool = False,
         handshake: bool = True,
         heartbeat: bool = True,
+        decide: Decide | None = None,
     ) -> Iterator[Sheet]:
         """Scans all sheets in the feeder (``ports.scanner.ScannerPort``). Raises NoPaper if the feeder is empty.
 
         ``whiten`` sets the paper color to white (removes the background). ``select``, ``pair``, ``handshake``
         and ``heartbeat`` are switches for experiments (CLI) and only apply without ``keep_alive``.
+        ``decide`` (default: the one from :meth:`set_fault_handler`): see :meth:`scanner.Scanner.scan` (a held
+        batch after a paper fault, with the fix ``IX1500_HOLD_PAPER_FAULTS``). A held batch is not retried after a
+        connection loss, because the scanner would feed the next sheet without the user's answer.
         """
+        decide = decide or self.decide
+        self._held = False
         if not self.keep_alive:
             if select and not self.profile_id:
                 self.ensure_profile()
             with session(self.ctl, self.ip, self.ident, pair=pair, handshake=handshake, heartbeat=heartbeat) as ch:
-                yield from self._scan(ch, settings, select, whiten)
+                yield from self._scan(ch, settings, select, whiten, decide=decide)
             return
         for attempt in range(2):
             delivered = False
@@ -253,19 +271,36 @@ class Device:
                 if s.ch is None:
                     raise ConnectionError("session without a scan channel")
                 with s.lock:
-                    for sheet in self._scan(s.ch, settings, select, whiten, resume_polling=True):
+                    for sheet in self._scan(
+                        s.ch,
+                        settings,
+                        select,
+                        whiten,
+                        resume_polling=True,
+                        decide=decide,
+                        on_hold_tick=s.announce,
+                    ):
                         delivered = True
                         yield sheet
                 return
             except (OSError, wire.ProtocolError):
                 self.disconnect()
-                if delivered or attempt:
+                if delivered or attempt or self._held:
                     raise
                 print("Connection to the scanner lost – reconnecting", file=sys.stderr)
 
     def _scan(
-        self, ch: ScsiChannel, settings: ScanSettings, select: bool, whiten: bool, *, resume_polling: bool = False
+        self,
+        ch: ScsiChannel,
+        settings: ScanSettings,
+        select: bool,
+        whiten: bool,
+        *,
+        resume_polling: bool = False,
+        decide: Decide | None = None,
+        on_hold_tick: Callable[[], None] | None = None,
     ) -> Iterator[Sheet]:
+        self._held = False
         if select:
             self.stage = "selecting profile"
             prof_id = self.profile_id
@@ -281,13 +316,22 @@ class Device:
             raise ConnectionError("scanner does not respond to C2")
         try:
             self.stage = f"scanning ({settings.mode}, {settings.dpi} dpi, {'duplex' if settings.duplex else 'simplex'})"
-            for sheet in Scanner(ch).scan(settings):
+            scanning = self.stage
+
+            def on_hold(fault: Fault) -> None:
+                self._held = True
+                self.stage = f"waiting for the user ({fault.reason} on sheet {fault.sheet})"
+
+            scanner = Scanner(ch, on_hold=on_hold, on_hold_tick=on_hold_tick)
+            hold = self.fixes.enabled(IX1500_HOLD_PAPER_FAULTS)
+            for sheet in scanner.scan(settings, hold=hold, decide=decide):
                 if self.rotate or self.crop or whiten:
 
                     def fix(jpeg: bytes) -> bytes:
                         return process(jpeg, settings.dpi, rotate=self.rotate, crop=self.crop, whiten_background=whiten)
 
-                    sheet = Sheet(fix(sheet.front), sheet.back and fix(sheet.back), sheet.info)
+                    sheet = Sheet(fix(sheet.front), sheet.back and fix(sheet.back), sheet.info, sheet.fault)
+                self.stage = scanning
                 yield sheet
             self.stage = "scan finished"
         finally:

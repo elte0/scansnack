@@ -26,9 +26,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from xml.sax.saxutils import escape
 
 from ...core.errors import FeedError, NoPaper
-from ...core.model import SCAN_HEIGHT_1200, SCAN_WIDTH_1200, ScanSettings
+from ...core.model import SCAN_HEIGHT_1200, SCAN_WIDTH_1200, Fault, FaultDecision, ScanSettings
 from ...core.pdf import jpeg_info, jpegs_to_pdf
-from ...ports.scanner import ScannerPort
+from ...ports.scanner import HoldsBatch, ScannerPort
 
 ESCL_VERSION = "2.63"
 RESOLUTIONS = (150, 300, 600)
@@ -155,6 +155,11 @@ class Job:
         )
 
 
+def _end_batch(_fault: Fault) -> FaultDecision:
+    """A network scan cannot wait for an answer on the touch panel: a double feed or a jam ends the job."""
+    return FaultDecision(resume=False, keep=False)
+
+
 class EsclService:
     """Job management without HTTP; one scan at a time."""
 
@@ -173,6 +178,8 @@ class EsclService:
         self.jobs: dict[str, Job] = {}
         self.adf_empty = False
         self._busy = threading.Lock()
+        if isinstance(scanner, HoldsBatch):
+            scanner.set_fault_handler(_end_batch)
 
     @property
     def busy(self) -> bool:

@@ -21,7 +21,7 @@ from scansnap.adapters.qt.report import ReportDialog
 from scansnap.core.document import Entry, Preset, ScanPage, thumbnail
 from scansnap.core.errors import FeedError, PasswordRejected
 from scansnap.core.fixes import IX1500_PAIRING_CLEANUP, Fixes
-from scansnap.core.model import FoundScanner, ScanSettings, Sheet
+from scansnap.core.model import Decide, Fault, FoundScanner, ScanSettings, Sheet
 from scansnap.core.report import DeviceDiagnostics
 from scansnap.ports.scanner import ScannerPort
 
@@ -241,6 +241,52 @@ def test_paper_jam_message() -> None:
     ((text, conn),) = messages
     assert text.startswith("Paper jam") and "1 page(s) scanned before are kept" in text and not conn
     assert len(pages) == 1
+
+
+class HoldingDevice(JamDevice):
+    """Holds the batch after a double feed on sheet 2 until ``decide`` answers (``ports.scanner.HoldsBatch``)."""
+
+    decide: Decide | None = None
+
+    def set_fault_handler(self, decide: Decide | None) -> None:
+        self.decide = decide
+
+    def scan(self, settings: ScanSettings, *, whiten: bool = False) -> Iterator[Sheet]:
+        yield Sheet(self.page, None, None)
+        assert self.decide is not None
+        fault = Fault("double feed", 2)
+        for _ in range(3):  # then "Scan" on the panel
+            answer = self.decide(fault)
+            if answer is not None:
+                if not answer.resume:
+                    raise FeedError("double feed")
+                break
+        yield Sheet(self.page, None, None)
+
+
+def test_held_batch_shows_what_the_scanner_waits_for() -> None:
+    worker = app_main.ScanWorker("127.0.0.1", FakeLocator(HoldingDevice()))
+    status: list[str] = []
+    worker.status.connect(status.append)
+    worker.scan(app_main.PRESETS[0])
+    held = [s for s in status if s.startswith("Double feed")]
+    assert held == [
+        "Double feed on sheet 2. Put the sheets back and press Scan on the scanner to continue, or Finish to stop."
+    ]
+    assert status[-1].startswith("Done: 2 page(s)")
+
+
+def test_closing_ends_a_held_batch() -> None:
+    worker = app_main.ScanWorker("127.0.0.1", FakeLocator(HoldingDevice()))
+    messages: list[str] = []
+
+    def on_done(text: str, _conn: bool) -> None:
+        messages.append(text)
+
+    worker.done.connect(on_done)
+    worker.stopping = True
+    worker.scan(app_main.PRESETS[0])
+    assert messages == ["The scan ended after a double feed on sheet 2.\n\nThe 1 page(s) scanned are kept."]
 
 
 def test_unreachable_scanner_at_start_opens_dialog(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

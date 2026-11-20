@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from typing import Protocol, runtime_checkable
 
-from ..core.model import FoundScanner, ScanSettings, Sheet
+from ..core.model import Decide, FoundScanner, ScanSettings, Sheet
 from ..core.report import DeviceDiagnostics
 
 
@@ -33,6 +33,17 @@ class PasswordProtected(Protocol):
 
     def set_password(self, password: str) -> None:
         """Remember ``password`` on this computer; the next :meth:`ScannerPort.connect` uses it. No network I/O."""
+        ...
+
+
+@runtime_checkable
+class HoldsBatch(Protocol):
+    """Optional for a ``ScannerPort``: after a double feed or a jam the scanner holds the batch until the user
+    answers ("Scan" continues, "Finish" ends it) on its touch panel or through ``decide``."""
+
+    def set_fault_handler(self, decide: Decide | None) -> None:
+        """``decide`` runs in the scan thread about every 250 ms while a batch is held: it returns an answer, or
+        None to keep waiting. Without an answer the batch ends after a few minutes. No network I/O."""
         ...
 
 

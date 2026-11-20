@@ -19,12 +19,12 @@ from scansnap.adapters.ix1500.control import (
     register_body,
 )
 from scansnap.adapters.ix1500.discovery import ScannerInfo, parse_reply
-from scansnap.adapters.ix1500.scanner import Scanner, mode_block, window_block
+from scansnap.adapters.ix1500.scanner import Scanner, double_feed, mode_block, panel_decision, window_block
 from scansnap.adapters.ix1500.scsi import ScsiChannel
 from scansnap.core.errors import FeedError, NoPaper
 from scansnap.core.fixes import IX1500_PAIRING_CLEANUP, Fixes
+from scansnap.core.model import Fault, FaultDecision, Sheet
 from scansnap.core.model import ScanSettings as Settings
-from scansnap.core.model import Sheet
 
 PAIRING: dict[str, Any] = json.loads((FIXTURES / "01_pairing.json").read_text())
 CASES = {
@@ -349,3 +349,253 @@ def test_paper_jam_keeps_earlier_pages_and_releases_session() -> None:
         assert mock.received[-1][0][0] == 0xD6
     finally:
         mock.close()
+
+
+def test_next_batch_after_a_double_feed_scans_normally() -> None:
+    mock = MockScanner("02_grayscale_simplex_normalquality", sheets=2)
+    mock.double_feed_at = 0
+    try:
+        with ScsiChannel("127.0.0.1", MAC, port=mock.port) as ch:
+            with pytest.raises(FeedError):
+                list(Scanner(ch, poll_interval=0.01).scan(Settings(), hold=True))  # the panel answers "finish"
+            mock.refill()
+            assert len(list(Scanner(ch).scan(Settings(), hold=True))) == 2
+    finally:
+        mock.close()
+
+
+def test_double_feed_is_reported_when_the_connection_drops_on_ee() -> None:
+    mock = MockScanner("02_grayscale_simplex_normalquality", sheets=2)
+    mock.double_feed_at = 0
+    mock.drop_on = 0xEE  # EE and the D6 after it both fail
+    try:
+        with ScsiChannel("127.0.0.1", MAC, port=mock.port) as ch, pytest.raises(FeedError) as err:
+            list(Scanner(ch).scan(Settings(), hold=True))
+        assert err.value.reason == "double feed"
+    finally:
+        mock.close()
+
+
+def test_double_feed_status() -> None:
+    # C2 blocks from the private double-feed capture (host ID bytes left out)
+    idle = bytes.fromhex("00000000000000000000000004090000e000000000180000")
+    double = bytes.fromhex("00000080000001550000000004090000e000000000180000")
+    assert double_feed(idle) is None
+    assert double_feed(double) == 0x55
+    assert double_feed(idle[:7] + b"\x42" + idle[8:]) is None  # an unknown code alone is not acted on
+    assert double_feed(bytes(4)) is None
+
+
+def run_scan(
+    mock: MockScanner, settings: Settings, scanner: dict[str, Any] | None = None, **kwargs: Any
+) -> tuple[list[Sheet], FeedError | None]:
+    sheets: list[Sheet] = []
+    try:
+        with ScsiChannel("127.0.0.1", MAC, port=mock.port) as ch:
+            sheets.extend(Scanner(ch, poll_interval=0.01, **(scanner or {})).scan(settings, hold=True, **kwargs))
+    except FeedError as e:
+        return sheets, e
+    return sheets, None
+
+
+def ops(mock: MockScanner) -> list[int]:
+    return [cdb[0] for cdb, _ in mock.received if cdb[0] not in (0x28, 0x03)]
+
+
+def test_double_feed_holds_the_batch_and_finish_on_the_panel_ends_it() -> None:
+    mock = MockScanner("02_grayscale_simplex_normalquality", sheets=3)
+    mock.double_feed_at, mock.panel_choice = 1, "finish"
+    try:
+        sheets, err = run_scan(mock, Settings())
+        assert err is not None and err.reason == "double feed" and "0x55" in str(err)
+        assert len(sheets) == 1  # "finish" without saving: the double-fed sheet is not delivered
+        seq = ops(mock)
+        ee = seq.index(0xEE)
+        assert seq[ee - 1 : ee + 2] == [0xC2, 0xEE, 0xD8] and seq[-1] == 0xD6
+        assert seq[ee + 2 :].count(0xC2) >= 3  # held: C2 polled until the panel answers
+        ee_out = next(out for cdb, out in mock.received if cdb[0] == 0xEE)
+        assert ee_out == bytes.fromhex("0000005500000000")  # as ScanSnap Home sends it
+    finally:
+        mock.close()
+
+
+def test_double_feed_continue_on_the_panel_scans_the_rest() -> None:
+    mock = MockScanner("02_grayscale_simplex_normalquality", sheets=3)
+    mock.double_feed_at, mock.panel_choice = 1, "continue"
+    try:
+        sheets, err = run_scan(mock, Settings())
+        assert err is None and [s.fault for s in sheets] == [None, None]  # not kept by default
+        seq = ops(mock)
+        held = seq[seq.index(0xEE) + 2 :]
+        cont = held.index(0xD8)  # ScanSnap Home's continue: D8, E9, D4, C2, then E0
+        assert held[cont : cont + 5] == [0xD8, 0xE9, 0xD4, 0xC2, 0xE0] and seq[-1] == 0xD6
+        assert 0xD5 not in held
+    finally:
+        mock.close()
+
+
+def test_double_feed_finish_with_image_delivers_the_sheet() -> None:
+    mock = MockScanner("02_grayscale_simplex_normalquality", sheets=3)
+    mock.double_feed_at, mock.panel_choice = 1, "finish_keep"
+    try:
+        sheets, err = run_scan(mock, Settings())
+        assert err is not None and err.reason == "double feed"
+        assert [s.fault for s in sheets] == [None, "double feed"]
+    finally:
+        mock.close()
+
+
+def test_the_app_can_decide_instead_of_the_panel() -> None:
+    mock = MockScanner("02_grayscale_simplex_normalquality", sheets=3)
+    mock.double_feed_at, mock.panel_choice = 1, None
+    asked: list[Fault] = []
+
+    def decide(fault: Fault) -> FaultDecision | None:
+        asked.append(fault)
+        return FaultDecision(resume=True, keep=False) if len(asked) > 2 else None
+
+    try:
+        sheets, err = run_scan(mock, Settings(), decide=decide)
+        assert err is None and len(sheets) == 2
+        assert asked[0] == Fault("double feed", 2)
+    finally:
+        mock.close()
+
+
+def test_jam_during_a_read_holds_and_continue_rescans_the_sheet() -> None:
+    mock = MockScanner("03_grayscale_duplex_normalquality", sheets=3)
+    mock.jam_in_read_at, mock.panel_choice = 1, "continue"
+    try:
+        sheets, err = run_scan(mock, Settings(duplex=True))
+        assert err is None and len(sheets) == 3  # the user put the jammed sheet back
+        seq = ops(mock)
+        assert 0xEE not in seq  # ScanSnap Home: D8 only after a jam
+        jam = seq.index(0xD8, seq.index(0xE0))
+        assert seq[jam + 1] == 0xC2  # held
+        cont = seq.index(0xD8, jam + 1)
+        assert seq[cont : cont + 5] == [0xD8, 0xE9, 0xD4, 0xC2, 0xE0]
+    finally:
+        mock.close()
+
+
+def test_jam_finish_on_the_panel_reports_the_jam() -> None:
+    mock = MockScanner("03_grayscale_duplex_normalquality", sheets=3)
+    mock.jam_in_read_at, mock.panel_choice = 1, "finish"
+    try:
+        sheets, err = run_scan(mock, Settings(duplex=True))
+        assert err is not None and err.reason == "paper jam" and len(sheets) == 1
+        assert ops(mock)[-1] == 0xD6
+    finally:
+        mock.close()
+
+
+def test_jam_at_feed_ends_the_batch() -> None:
+    mock = MockScanner("02_grayscale_simplex_normalquality", sheets=2)
+    mock.jam_at, mock.panel_choice = 1, "continue"
+    try:
+        sheets, err = run_scan(mock, Settings())
+        assert err is not None and err.reason == "paper jam" and len(sheets) == 1
+        assert ops(mock)[-2:] == [0xE0, 0xD6]  # not held: E0's jam was never captured with ScanSnap Home
+    finally:
+        mock.close()
+
+
+def test_held_batch_ends_after_the_timeout_without_an_answer() -> None:
+    mock = MockScanner("02_grayscale_simplex_normalquality", sheets=3)
+    mock.double_feed_at, mock.panel_choice = 1, None
+    held: list[Fault] = []
+    try:
+        sheets, err = run_scan(mock, Settings(), {"hold_timeout": 0.2, "on_hold": held.append})
+        assert err is not None and err.reason == "double feed" and len(sheets) == 1
+        assert held == [Fault("double feed", 2)]
+        seq = ops(mock)
+        assert seq[-1] == 0xD6 and 0xE0 not in seq[seq.index(0xEE) :]
+    finally:
+        mock.close()
+
+
+def test_the_app_can_end_the_batch_at_once() -> None:
+    def finish(_fault: Fault) -> FaultDecision:
+        return FaultDecision(resume=False, keep=False)
+
+    mock = MockScanner("02_grayscale_simplex_normalquality", sheets=3)
+    mock.double_feed_at, mock.panel_choice = 1, None
+    try:
+        sheets, err = run_scan(mock, Settings(), decide=finish)
+        assert err is not None and err.reason == "double feed" and len(sheets) == 1
+        seq = ops(mock)
+        assert seq[seq.index(0xEE) :] == [0xEE, 0xD8, 0xC2, 0xD6]
+    finally:
+        mock.close()
+
+
+def test_two_faults_in_one_batch_are_answered_separately() -> None:
+    mock = MockScanner("03_grayscale_duplex_normalquality", sheets=4)
+    mock.double_feed_at, mock.jam_in_read_at, mock.panel_choice = 0, 2, "continue"
+    held: list[Fault] = []
+    try:
+        sheets, err = run_scan(mock, Settings(duplex=True), {"on_hold": held.append})
+        assert err is None and len(sheets) == 3  # the double-fed sheet is not kept
+        assert held == [Fault("double feed", 1), Fault("paper jam", 2)]  # counted in the delivered sheets
+    finally:
+        mock.close()
+
+
+def test_a_panel_bit_left_set_does_not_answer_the_next_fault() -> None:
+    mock = MockScanner("03_grayscale_duplex_normalquality", sheets=4)
+    mock.double_feed_at, mock.jam_in_read_at, mock.panel_choice, mock.panel_stuck = 0, 2, "continue", True
+    try:
+        sheets, err = run_scan(mock, Settings(duplex=True), {"hold_timeout": 0.3})
+        assert err is not None and err.reason == "paper jam" and len(sheets) == 1  # waited, then timed out
+    finally:
+        mock.close()
+
+
+def test_jam_is_reported_when_d8_fails() -> None:
+    mock = MockScanner("03_grayscale_duplex_normalquality", sheets=3)
+    mock.jam_in_read_at, mock.drop_on, mock.drop_nth = 1, 0xD8, 2  # the D8 after the jam
+    try:
+        sheets, err = run_scan(mock, Settings(duplex=True))
+        assert err is not None and err.reason == "paper jam" and len(sheets) == 1
+    finally:
+        mock.close()
+
+
+def test_a_failing_tick_does_not_end_the_hold() -> None:
+    def tick() -> None:
+        raise json.JSONDecodeError("bad reply", "", 0)
+
+    mock = MockScanner("02_grayscale_simplex_normalquality", sheets=3)
+    mock.double_feed_at, mock.panel_choice, mock.panel_after = 1, "continue", 5
+    try:
+        sheets, err = run_scan(mock, Settings(), {"on_hold_tick": tick, "tick_every": 0})
+        assert err is None and len(sheets) == 2
+    finally:
+        mock.close()
+
+
+def test_without_the_fix_the_scan_sequence_is_unchanged() -> None:
+    mock = MockScanner("03_grayscale_duplex_normalquality", sheets=3)
+    mock.double_feed_at, mock.jam_in_read_at = 0, 1
+    pages: list[Sheet] = []
+    try:
+        with ScsiChannel("127.0.0.1", MAC, port=mock.port) as ch, pytest.raises(FeedError) as err:
+            pages.extend(Scanner(ch).scan(Settings(duplex=True)))
+        assert err.value.reason == "paper jam" and len(pages) == 1  # the double feed goes unnoticed
+        seq = ops(mock)
+        assert 0xC2 not in seq and 0xEE not in seq and seq[-1] == 0xD6  # ends at the jam, not held
+    finally:
+        mock.close()
+
+
+def test_panel_decision() -> None:
+    # C2 blocks from the private ScanSnap Home decision captures (host ID bytes left out)
+    held = bytes.fromhex("00008000000001550000000004090000e000000000180000")
+    cont = bytes.fromhex("00008000010001550000000004090000e000000000190000")
+    finish = bytes.fromhex("00000080000001550000000004090800e000000000180000")
+    finish_keep = bytes.fromhex("00000080000001550000000004094000e000000000190000")
+    assert panel_decision(held) is None
+    assert panel_decision(cont) == FaultDecision(resume=True, keep=False)
+    assert panel_decision(finish) == FaultDecision(resume=False, keep=False)
+    assert panel_decision(finish_keep) == FaultDecision(resume=False, keep=True)
+    assert panel_decision(bytes(8)) is None

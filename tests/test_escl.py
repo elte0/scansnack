@@ -13,7 +13,7 @@ from helpers import pixel
 from scansnap.adapters.escl.server import EsclService, make_server, parse_scan_settings
 from scansnap.core.errors import NoPaper
 from scansnap.core.images import rotate_180
-from scansnap.core.model import ScanSettings, Sheet
+from scansnap.core.model import Decide, Fault, FaultDecision, ScanSettings, Sheet
 from scansnap.core.pdf import jpeg_info, jpegs_to_pdf
 
 NS = {"scan": "http://schemas.hp.com/imaging/escl/2011/05/03", "pwg": "http://www.pwg.org/schemas/2010/12/sm"}
@@ -176,6 +176,19 @@ def test_scanner_error_before_first_page_returns_500(serve: Serve) -> None:
 
     _, port = serve(Broken([]))
     assert request(port, "POST", "/eSCL/ScanJobs", settings_xml())[0].status == 500
+
+
+def test_a_held_batch_ends_the_job_at_once() -> None:
+    class HoldingScanner(FakeScanner):
+        decide: Decide | None = None
+
+        def set_fault_handler(self, decide: Decide | None) -> None:
+            self.decide = decide
+
+    scanner = HoldingScanner([])
+    EsclService(scanner)
+    assert scanner.decide is not None
+    assert scanner.decide(Fault("double feed", 2)) == FaultDecision(resume=False, keep=False)
 
 
 def test_rotate_180_flips_pixels_and_keeps_size() -> None:

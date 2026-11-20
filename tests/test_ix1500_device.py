@@ -7,10 +7,13 @@ from typing import Any, ClassVar
 import pytest
 
 from mock_scanner import MockScanner
-from scansnap.adapters.ix1500 import device
+from scansnap.adapters.ix1500 import device, wire
 from scansnap.adapters.ix1500.button import Notification
 from scansnap.adapters.ix1500.control import Control, HostIdentity
 from scansnap.adapters.ix1500.scsi import ScsiChannel
+from scansnap.core.errors import FeedError
+from scansnap.core.fixes import IX1500_HOLD_PAPER_FAULTS
+from scansnap.core.model import Fault, FaultDecision
 from scansnap.core.model import ScanSettings as Settings
 
 IDENT = HostIdentity("test", "00" * 8, "AB" * 16, bytes.fromhex("020000000001"))
@@ -163,3 +166,47 @@ def test_button_listener_follows_session(fake_sessions: Sessions, monkeypatch: p
     dev.connect()  # after disconnecting, a new listener starts
     assert len(listeners) == 2
     dev.disconnect()
+
+
+def test_held_batch_uses_the_fault_handler_and_is_not_retried(fake_sessions: Sessions) -> None:
+    mocks, opened = fake_sessions
+    dev, _ = make_device()
+    dev.connect()
+    mocks[0].double_feed_at, mocks[0].panel_choice = 0, None
+    dev.fixes.set(IX1500_HOLD_PAPER_FAULTS, True)
+    asked: list[tuple[Fault, str]] = []
+
+    def decide(fault: Fault) -> FaultDecision | None:
+        asked.append((fault, dev.stage))
+        channel(opened[0]).sock.shutdown(2)  # the connection drops while the batch waits
+        return None
+
+    dev.set_fault_handler(decide)
+    with pytest.raises((OSError, wire.ProtocolError)):
+        list(dev.scan(Settings()))
+    assert asked == [(Fault("double feed", 1), "waiting for the user (double feed on sheet 1)")]
+    assert len(opened) == 1  # no second session: it would feed the next sheet without an answer
+
+
+def test_a_held_batch_does_not_stop_the_next_scan_from_retrying(
+    fake_sessions: Sessions, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mocks, _ = fake_sessions
+    dev, _ = make_device()
+    dev.connect()
+    mocks[0].double_feed_at, mocks[0].panel_choice = 0, "finish"
+    dev.fixes.set(IX1500_HOLD_PAPER_FAULTS, True)
+    with pytest.raises(FeedError):
+        list(dev.scan(Settings()))
+    real_live = dev._live_session  # pyright: ignore[reportPrivateUsage]
+    calls: list[int] = []
+
+    def flaky_live() -> device.Session:
+        calls.append(1)
+        if len(calls) == 1:
+            raise OSError("connection reset")  # fails before the scan starts
+        return real_live()
+
+    monkeypatch.setattr(dev, "_live_session", flaky_live)
+    assert len(list(dev.scan(Settings()))) == 1  # retried
+    assert len(calls) == 2

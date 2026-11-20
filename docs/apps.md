@@ -39,6 +39,9 @@ User interface and code comments in English (ADR 0006).
 - "Remove background": `core.images.whiten` – paper colour per channel (85th percentile) → white; dark
   paper (< 150) is left unchanged. Runs in the same re-encode as cropping/rotation.
 - Paper errors: `core.errors.FeedError(reason)`, help texts in `core.document.FEED_HELP`.
+- iX1500 double feed or jam, with the fix `ix1500-hold-paper-faults`: the scanner holds the batch until
+  "Scan" (continue) or "Finish" is pressed on its touch panel (`ports.scanner.HoldsBatch`). The status
+  line says so; closing the window ends the wait, and without an answer the batch ends after 5 minutes.
 - Design: Primer (GitHub), tokens from @primer/primitives 11.10.0 in `adapters/qt/tokens.py` (Qt-free,
   also used on iOS); `primer.py` sets QPalette + stylesheet, Fusion style, light/dark follows the system
   live. Default button = primary (green), muted text via the `muted` property.

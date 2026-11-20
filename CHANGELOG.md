@@ -9,6 +9,24 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Added
+
+- Fix to try: *#24: Double feeds go unnoticed* (iX1500). Double feeds are detected, and after a double feed
+  or a jam while a page is read the scan waits as it does with ScanSnap Home: put the sheets back and press
+  *Scan* on the scanner to continue, or *Finish* to end the scan (pages scanned before are kept). The status
+  line says what the scanner is waiting for; without an answer the scan ends after 5 minutes. A double-fed
+  sheet is kept only if *Finish* is followed by saving the image on the scanner. Network scans (AirScan)
+  end at once. A crumpled sheet can be reported as a double feed too.
+- iX1500 protocol notes: double feeds, how ScanSnap Home holds and continues a batch after a double feed
+  or a jam, more C2 status bits with SANE's names.
+
+### Fixed
+
+- iX1500: a sheet that jams while it is being read is reported as a paper jam, instead of as an
+  "unexpected chunk header" error.
+- iX1500: when a scan stops with an error and the scanner cannot be released afterwards, the original
+  error is reported, not the failed release.
+
 ## [0.6.2] - 2026-11-19
 
 ### Added

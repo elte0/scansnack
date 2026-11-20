@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -32,11 +33,35 @@ class ImageInfo:
 
 @dataclass
 class Sheet:
-    """One fed sheet: finished JPEGs; ``back`` is None for simplex."""
+    """One fed sheet: finished JPEGs; ``back`` is None for simplex. ``fault`` names a paper fault the scanner
+    reported for this sheet (e.g. "double feed") when its images are delivered anyway."""
 
     front: bytes
     back: bytes | None
     info: ImageInfo | None
+    fault: str | None = None
+
+
+@dataclass(frozen=True)
+class Fault:
+    """A paper fault that holds the batch until the user decides: ``reason`` as in FeedError, ``sheet`` counts
+    from 1 within the batch."""
+
+    reason: str
+    sheet: int
+
+
+@dataclass(frozen=True)
+class FaultDecision:
+    """``resume``: continue the batch with the next sheet; otherwise it ends. ``keep``: deliver the faulty
+    sheet's images (only a double-fed sheet has any)."""
+
+    resume: bool
+    keep: bool
+
+
+# Answer to a held batch: called while it waits for the user; None means "no answer yet"
+Decide = Callable[[Fault], FaultDecision | None]
 
 
 @dataclass(frozen=True)
