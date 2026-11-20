@@ -35,6 +35,7 @@ uv sync
 uv run scansnap --ip <scanner-ip> claim        # create our own user + profile, then select it on the panel
 uv run scansnap --ip <scanner-ip> scan --mode color --dpi 300 --out scans/
 uv run scansnap --ip <scanner-ip> serve        # AirScan bridge for Image Capture and Preview
+uv run scansnap ix1300 --ip SCANNER_IP listen --out WATCHED_FOLDER
 uv run --extra app scansnap-app                # desktop app
 ```
 
@@ -52,7 +53,7 @@ Ready-made apps for macOS (Apple Silicon and Intel), Windows (x64 and ARM64) and
 - [AirScan bridge](docs/airscan.md) – scanning from Image Capture and Preview: start, options, limits,
   troubleshooting
 - [Protocol](docs/protocol.md) – overview of the Wi-Fi protocols, with one write-up per model
-  ([iX1500](docs/protocol-ix1500.md), [iX500](docs/protocol-ix500.md)), each including its open questions
+  ([iX1500](docs/protocol-ix1500.md), [iX500](docs/protocol-ix500.md), [iX1300](docs/protocol-ix1300.md)), each including its open questions
 - [Models](docs/models.md) – which ScanSnap models ScanSnack supports
 - [Architecture decisions](docs/adr/README.md) – architecture and protocol decisions (ADRs)
 - [Apps](docs/apps.md) – desktop and iOS app, eSCL bridge, packaging, releases

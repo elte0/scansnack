@@ -20,7 +20,7 @@ Overview: `README.md`, apps: `docs/apps.md`.
 src/scansnap/
   core/      domain: ScanSettings, Sheet, ScanPage, Entry, errors, image post-processing, PDF
   ports/     typing.Protocol: ScannerPort, ScannerLocator, OutputPort, ReleaseSource, Installer
-  adapters/  ix1500/, ix500/ (Wi-Fi protocol per model), scansnap_wifi/ (shared Wi-Fi primitives, ADR 0007),
+  adapters/  ix1500/, ix500/, ix1300/ (Wi-Fi protocol per model), scansnap_wifi/ (shared Wi-Fi primitives, ADR 0007),
              escl/ (eSCL + Bonjour), library/ (PDF storage), qt/ (GUI),
              github/ (release check), selfupdate/ (install update + restart, ADR 0005)
   app/       composition root: cli.py, desktop.py – the only place that creates concrete adapters
@@ -35,7 +35,7 @@ src/scansnap/
 ## Reverse engineering
 
 - One write-up per model is the single source of truth for its protocol (packets, sequences, states, open
-  questions): `docs/protocol-ix1500.md`, `docs/protocol-ix500.md`. `docs/protocol.md` is only the overview
+  questions): `docs/protocol-ix1500.md`, `docs/protocol-ix500.md`, `docs/protocol-ix1300.md`. `docs/protocol.md` is only the overview
   (models, what they share, where they differ); a new model gets its own `docs/protocol-<model>.md`, listed
   there and mounted in `site/hugo.toml`. Update the write-ups with every new finding. Never invent anything.
 - Keep observations apart from assumptions: mark anything unconfirmed in the code with `# UNVERIFIED:`

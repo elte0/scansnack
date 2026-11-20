@@ -1,0 +1,66 @@
+"""One front-slot sheet using channels supplied by an enrolled session."""
+
+import logging
+from collections.abc import Callable
+from contextlib import AbstractContextManager
+
+from ...core.errors import NoPaper
+from ...core.model import Sheet
+from ..scansnap_wifi.images import info_cdb, parse_image_info, read_image, sense_error
+from ..scansnap_wifi.scsi import CHECK_CONDITION, ScsiChannel, ScsiError
+from ..scansnap_wifi.wire import ProtocolError
+
+_WINDOW = bytes.fromhex("012c012c00002880000044100500000000000000000000000000000000000000")
+_MODE = bytes.fromhex(
+    "000601010000c180808090808000000000000000000000000000000030000030"
+    "0010012c012c05820d0000002880000044100400000000000000000000000100"
+    "00000000000000000000000000000000"
+)
+
+
+def _feed(channel: ScsiChannel) -> None:
+    result = channel.command(bytes.fromhex("e00000000000"))
+    if result.status == CHECK_CONDITION:
+        sense = channel.request_sense()
+        if sense.no_paper:
+            raise NoPaper("feeder empty")
+        raise sense_error("feed failed", sense)
+    if result.status:
+        raise ScsiError(f"feed status {result.status}")
+
+
+ChannelOpener = Callable[[float], AbstractContextManager[ScsiChannel]]
+
+
+def scan_sheet(open_channel: ChannelOpener, *, open_release: ChannelOpener | None = None) -> Sheet:
+    """Consume one scan attempt, releasing even when setup or transfer fails."""
+    reserved = False
+    try:
+        with open_channel(10) as setup:
+            setup.hardware_status(48)
+            reserved = True
+            setup.checked(bytes.fromhex("d50000000808"), out=bytes(8), in_len=8)
+            setup.hardware_status(48)
+        with open_channel(45) as transfer:
+            transfer.checked(bytes.fromhex("d80000000000"))
+            transfer.checked(bytes.fromhex("e9000000000000200000"), out=_WINDOW)
+            transfer.checked(bytes.fromhex("d40000005000"), out=_MODE)
+            transfer.hardware_status(48)
+            transfer.request_sense()
+            _feed(transfer)
+            front = read_image(transfer, False, 0)
+            back = read_image(transfer, True, 1)
+            info = parse_image_info(transfer.checked(info_cdb(1), in_len=32).data)
+            transfer.hardware_status(48)
+            try:
+                _feed(transfer)
+            except NoPaper:
+                return Sheet(front, back, info)
+            raise ScsiError("expected empty feeder after one Return Scan sheet")
+    finally:
+        if reserved:
+            try:
+                with (open_release or open_channel)(5) as release:
+                    release.checked(bytes.fromhex("d60000000000"))
+            except (OSError, ScsiError, ProtocolError) as exc:
+                logging.getLogger(__name__).warning("Scanner release failed: %s", exc)

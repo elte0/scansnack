@@ -16,3 +16,4 @@ decision and sets the old one to "superseded by NNNN".
 | [0006](0006-english-as-repository-language.md) | English as the only repository language | accepted |
 | [0007](0007-shared-scansnap-wifi-package.md) | Shared ScanSnap Wi-Fi protocol package | accepted |
 | [0008](0008-error-reports-by-email.md) | Error reports sent by the user's own mail program | accepted |
+| [0009](0009-ix1300-return-scan-receiver.md) | Dedicated iX1300 Return Scan receiver | accepted |

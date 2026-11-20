@@ -11,6 +11,7 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ### Added
 
+- Receive upright duplex PDFs from the iX1300 front slot with the Linux CLI. The receiver can continue after a paper jam is cleared.
 - Protocol notes for Wi-Fi reconnects and front-slot scans on the ScanSnap iX1300.
 
 ## [0.6.1] - 2026-11-08

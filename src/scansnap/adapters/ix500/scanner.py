@@ -10,13 +10,14 @@ import struct
 from collections.abc import Iterator
 from typing import Literal
 
-from ...core.errors import FeedError, NoPaper
-from ...core.model import ImageInfo, Sheet
-from .scsi import CHECK_CONDITION, ScsiChannel, ScsiError, Sense
-from .wire import ProtocolError
+from ...core.errors import NoPaper
+from ...core.model import Sheet
+from ..scansnap_wifi.images import MAX_IMAGE, parse_image_info, read_image
+from ..scansnap_wifi.images import READ_LEN as READ_LEN
+from ..scansnap_wifi.images import info_cdb as _info_cdb
+from ..scansnap_wifi.images import sense_error as _sense_error
+from .scsi import CHECK_CONDITION, ScsiChannel, ScsiError
 
-READ_LEN = 0x300000  # as ScanSnap Home sends it
-MAX_IMAGE = 64 << 20  # one side at 600 dpi color is a few MB; more means the scanner never ended the image
 DPIS = (150, 200, 300, 600)
 Multifeed = Literal["off", "ultrasonic"]
 
@@ -65,26 +66,6 @@ def mode_block(dpi: int, page: str = "auto", multifeed: Multifeed = "ultrasonic"
     return bytes(params) + descriptor.ljust(48, b"\0")
 
 
-def parse_image_info(d: bytes) -> ImageInfo:
-    if len(d) < 20:
-        raise ProtocolError(f"short image info {d.hex()}")
-    w, hmax, _w2, h, dx, dy = struct.unpack_from(">IIIIHH", d)
-    return ImageInfo(w, hmax, h, dx, dy)
-
-
-def _sense_error(msg: str, sense: Sense) -> Exception:
-    reason = sense.medium_error
-    return FeedError(reason, str(sense)) if reason else ScsiError(msg, sense)
-
-
-def _read_cdb(back: bool, index: int) -> bytes:
-    return bytes([0x28, 0, 0, 2, 0, 0x80 if back else 0]) + READ_LEN.to_bytes(3, "big") + bytes([0, index & 0xFF, 0])
-
-
-def _info_cdb(index: int) -> bytes:
-    return bytes([0x28, 0, 0x80, 0, 0, 0x80, 0, 0, 0x20, 0, index & 0xFF, 0])
-
-
 class Scanner:
     """Scan sequence on an open scan channel. The iX500 always scans both sides in color."""
 
@@ -92,24 +73,7 @@ class Scanner:
         self.ch = channel
 
     def _read_image(self, back: bool, index: int) -> bytes:
-        parts: list[bytes] = []
-        for chunk in range(256):
-            r = self.ch.command(_read_cdb(back, index), in_len=READ_LEN)
-            sense = self.ch.request_sense() if r.status == CHECK_CONDITION else None
-            if sense is not None and not sense.eom:
-                raise _sense_error("read failed", sense)  # the paper error, before any header check
-            if r.status not in (0, CHECK_CONDITION):
-                raise ScsiError(f"read status {r.status}")
-            # UNVERIFIED: the one-byte image index wraps after 128 sheets in one job (never observed)
-            if r.data[:2] != bytes([index & 0xFF, chunk]):
-                raise ScsiError(f"unexpected image header {r.data[:2].hex()} for image {index}")
-            parts.append(r.data[2:])
-            if sum(map(len, parts)) > MAX_IMAGE:
-                raise ScsiError(f"image {index} larger than {MAX_IMAGE >> 20} MB without an end")
-            if sense is not None:  # end of image
-                return b"".join(parts)
-            # UNVERIFIED: images above READ_LEN continue with the same CDB (never seen on the iX500).
-        raise ScsiError(f"image {index} has more than 256 chunks")
+        return read_image(self.ch, back, index, MAX_IMAGE)
 
     def scan(self, dpi: int = 300, page: str = "auto", multifeed: Multifeed = "ultrasonic") -> Iterator[Sheet]:
         """Scans all sheets in the feeder (front and back). Raises NoPaper if the feeder is empty."""

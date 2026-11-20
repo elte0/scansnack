@@ -12,6 +12,7 @@ import struct
 import threading
 import time
 from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass
 from typing import Self
 
 from . import wire
@@ -53,6 +54,47 @@ def replies(
             except TimeoutError:
                 return
             yield data, addr[0]
+
+
+@dataclass(frozen=True)
+class ScannerInfo:
+    ip: str
+    data_port: int
+    control_port: int
+    mac: str
+    name: str
+    model: str
+    if_version: int
+    paired_ip: str
+    paired_host_id: str
+    serial: str
+
+
+def _cstr(b: bytes) -> str:
+    return b.split(b"\0", 1)[0].decode("ascii", "replace").strip()
+
+
+def parse_vens_reply(data: bytes, sender: str | None = None) -> ScannerInfo | None:
+    """Parses a discovery reply. With ``sender``, a reply whose embedded IP differs is ignored."""
+    if len(data) < 132 or data[:4] != wire.VENS:
+        return None
+    ip = str(ipaddress.IPv4Address(data[16:20]))
+    if sender is not None and ip != sender:
+        return None
+    data_port, control_port = struct.unpack_from(">II", data, 20)
+    name = _cstr(data[40:104])
+    return ScannerInfo(
+        ip=ip,
+        data_port=data_port,
+        control_port=control_port,
+        mac=data[28:34].hex(":"),
+        name=name,
+        model=_cstr(data[104:120]),
+        if_version=struct.unpack_from(">H", data, 8)[0],
+        paired_ip=str(ipaddress.IPv4Address(data[120:124])),
+        paired_host_id=data[124:132].hex(),
+        serial=name.rpartition("-")[2],
+    )
 
 
 class Heartbeat:

@@ -10,7 +10,7 @@ models without Wi-Fi cannot be supported. How the supported models speak over Wi
 | ScanSnap iX1600 | Wi-Fi + USB | Not supported | Wi-Fi protocol not examined yet; captures welcome. |
 | ScanSnap iX1500 | Wi-Fi + USB | Supported | Developed and tested on this model; see the [iX1500 protocol](protocol-ix1500.md). |
 | ScanSnap iX1400 | USB | Not supported | USB only; ScanSnack talks to scanners over the network. |
-| ScanSnap iX1300 | Wi-Fi + USB | Not supported | [Front-slot scan protocol documented](protocol-ix1300.md). Reconnect and scan captured. A replacement host needs live verification. |
+| ScanSnap iX1300 | Wi-Fi + USB | Linux CLI | Front-slot duplex PDF delivery with an existing enrollment. See the [iX1300 protocol](protocol-ix1300.md). |
 | ScanSnap iX500 | Wi-Fi + USB | Supported | Tested on firmware 0U00; needs a one-time Wi-Fi setup with ScanSnap Home, see below. See the [iX500 protocol](protocol-ix500.md). |
 | ScanSnap iX100 | Wi-Fi + USB | Not supported | Wi-Fi protocol not examined yet; captures welcome. |
 | ScanSnap SV600 | USB | Not supported | USB only; ScanSnack talks to scanners over the network. |
@@ -32,6 +32,16 @@ models without Wi-Fi cannot be supported. How the supported models speak over Wi
 
 Mac editions (for example S1500M) are listed under their base model. The list covers the models known to
 us; corrections are welcome.
+
+## iX1300
+
+Set up Wi-Fi once using ScanSnap Home, then quit ScanSnap Home. Keep the scanner and the Linux receiver on the same local network. ScanSnack uses the scanner's existing enrollment and the Linux interface's own IP and MAC.
+
+```sh
+scansnap ix1300 --ip SCANNER_IP listen --out WATCHED_FOLDER
+```
+
+Use an existing output folder and one receiver per scanner. The command stays in the foreground for a service supervisor. It publishes each successfully completed front-slot sheet as a two-page PDF.
 
 ## iX500
 

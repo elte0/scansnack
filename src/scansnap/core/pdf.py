@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+from typing import Literal
 
 _SOF = {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}
 
@@ -27,9 +28,10 @@ def jpeg_info(data: bytes) -> tuple[int, int, int]:
     raise ValueError("no SOF marker found")
 
 
-def jpegs_to_pdf(pages: list[bytes], dpi: int | list[int]) -> bytes:
-    """``dpi`` for all pages or per page (determines the page size in the PDF)."""
+def jpegs_to_pdf(pages: list[bytes], dpi: int | list[int], *, page_rotation: Literal[0, 90, 180, 270] = 0) -> bytes:
+    """Set page size from DPI and apply display rotation without re-encoding the JPEGs."""
     dpis = dpi if isinstance(dpi, list) else [dpi] * len(pages)
+    rotation = b" /Rotate %d" % page_rotation if page_rotation else b""
     objects: list[bytes] = []  # object n is at index n-1
 
     def add(body: bytes) -> int:
@@ -54,8 +56,8 @@ def jpegs_to_pdf(pages: list[bytes], dpi: int | list[int]) -> bytes:
         cont = add(b"<< /Length %d >>\nstream\n" % len(content) + content + b"\nendstream")
         kids.append(
             add(
-                b"<< /Type /Page /Parent %d 0 R /MediaBox [0 0 %.2f %.2f] "
-                b"/Resources << /XObject << /Im0 %d 0 R >> >> /Contents %d 0 R >>" % (tree, pw, ph, img, cont)
+                b"<< /Type /Page /Parent %d 0 R /MediaBox [0 0 %.2f %.2f]%s "
+                b"/Resources << /XObject << /Im0 %d 0 R >> >> /Contents %d 0 R >>" % (tree, pw, ph, rotation, img, cont)
             )
         )
     objects[catalog - 1] = b"<< /Type /Catalog /Pages %d 0 R >>" % tree

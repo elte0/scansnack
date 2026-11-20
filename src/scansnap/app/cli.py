@@ -108,7 +108,11 @@ def main(argv: list[str] | None = None) -> None:
         from . import ix500_cli
 
         return ix500_cli.main(argv[1:])
-    p = argparse.ArgumentParser(prog="scansnap", epilog="iX500: scansnap ix500 --help")
+    if argv[:1] == ["ix1300"]:
+        from . import ix1300_cli
+
+        return ix1300_cli.main(argv[1:])
+    p = argparse.ArgumentParser(prog="scansnap", epilog="Model commands: scansnap ix500 --help, scansnap ix1300 --help")
     p.add_argument("--ip", help="IP of the scanner (otherwise discovery)")
     p.add_argument("--identity", type=Path, default=DEFAULT_PATH)
     p.add_argument("--debug", action="store_true", help="all frames as hex on stderr")

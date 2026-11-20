@@ -16,6 +16,8 @@ The control channel on TCP 53219 saw `0x13 → 0x11 → 0x62 → 0x30`. The scan
 
 The `0x62` request had a 16-byte body and received a 28-byte reply. Its purpose and whether a client needs it are open.
 
+A Linux host on the same LAN discovered the scanner at interface version 16. Discovery returned a populated host ID and `0.0.0.0` in the notification target field. The Linux host sent `0x11` with its own IP and interface MAC, a distinct host ID, and the zero password flag. The scanner returned status `-7`. The same session command with the already enrolled ID had previously succeeded from Linux using its own IP and MAC.
+
 ## Notifications and polling
 
 | Direction | Transport | Observation |
@@ -41,6 +43,10 @@ READ (image metadata) → C2 → E0 → REQUEST SENSE
 
 Each image read requested `0x300000` bytes and returned a two-byte side/chunk header followed by one complete 2592 × 3472 JPEG. The scanner returned SCSI CHECK CONDITION on both reads. REQUEST SENSE indicated end of image and the residual length matched the requested length minus the bytes delivered, including the header. After both sides, the next `E0` returned CHECK CONDITION with sense `3/80/03` (feeder empty).
 
+With ScanSnap Home closed, the Linux receiver registered after the scanner cover was opened. It received two consecutive front-slot sheets in the same process and produced one readable two-page PDF per sheet. The receiver re-registered after a restart while the scanner was reachable.
+
+Both sides of a test sheet arrived upside down without EXIF orientation. The receiver sets a 180° display rotation on both PDF pages so the JPEG streams can be embedded unchanged.
+
 ### Captured 300 dpi settings
 
 These are the command data blocks from the observed scan. The scan window in the `E9` block is `0x2880 × 0x4410` in 1/1200 inch.
@@ -59,9 +65,11 @@ D4 (80 bytes):
 
 The jammed scan used the same E9 and D4 settings as the successful scan. It received status 2 (CHECK CONDITION) on its first image read and returned only the two-byte image header. The following REQUEST SENSE returned `f0 00 23 00 2f ff d4 0a 00 00 00 00 80 01 00 00 00 00`. The shared SCSI parser decoded sense key/ASC/ASCQ `3/80/01` with end-of-image clear, the paper jam path. There was no JPEG payload. A later `D6` on a separate connection returned status 0.
 
+After a receiver restart, a live scan reported the same `3/80/01` sense and produced no PDF. The receiver re-registered and delivered one readable two-page PDF when the sheet was re-fed after clearing the jam.
+
 ## Open questions
 
-- Registration was observed with an already configured host. A different host's address and interface MAC, with the observed paired host ID, still need a live test.
+- The one-time setup that authorizes a distinct host ID on the iX1300 remains unverified.
 - The notification does not distinguish paper insertion from a physical Scan button press. Those actions need separate observations.
 - The capture covers one front-slot profile. A top-feeder scan with the same profile would help distinguish feeder selection from other model-specific settings.
 - The successful capture ends during status polling after the empty-feeder response. A separate `D6` was observed during reconnect and after the jam, but the successful scan does not establish its release sequence.
