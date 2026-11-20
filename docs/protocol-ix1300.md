@@ -61,6 +61,10 @@ D4 (80 bytes):
 00000000000000000000000000000000
 ```
 
+## Top feeder
+
+A private capture of a successful 300 dpi top-feeder scan used the same feed command as Return Scan. The E9 and D4 window height was 0x4350. D4 bytes 1 and 28 (zero-based) were 0x03 and 0x00. A nine-sheet duplex transfer with these settings returned a consecutively numbered section in descending order. Reversing the sequence of sides restored ascending page order.
+
 ## Paper jam
 
 The jammed scan used the same E9 and D4 settings as the successful scan. It received status 2 (CHECK CONDITION) on its first image read and returned only the two-byte image header. The following REQUEST SENSE returned `f0 00 23 00 2f ff d4 0a 00 00 00 00 80 01 00 00 00 00`. The shared SCSI parser decoded sense key/ASC/ASCQ `3/80/01` with end-of-image clear, the paper jam path. There was no JPEG payload. A later `D6` on a separate connection returned status 0.
@@ -71,5 +75,5 @@ After a receiver restart, a live scan reported the same `3/80/01` sense and prod
 
 - The one-time setup that authorizes a distinct host ID on the iX1300 remains unverified.
 - The notification does not distinguish paper insertion from a physical Scan button press. Those actions need separate observations.
-- The capture covers one front-slot profile. A top-feeder scan with the same profile would help distinguish feeder selection from other model-specific settings.
+- Which of the observed D4 differences selects the feeder remains open.
 - The successful capture ends during status polling after the empty-feeder response. A separate `D6` was observed during reconnect and after the jam, but the successful scan does not establish its release sequence.

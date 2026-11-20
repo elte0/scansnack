@@ -11,6 +11,7 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ### Added
 
+- Receive iX1300 top-feeder stacks as one duplex PDF in stack order.
 - Receive upright duplex PDFs from the iX1300 front slot with the Linux CLI. The receiver can continue after a paper jam is cleared.
 - Protocol notes for Wi-Fi reconnects and front-slot scans on the ScanSnap iX1300.
 

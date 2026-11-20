@@ -19,6 +19,7 @@ def main(argv: list[str]) -> None:
     subcommands = parser.add_subparsers(dest="command", required=True)
     listen = subcommands.add_parser("listen", help="receive front-slot PDFs")
     listen.add_argument("--out", type=Path, required=True, help="existing folder for received PDFs")
+    listen.add_argument("--top-feeder", action="store_true", help="receive duplex stacks in physical page order")
     args = parser.parse_args(argv)
     ip = str(args.ip)
     folder = args.out
@@ -32,4 +33,4 @@ def main(argv: list[str]) -> None:
         yield open_session(ip, mac, timeout)
 
     logging.basicConfig(level=logging.INFO)
-    receive_to_folder(Receiver(), ip, mac, session, folder)
+    receive_to_folder(Receiver(), ip, mac, session, folder, top_feeder=args.top_feeder)

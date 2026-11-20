@@ -12,7 +12,7 @@ from ..scansnap_wifi.discovery import Heartbeat
 from ..scansnap_wifi.notify import Listener, Notification
 from ..scansnap_wifi.scsi import ScsiChannel, ScsiError
 from ..scansnap_wifi.wire import ProtocolError
-from .scanner import ChannelOpener, scan_sheet
+from .scanner import ChannelOpener, scan_job
 
 _LOG = logging.getLogger(__name__)
 _RETRY = 2.0
@@ -69,6 +69,17 @@ class Receiver:
         authorized_session: AuthorizedSession,
         publish: Callable[[Sheet], object],
     ) -> None:
+        self.run_job(scanner_ip, host_mac, authorized_session, lambda sheets: publish(sheets[0]), top_feeder=False)
+
+    def run_job(
+        self,
+        scanner_ip: str,
+        host_mac: bytes,
+        authorized_session: AuthorizedSession,
+        publish: Callable[[list[Sheet]], object],
+        *,
+        top_feeder: bool,
+    ) -> None:
         """Bind before opening a session so wake-time notifications can queue."""
         listener = Listener(scanner_ip, 55265, self._notice, magic=b"VENS")
         try:
@@ -82,7 +93,7 @@ class Receiver:
                         authorized_session(_OPEN_TIMEOUT) as open_channel,
                         Heartbeat(scanner_ip, host_mac, magic=b"VENS", interval=30, burst=3),
                     ):
-                        self._serve(open_channel, publish)
+                        self._serve(open_channel, publish, top_feeder)
                 except _ERRORS as exc:
                     _LOG.warning("Scanner session interrupted: %s", exc)
                     with self._changed:
@@ -92,7 +103,7 @@ class Receiver:
         finally:
             listener.close()
 
-    def _serve(self, open_channel: ChannelOpener, publish: Callable[[Sheet], object]) -> None:
+    def _serve(self, open_channel: ChannelOpener, publish: Callable[[list[Sheet]], object], top_feeder: bool) -> None:
         def interruptible(timeout: float) -> AbstractContextManager[ScsiChannel]:
             return self._interruptible(open_channel, timeout)
 
@@ -126,12 +137,12 @@ class Receiver:
                     raise
 
             try:
-                sheet = scan_sheet(interruptible, open_release=release)
+                sheets = scan_job(interruptible, open_release=release, top_feeder=top_feeder)
                 with self._changed:
                     if self._stopped:
                         return
                 try:
-                    publish(sheet)
+                    publish(sheets)
                 except (OSError, ValueError) as exc:
                     _LOG.warning("Scan publication failed: %s", exc)
             finally:

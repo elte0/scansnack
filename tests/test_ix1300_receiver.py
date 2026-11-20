@@ -7,7 +7,7 @@ import pytest
 from helpers import jpeg
 from scansnap.adapters.ix1300.scanner import scan_sheet
 from scansnap.adapters.scansnap_wifi.scsi import Response, ScsiChannel
-from scansnap.app.ix1300_output import publish_sheet
+from scansnap.app.ix1300_output import publish_sheet, publish_stack
 from scansnap.core.errors import FeedError
 from scansnap.core.model import Sheet
 
@@ -108,3 +108,12 @@ def test_failed_sheet_released_once(fault: str) -> None:
             scan_sheet(replay.open)
     assert replay.calls[-1] == [0xD6]
     assert len(replay.calls) == (2 if fault == "setup" else 3)
+
+
+def test_top_feeder_preserves_stack_order(tmp_path: Path) -> None:
+    pages = [jpeg(color=color) for color in ("red", "green", "blue", "white")]
+    sheets = [Sheet(pages[3], pages[2], None), Sheet(pages[1], pages[0], None)]
+    pdf = publish_stack(tmp_path, sheets).read_bytes()
+    assert b"/Count 4" in pdf
+    offsets = [pdf.index(page) for page in pages]
+    assert offsets == sorted(offsets)
