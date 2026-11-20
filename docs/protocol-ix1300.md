@@ -61,6 +61,10 @@ D4 (80 bytes):
 00000000000000000000000000000000
 ```
 
+## Feeder status
+
+With the lid open, byte 3 of the 48-byte C2 reply was 0x80 with both slots empty, 0x00 with paper in the top feeder and 0x81 with paper in the front slot. The front-slot value persisted after notification and through scan setup. Simultaneous loading has not been characterized.
+
 ## Top feeder
 
 A private capture of a successful 300 dpi top-feeder scan used the same feed command as Return Scan. The E9 and D4 window height was 0x4350. D4 bytes 1 and 28 (zero-based) were 0x03 and 0x00. A nine-sheet duplex transfer with these settings returned a consecutively numbered section in descending order. Reversing the sequence of sides restored ascending page order.

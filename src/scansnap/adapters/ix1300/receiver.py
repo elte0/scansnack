@@ -69,16 +69,18 @@ class Receiver:
         authorized_session: AuthorizedSession,
         publish: Callable[[Sheet], object],
     ) -> None:
-        self.run_job(scanner_ip, host_mac, authorized_session, lambda sheets: publish(sheets[0]), top_feeder=False)
+        self.run_job(
+            scanner_ip, host_mac, authorized_session, lambda _top, sheets: publish(sheets[0]), top_feeder=False
+        )
 
     def run_job(
         self,
         scanner_ip: str,
         host_mac: bytes,
         authorized_session: AuthorizedSession,
-        publish: Callable[[list[Sheet]], object],
+        publish: Callable[[bool, list[Sheet]], object],
         *,
-        top_feeder: bool,
+        top_feeder: bool | None,
     ) -> None:
         """Bind before opening a session so wake-time notifications can queue."""
         listener = Listener(scanner_ip, 55265, self._notice, magic=b"VENS")
@@ -103,7 +105,9 @@ class Receiver:
         finally:
             listener.close()
 
-    def _serve(self, open_channel: ChannelOpener, publish: Callable[[list[Sheet]], object], top_feeder: bool) -> None:
+    def _serve(
+        self, open_channel: ChannelOpener, publish: Callable[[bool, list[Sheet]], object], top_feeder: bool | None
+    ) -> None:
         def interruptible(timeout: float) -> AbstractContextManager[ScsiChannel]:
             return self._interruptible(open_channel, timeout)
 
@@ -137,12 +141,12 @@ class Receiver:
                     raise
 
             try:
-                sheets = scan_job(interruptible, open_release=release, top_feeder=top_feeder)
+                selected_top, sheets = scan_job(interruptible, open_release=release, top_feeder=top_feeder)
                 with self._changed:
                     if self._stopped:
                         return
                 try:
-                    publish(sheets)
+                    publish(selected_top, sheets)
                 except (OSError, ValueError) as exc:
                     _LOG.warning("Scan publication failed: %s", exc)
             finally:

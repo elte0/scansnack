@@ -38,7 +38,7 @@ described in the [protocol write-ups](protocol.md).
 - **Cropped to the paper** – pages come out in the size of the sheet, the right way up.
 - **iX1500 and iX500**: the app recognizes the model by itself. With an iX500, the Scan button turns
   "Load paper" and dims while the feeder is empty.
-- **iX1300 top-feeder scans** – add `--top-feeder` to the Linux listen command to save each stack as one ordered duplex PDF.
+- **iX1300 top-feeder scans** – the Linux receiver detects the loaded feeder and saves each stack as one ordered duplex PDF.
 - **iX1300 front-slot scans** – the Linux command line saves upright two-page PDFs into an existing folder. See the [iX1300 setup](models.md#ix1300).
 - **Saved right away** – every scan becomes its own PDF in the folder you choose, named after date and
   time. Pages scanned before a paper jam are kept.

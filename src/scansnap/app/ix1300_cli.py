@@ -17,9 +17,9 @@ def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(prog="scansnap ix1300")
     parser.add_argument("--ip", type=IPv4Address, required=True, help="IPv4 address of the enrolled scanner")
     subcommands = parser.add_subparsers(dest="command", required=True)
-    listen = subcommands.add_parser("listen", help="receive front-slot PDFs")
+    listen = subcommands.add_parser("listen", help="receive PDFs from the loaded feeder")
     listen.add_argument("--out", type=Path, required=True, help="existing folder for received PDFs")
-    listen.add_argument("--top-feeder", action="store_true", help="receive duplex stacks in physical page order")
+    listen.add_argument("--top-feeder", action="store_const", const=True, help="force the top-feeder profile")
     args = parser.parse_args(argv)
     ip = str(args.ip)
     folder = args.out

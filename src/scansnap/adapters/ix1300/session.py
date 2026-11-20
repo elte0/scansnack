@@ -46,5 +46,5 @@ def open_session(ip: str, mac: bytes, timeout: float) -> ChannelOpener:
     channel = partial(ScsiChannel, ip, mac, magic=VENS)
     with channel(timeout=timeout) as status_channel:
         status_channel.hardware_status(48)
-    _LOG.info("Listening for iX1300 front-slot scans")
+    _LOG.info("Listening for iX1300 scans")
     return lambda io_timeout: channel(timeout=io_timeout)

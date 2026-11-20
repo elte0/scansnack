@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from helpers import jpeg
-from scansnap.adapters.ix1300.scanner import scan_sheet
+from scansnap.adapters.ix1300.scanner import scan_job, scan_sheet
 from scansnap.adapters.scansnap_wifi.scsi import Response, ScsiChannel
 from scansnap.app.ix1300_output import publish_sheet, publish_stack
 from scansnap.core.errors import FeedError
@@ -49,6 +49,7 @@ class Replay(ScsiChannel):
         self.calls: list[list[int]] = []
         self.pending_sense = bytes(18)
         self.fed = False
+        self.feeder = 0x81
 
     @contextmanager
     def open(self, timeout: float) -> Generator[ScsiChannel, None, None]:
@@ -58,6 +59,10 @@ class Replay(ScsiChannel):
     def command(self, cdb: bytes, out: bytes = b"", in_len: int = 0) -> Response:
         op = cdb[0]
         self.calls[-1].append(op)
+        if op == 0xC2:
+            status = bytearray(in_len)
+            status[3] = self.feeder
+            return Response(0, bytes(status))
         if op == 0xD6 and self.release_failure:
             raise OSError("release interrupted")
         if op == 0xD5:
@@ -117,3 +122,12 @@ def test_top_feeder_preserves_stack_order(tmp_path: Path) -> None:
     assert b"/Count 4" in pdf
     offsets = [pdf.index(page) for page in pages]
     assert offsets == sorted(offsets)
+
+
+@pytest.mark.parametrize(("state", "top"), [(0x81, False), (0x00, True)])
+def test_select_loaded_feeder(state: int, top: bool) -> None:
+    replay = Replay("", False)
+    replay.feeder = state
+    selected_top, sheets = scan_job(replay.open, top_feeder=None)
+    assert selected_top is top
+    assert len(sheets) == 1

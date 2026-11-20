@@ -41,7 +41,7 @@ Set up Wi-Fi once using ScanSnap Home, then quit ScanSnap Home. Keep the scanner
 scansnap ix1300 --ip SCANNER_IP listen --out WATCHED_FOLDER
 ```
 
-Use an existing output folder and one receiver per scanner. The command stays in the foreground for a service supervisor. It publishes each successfully completed front-slot sheet as a two-page PDF.
+Use an existing output folder and one receiver per scanner. The command stays in the foreground for a service supervisor. It selects the loaded feeder on each scan and saves a duplex PDF per front-slot sheet or top-feeder stack.
 
 ## iX500
 

@@ -58,12 +58,12 @@ def receive_to_folder(
     authorized_session: AuthorizedSession,
     folder: Path,
     *,
-    top_feeder: bool = False,
+    top_feeder: bool | None = None,
 ) -> None:
     """Receive scans until stopped, handling process signals on the main thread."""
 
-    def publish(sheets: list[Sheet]) -> Path:
-        return publish_stack(folder, sheets) if top_feeder else publish_sheet(folder, sheets[0])
+    def publish(selected_top: bool, sheets: list[Sheet]) -> Path:
+        return publish_stack(folder, sheets) if selected_top else publish_sheet(folder, sheets[0])
 
     if current_thread() is not main_thread():
         receiver.run_job(scanner_ip, host_mac, authorized_session, publish, top_feeder=top_feeder)

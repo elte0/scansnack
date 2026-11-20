@@ -41,17 +41,25 @@ ChannelOpener = Callable[[float], AbstractContextManager[ScsiChannel]]
 
 
 def scan_sheet(open_channel: ChannelOpener, *, open_release: ChannelOpener | None = None) -> Sheet:
-    return scan_job(open_channel, open_release=open_release, top_feeder=False)[0]
+    return scan_job(open_channel, open_release=open_release, top_feeder=False)[1][0]
 
 
 def scan_job(
-    open_channel: ChannelOpener, *, open_release: ChannelOpener | None = None, top_feeder: bool
-) -> list[Sheet]:
+    open_channel: ChannelOpener, *, open_release: ChannelOpener | None = None, top_feeder: bool | None
+) -> tuple[bool, list[Sheet]]:
     """Consume one scan attempt, releasing even when setup or transfer fails."""
     reserved = False
     try:
         with open_channel(10) as setup:
-            setup.hardware_status(48)
+            status = setup.hardware_status(48)
+            if top_feeder is None:
+                state = status[3]
+                if state == 0x80:
+                    raise NoPaper("both feeders empty")
+                if state not in (0x00, 0x81):
+                    raise ScsiError(f"unknown feeder status {state:#04x}")
+                top_feeder = state == 0x00
+            logging.getLogger(__name__).info("Selected %s", "top feeder" if top_feeder else "front slot")
             reserved = True
             setup.checked(bytes.fromhex("d50000000808"), out=bytes(8), in_len=8)
             setup.hardware_status(48)
@@ -67,7 +75,7 @@ def scan_job(
                     _feed(transfer)
                 except NoPaper:
                     if sheets:
-                        return sheets
+                        return top_feeder, sheets
                     raise
                 if sheets and not top_feeder:
                     raise ScsiError("expected empty feeder after one Return Scan sheet")
