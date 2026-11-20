@@ -9,6 +9,11 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Changed
+
+- iX1500: "Document – Color" (color/300) scans use the parameter block ScanSnap Home sent for a 300 dpi
+  color scan, so `scansnap scan --mode color --dpi 300` no longer warns that it is not backed by captures.
+
 ## [0.6.2] - 2026-11-19
 
 ### Added

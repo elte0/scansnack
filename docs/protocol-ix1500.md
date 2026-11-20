@@ -57,6 +57,8 @@ capture is public, it is an anonymised extract without image data, generated wit
 | Touch panel captures | two captures of the "Scan" button on the panel | no |
 | Live test logs | our own client against the device: keep-alive, scan, `claim` | no |
 | User list backup | the scanner's user and profile list before our changes | no |
+| Double-feed capture | ScanSnap Home: Scan pressed on the panel (profile with automatic color mode and resolution), one sheet that double-fed | no |
+| Quality captures | ScanSnap Home: one sheet each in color, gray and monochrome at "Best" (superfine) and "Excellent" | no |
 
 Live tests ran on a home network with ScanSnap Home quit.
 
@@ -266,8 +268,14 @@ D6                  release session     (also after errors)
 
 The E9/D4 parameter blocks for gray/150 and color/600 are byte-identical to the captures (read length
 0x300000 and 0x20000 respectively). For profile …0010 (color/300), ScanSnap Home sends a D4 that
-differs from our template in byte 10 (0x90), 13 (0x00) and 40 (0x0d); our color/300 block is accepted
-anyway. Other combinations are derived (see [Open questions](#open-questions)).
+differs from the derived color/300 block in byte 10 (0x90), 13 (0x00) and 40 (0x0d). The quality captures
+have the full block: for profiles set to color, gray and monochrome at "Best" (superfine) ScanSnap Home sent
+the same E9 (300 dpi) and the same D4, and the scanner returned 3-component JPEGs for all three, so the
+conversion to gray or monochrome is not done by the scanner; at "Excellent" it was 600 dpi with one D4 for
+all three modes as well. The double-feed capture (automatic
+color mode and resolution) has the same 300 dpi block with read length 0x300000. color/300 (the app's
+"Document – Color") uses this D4 and read length. Other combinations are derived (see
+[Open questions](#open-questions)).
 
 ### Sense codes
 
@@ -372,8 +380,10 @@ After the user is switched on the panel, 0x0100 returns only the profiles of the
 
 Each item corresponds to an `# UNVERIFIED:` marker in the code (location in parentheses).
 
-1. **Parameter blocks other than gray/150 and color/600** (`scanner.mode_block`, `scanner.read_len`):
-   derived; read length 0x20000 used for everything without a capture. Accepted live: color/300, gray/150.
+1. **Parameter blocks other than gray/150, color/300 and color/600** (`scanner.mode_block`,
+   `scanner.read_len`): derived; read length 0x20000 used for everything without a capture. Accepted
+   live: gray/150; color/300 with the derived block and with ScanSnap Home's block. ScanSnap Home sends
+   the color block for gray and monochrome at 300 and 600 dpi as well (quality captures).
 2. **Sense texts 3/80/xx** (`scsi.MEDIUM_ERRORS`): written from memory after SANE's `fujitsu.c`
    backend, not looked up. Only 01, 03 and 33 are confirmed.
 3. **0x12 and 0x30** (`control.cmd12`, `control.state`): meaning unknown, only reproduced in the

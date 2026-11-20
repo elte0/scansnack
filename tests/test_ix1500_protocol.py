@@ -19,7 +19,7 @@ from scansnap.adapters.ix1500.control import (
     register_body,
 )
 from scansnap.adapters.ix1500.discovery import ScannerInfo, parse_reply
-from scansnap.adapters.ix1500.scanner import Scanner, mode_block, window_block
+from scansnap.adapters.ix1500.scanner import Scanner, mode_block, read_len, window_block
 from scansnap.adapters.ix1500.scsi import ScsiChannel
 from scansnap.core.errors import FeedError, NoPaper
 from scansnap.core.fixes import IX1500_PAIRING_CLEANUP, Fixes
@@ -349,3 +349,16 @@ def test_paper_jam_keeps_earlier_pages_and_releases_session() -> None:
         assert mock.received[-1][0][0] == 0xD6
     finally:
         mock.close()
+
+
+def test_color_300_uses_scansnap_home_blocks() -> None:
+    # E9 and D4 as ScanSnap Home sent them for color, gray and monochrome at "Best", and read length (private
+    # quality and double-feed captures)
+    settings = Settings("color", 300)
+    assert window_block(settings).hex() == "012c012c000028d0000044dc05" + "00" * 19
+    assert (
+        mode_block(settings).hex()
+        == ("00030101d000c1808080908080000000000000000000000000000000000000300010012c012c05810d00000028d0000044dc04")
+        + "00" * 29
+    )
+    assert read_len(settings) == 0x300000

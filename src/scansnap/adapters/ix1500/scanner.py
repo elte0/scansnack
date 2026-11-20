@@ -13,7 +13,15 @@ from ...core.model import SCAN_HEIGHT_1200, SCAN_WIDTH_1200, ImageInfo, ScanSett
 from .scsi import CHECK_CONDITION, ScsiChannel, ScsiError, Sense
 
 # Combinations whose parameter blocks come 1:1 from captures, with the read length from the capture
-VERIFIED: dict[tuple[str, int], int] = {("gray", 150): 0x300000, ("color", 600): 0x20000}
+VERIFIED: dict[tuple[str, int], int] = {("gray", 150): 0x300000, ("color", 600): 0x20000, ("color", 300): 0x300000}
+
+# D4 blocks as ScanSnap Home sent them, where they differ from the derived block. color/300: private quality and
+# double-feed captures (profiles set to color, gray and monochrome at "Best", and automatic).
+_CAPTURED_MODE_BLOCKS: dict[tuple[str, int], bytes] = {
+    ("color", 300): bytes.fromhex(
+        "00030101d000c1808080908080000000000000000000000000000000000000300010012c012c05810d00000028d0000044dc04"
+    ).ljust(80, b"\0"),
+}
 
 _MODE_TEMPLATE = bytes.fromhex(
     "00030101d000c18080808080800000000000000000000000000000000000003000100096009605810500000028d0000044dc04"
@@ -37,8 +45,10 @@ def window_block(settings: ScanSettings) -> bytes:
 
 def mode_block(settings: ScanSettings) -> bytes:
     """D4 data block (80 B)."""
-    # UNVERIFIED: derived except for gray/150 and color/600 (byte 13 color, 34–37 dpi, 40 mode);
-    # color/300 is accepted live, although ScanSnap Home sends different bytes 10/13/40 there.
+    captured = _CAPTURED_MODE_BLOCKS.get((settings.mode, settings.dpi))
+    if captured:
+        return captured
+    # UNVERIFIED: derived except for gray/150, color/300 and color/600 (byte 13 color, 34–37 dpi, 40 mode).
     b = bytearray(_MODE_TEMPLATE)
     b[13] = 0x80 if settings.mode == "color" else 0x00
     struct.pack_into(">HH", b, 34, settings.dpi, settings.dpi)
