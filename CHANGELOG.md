@@ -9,6 +9,20 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Added
+
+- iX1500 protocol notes: the boot notice, and button notifications after the session has closed.
+
+### Changed
+
+- iX1500: the client listens for the Scan button while it connects, not only once connected, so a press
+  can be received while the connection is still being set up.
+
+### Fixed
+
+- iX1500: a press on the touch panel is no longer ignored when the scanner was switched off and on and the
+  press got the same number as the last one before.
+
 ## [0.6.2] - 2026-11-19
 
 ### Added

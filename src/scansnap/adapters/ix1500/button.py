@@ -11,9 +11,11 @@ import socket
 import struct
 import sys
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from ..scansnap_wifi.notify import REPEAT_WINDOW
 from . import wire
 from .wire import MAGIC
 
@@ -33,7 +35,8 @@ def parse_notification(data: bytes) -> Notification | None:
     return Notification(data[16], str(ipaddress.IPv4Address(data[20:24])), data[24:30].hex(":"))
 
 
-# UNVERIFIED: how long the panel waits for the host after "Scan" is unknown.
+# UNVERIFIED: how long the panel waits for the host after "Scan"; about 32 s and about 10 s were seen live with
+# no session.
 
 
 class ButtonListener:
@@ -49,7 +52,7 @@ class ButtonListener:
             raise
         self.sock.settimeout(0.2)
         self.port = self.sock.getsockname()[1]
-        self._last: int | None = None
+        self._last: tuple[int, float] | None = None
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
@@ -66,13 +69,28 @@ class ButtonListener:
                 continue
             wire.trace("<- udp notify", data)
             note = parse_notification(data)
-            if note is None or note.counter == self._last:  # repeat of the same press
+            if note is None:
                 continue
-            self._last = note.counter
+            if not self._accept(note.counter, time.monotonic()):
+                continue
             try:
                 self.callback(note)
             except Exception as e:  # noqa: BLE001 – the listener must keep running
                 print(f"Scan button: {e}", file=sys.stderr)
+            self._handled(note.counter, time.monotonic())
+
+    def _accept(self, counter: int, now: float) -> bool:
+        """False for a repeat of the last press: same counter within ``REPEAT_WINDOW``. The counter restarts
+        after a power cycle, so an older notification with the same counter is a new press."""
+        if self._last and self._last[0] == counter and now - self._last[1] < REPEAT_WINDOW:
+            return False
+        self._last = (counter, now)
+        return True
+
+    def _handled(self, counter: int, now: float) -> None:
+        """Start the window again when the callback returns: repeats that queued up during a slow callback are
+        read only now."""
+        self._last = (counter, now)
 
     def close(self) -> None:
         self._stop.set()

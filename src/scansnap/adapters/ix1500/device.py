@@ -131,8 +131,9 @@ class Device:
     stays open between scans (C2 polling, heartbeat, 0x0210 like ScanSnap Home), and a scan then starts
     without connecting first. If the connection has dropped, :meth:`scan` re-establishes it once.
 
-    ``on_button`` is called (in the listener thread) when "Scan" is pressed on the touch panel; this only works
-    while the persistent session is up. The caller then starts :meth:`scan` as usual.
+    ``on_button`` is called (in the listener thread) when "Scan" is pressed on the touch panel. The caller then
+    starts :meth:`scan` as usual. The listener opens before the session, since the scanner can send a press
+    while the session is still opening (docs/protocol-ix1500.md, "Boot notice").
     """
 
     def __init__(
@@ -181,28 +182,43 @@ class Device:
 
     def connect(self) -> None:
         """Open a persistent session unless a live one exists."""
-        self._live_session()
+        try:
+            self._live_session()
+        except BaseException:
+            self._stop_button_listener()
+            raise
 
     def _live_session(self) -> Session:
+        # The listener opens before the session (see the class docstring). A dead session is replaced without
+        # closing it, so that it still recognises the repeats of a press that arrived while the session was down.
+        self._start_button_listener()
         if self._session is not None and self._session.alive:
             return self._session
-        self.disconnect()
+        self._close_session()
         self.stage = "opening session"
         s = Session(self.ctl, self.ip, self.ident, announce_every=ANNOUNCE_EVERY)
         s.open()
         self.stage = "connected"
         self._session = s
+        return s
+
+    def _start_button_listener(self) -> None:
         if self.on_button and self._button is None:
             try:
                 self._button = ButtonListener(self.ip, self.ident.host_port, self.on_button)
             except OSError as e:  # port in use, e.g. by ScanSnap Home
                 print(f"Scan button not available (UDP {self.ident.host_port}: {e})", file=sys.stderr)
-        return s
 
-    def disconnect(self) -> None:
+    def _stop_button_listener(self) -> None:
         if self._button is not None:
             self._button.close()
             self._button = None
+
+    def disconnect(self) -> None:
+        self._stop_button_listener()
+        self._close_session()
+
+    def _close_session(self) -> None:
         if self._session is not None:
             self._session.close()
             self._session = None
@@ -258,9 +274,12 @@ class Device:
                         yield sheet
                 return
             except (OSError, wire.ProtocolError):
-                self.disconnect()
                 if delivered or attempt:
+                    self.disconnect()
                     raise
+                # Keep the button listener for the retry: it still has to recognise the repeats of the press
+                # that started this scan.
+                self._close_session()
                 print("Connection to the scanner lost – reconnecting", file=sys.stderr)
 
     def _scan(

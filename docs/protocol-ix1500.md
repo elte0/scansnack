@@ -31,6 +31,7 @@ Fujitsu. See the [disclaimer](disclaimer.md).
   - [Scan sequence](#scan-sequence)
   - [Sense codes](#sense-codes)
 - [Scan button on the touch panel](#scan-button-on-the-touch-panel)
+- [Boot notice (UDP 53220)](#boot-notice-udp-53220)
 - [Sequences](#sequences)
   - [App start / connect](#app-start--connect)
   - [Scan](#scan)
@@ -57,6 +58,8 @@ capture is public, it is an anonymised extract without image data, generated wit
 | Touch panel captures | two captures of the "Scan" button on the panel | no |
 | Live test logs | our own client against the device: keep-alive, scan, `claim` | no |
 | User list backup | the scanner's user and profile list before our changes | no |
+| Reboot capture | our own client: scanner power cycle, then a press on the panel | no |
+| Session capture | our own client: presses after the session was closed, profile writes (0x0110) | no |
 
 Live tests ran on a home network with ScanSnap Home quit.
 
@@ -72,7 +75,7 @@ Conventions: offsets are byte offsets from the start of the frame or body; integ
 | Control channel | TCP 53219 | registration, users/profiles (JSON), one connection per command | `control.py` |
 | Scan channel | TCP 53218 | SCSI tunnel, persistent connection | `scsi.py`, `scanner.py` |
 | Scan button | UDP `host_port` (host; 55265 in our setup) | "Scan" pressed on the touch panel | `button.py` |
-| Pairing notifications | UDP 53220 (host) | observed during pairing, **not analysed** | – |
+| Boot notice | UDP 53220 (host) | event 0x21 after power-on; event 0x30 after each accepted 0x0110 (meaning not known) | – |
 
 No TLS, no cryptography.
 
@@ -292,14 +295,45 @@ three times, 0.5 s apart (private touch panel captures):
 | 4 | `b"ssNR"` |
 | 8 | u32 1 |
 | 12 | u32 0 |
-| 16 | u8 event counter (+1 per press; repetitions carry the same value) |
+| 16 | u8 counter (+1 per notification of any kind, also boot and profile notices; repetitions carry the same value) |
 | 20 | 4 B scanner IP |
 | 24 | 6 B scanner MAC |
 
 No reply is needed: the panel shows "waiting for a response from the device" (observed on a
 German-language panel: „Es wird auf eine Antwort vom Gerät gewartet“) until the host runs the
-normal 0x0100 → 0x0610 → D5 … sequence. Without a running session (scan channel + C2 polling) nothing
-arrives. Confirmed live with `scansnap listen` (2 presses, 1 sheet each).
+normal 0x0100 → 0x0610 → D5 … sequence. Confirmed live with `scansnap listen` (2 presses, 1 sheet each).
+
+Without a running session (scan channel + C2 polling) nothing arrived for a host that had not connected.
+A host that closes its session still gets them: in the session capture our client closed its session
+and stopped answering, the scanner kept sending heartbeats to it (answered with ICMP port unreachable),
+and it sent the notifications for presses 4 s, 65 s, 107 s and 211 s later. Observed live: the panel
+waited about 32 s for the first of them; for a later one it gave up after about 10 s with "The connection
+between the device and the ScanSnap has been disconnected".
+
+## Boot notice (UDP 53220)
+
+The iX1500 sends a datagram to UDP 53220 after power-on (reboot capture). Observed live but not captured:
+a notice after waking from deep sleep, in which the scanner does not answer ARP. A host with a persistent
+session can reconnect as soon as the notice arrives.
+
+Reboot capture: 48 bytes, three times 0.5 s apart, both to the registered host's UDP 53220 and to the
+subnet's directed broadcast, with the button notification's layout (and the iX500's 0x21 notice):
+
+| Offset | Content |
+|---|---|
+| 0 | u32 length (0x30) |
+| 4 | `b"ssNR"` |
+| 8 | u32 0x21 |
+| 12 | u32 0 |
+| 16 | u8 counter: 1; the next button notification carried 2 |
+| 20 | 4 B scanner IP |
+| 24 | 6 B scanner MAC |
+
+In the same capture the button notification for a press arrived 1.1 s after the boot notice, while the
+host was still opening its session (0x11 answered 2.4 s after the notice); the host was not yet listening
+(ICMP port unreachable). A host therefore has to listen on its `host_port` while it opens the session.
+`Device` opens its button listener before the session and keeps it across its own reconnects. Repeats are
+recognised by counter within 3 s, as the counter restarts after power-on.
 
 ## Sequences
 
@@ -388,10 +422,14 @@ Each item corresponds to an `# UNVERIFIED:` marker in the code (location in pare
 8. **Profiles disappear** (`device.Device.ensure_profile`): occasionally even without a user switch,
    cause unclear. Hypothesis (user): profiles are stored per user, so the ScanSnap Home profiles still
    exist. Unverified; a private backup of the user list exists.
-9. **How long does the panel wait** for the host after "Scan"? (`button.py`)
-10. **UDP 53220**: notifications from the scanner during pairing, content not analysed. On the iX500
-    the scanner sends a 48-byte power-on notice to this port ([iX500 protocol](protocol-ix500.md#notifications-udp-48-b));
-    whether the iX1500's datagrams have the same layout is not checked.
+9. **How long does the panel wait** for the host after "Scan"? (`button.py`): about 32 s and about 10 s
+   were seen live, both without a session; the rule is not known.
+10. **UDP 53220**: the power-on notice (event 0x21) is captured (see
+    [Boot notice](#boot-notice-udp-53220)) and has the layout of the iX500's power-on notice
+    ([iX500 protocol](protocol-ix500.md#notifications-udp-48-b)). In the session capture the scanner
+    also sent event 0x30 to UDP 53220 after each accepted 0x0110 (three times, button layout), and once
+    event 0x11 to `host_port` with IP and MAC zero; their meaning is not known. Not captured: the notice
+    after waking from deep sleep.
 11. **Grayscale** (`escl`): with the gray D4 the image looks gray, but the JPEG has 3 channels.
     Whether the scanner can deliver true 1-channel JPEGs is open.
 12. **Feeder capacity of 50 sheets** in the eSCL capabilities (`escl.server.capabilities_xml`):
