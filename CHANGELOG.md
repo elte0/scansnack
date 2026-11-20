@@ -9,6 +9,13 @@ New entries go under *Unreleased*. When a release is made, the *Create Release* 
 
 ## [Unreleased]
 
+### Fixed
+
+- iX1500: a sheet that jams while it is being read is reported as a paper jam, instead of as an
+  "unexpected chunk header" error.
+- iX1500: when a scan stops with an error and the scanner cannot be released afterwards, the original
+  error is reported, not the failed release.
+
 ## [0.6.2] - 2026-11-19
 
 ### Added

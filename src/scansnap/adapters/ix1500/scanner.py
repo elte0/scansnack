@@ -5,11 +5,13 @@ Flow and parameter blocks: docs/protocol-ix1500.md, section "Scan sequence".
 
 from __future__ import annotations
 
+import contextlib
 import struct
 from collections.abc import Iterator
 
 from ...core.errors import FeedError, NoPaper
 from ...core.model import SCAN_HEIGHT_1200, SCAN_WIDTH_1200, ImageInfo, ScanSettings, Sheet
+from . import wire
 from .scsi import CHECK_CONDITION, ScsiChannel, ScsiError, Sense
 
 # Combinations whose parameter blocks come 1:1 from captures, with the read length from the capture
@@ -80,23 +82,26 @@ class Scanner:
                 if done[side]:
                     continue
                 r = self.ch.command(_read_cdb(side, chunk[side], read_len), in_len=read_len)
+                # The sense comes first: when a sheet jams, the read ends with CHECK CONDITION and data that
+                # is not an image chunk (private session capture), so the chunk header says nothing.
+                sense = self.ch.request_sense() if r.status == CHECK_CONDITION else None
+                if sense is not None and not sense.eom:
+                    raise _sense_error("read failed", sense)
+                if r.status and sense is None:
+                    raise ScsiError(f"read status {r.status}")
                 if r.data[:2] != bytes([side, chunk[side]]):
                     raise ScsiError(f"unexpected chunk header {r.data[:2].hex()} for side {side}")
                 parts[side].append(r.data[2:])
                 chunk[side] += 1
-                if r.status == CHECK_CONDITION:
-                    sense = self.ch.request_sense()
-                    if not sense.eom:
-                        raise _sense_error("read failed", sense)
+                if sense is not None:
                     done[side], last = True, side
-                elif r.status:
-                    raise ScsiError(f"read status {r.status}")
         return [b"".join(p) for p in parts], last
 
     def scan(self, settings: ScanSettings) -> Iterator[Sheet]:
         """Scans all sheets in the feeder. Raises NoPaper if the feeder is empty."""
         ch = self.ch
         ch.checked(bytes.fromhex("d50000010808"), out=b"\0" * 8, in_len=8)
+        released = False
         try:
             ch.checked(bytes.fromhex("d80000000000"))
             ch.checked(bytes.fromhex("e9000000000000200000"), out=window_block(settings))
@@ -116,5 +121,12 @@ class Scanner:
                 info = parse_image_info(ch.checked(_info_cdb(last), in_len=0x20).data)
                 pages += 1
                 yield Sheet(front, back if settings.duplex else None, info)
+        except BaseException:
+            # Release the scanner, but report the error that stopped the scan, not a failing D6.
+            released = True
+            with contextlib.suppress(OSError, wire.ProtocolError):
+                ch.command(bytes.fromhex("d60000000000"))
+            raise
         finally:
-            ch.command(bytes.fromhex("d60000000000"))
+            if not released:
+                ch.command(bytes.fromhex("d60000000000"))

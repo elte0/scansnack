@@ -349,3 +349,27 @@ def test_paper_jam_keeps_earlier_pages_and_releases_session() -> None:
         assert mock.received[-1][0][0] == 0xD6
     finally:
         mock.close()
+
+
+def test_jam_during_a_read_is_reported_as_a_paper_jam() -> None:
+    mock = MockScanner("03_grayscale_duplex_normalquality", sheets=3)
+    mock.jam_in_read_at = 1
+    pages: list[Sheet] = []
+    try:
+        with ScsiChannel("127.0.0.1", MAC, port=mock.port) as ch, pytest.raises(FeedError) as err:
+            pages.extend(Scanner(ch).scan(Settings(duplex=True)))
+        assert err.value.reason == "paper jam" and len(pages) == 1
+        assert mock.received[-1][0][0] == 0xD6
+    finally:
+        mock.close()
+
+
+def test_failing_release_does_not_hide_the_scan_error() -> None:
+    mock = MockScanner("03_grayscale_duplex_normalquality", sheets=3)
+    mock.jam_in_read_at, mock.drop_on = 1, 0xD6
+    try:
+        with ScsiChannel("127.0.0.1", MAC, port=mock.port) as ch, pytest.raises(FeedError) as err:
+            list(Scanner(ch).scan(Settings(duplex=True)))
+        assert err.value.reason == "paper jam"
+    finally:
+        mock.close()

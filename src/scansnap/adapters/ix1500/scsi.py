@@ -25,7 +25,7 @@ class ScsiError(Exception):
 
 
 # Sense 3/80/xx (medium error) of the Fujitsu/PFU scanners; confirmed live: 01 (jam/crumpled sheet),
-# 03 (feeder empty), 33 (D5 without 0x0610).
+# 02 (cover open), 03 (feeder empty), 33 (D5 without 0x0610).
 # UNVERIFIED: all other texts from memory after SANE fujitsu.c, not looked up.
 MEDIUM_ERRORS = {
     0x01: "paper jam",

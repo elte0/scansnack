@@ -57,6 +57,7 @@ capture is public, it is an anonymised extract without image data, generated wit
 | Touch panel captures | two captures of the "Scan" button on the panel | no |
 | Live test logs | our own client against the device: keep-alive, scan, `claim` | no |
 | User list backup | the scanner's user and profile list before our changes | no |
+| Session capture | our own client: jams (a sheet held back by hand), cover open | no |
 
 Live tests ran on a home network with ScanSnap Home quit.
 
@@ -263,6 +264,10 @@ D6                  release session     (also after errors)
 - Pages arrive rotated by 180° and cover the whole scan area (width 2608 px at 300 dpi, length with
   ~50/110 px of background). Background ~235–240, paper ~252, shadow edge ~225 (live scans).
 - Scan area as sent by ScanSnap Home: width 0x28D0, height 0x44DC (1/1200 inch).
+- A sheet that jams while it is read (session capture; 2 jams, both in the back side's read): the front's
+  read ends normally; the back's read ends with CHECK CONDITION and 34 bytes that are not an image chunk
+  (`00 01`, then what looks like an image info block), and REQUEST SENSE returns 3/80/01. A jam sense that
+  is not read stays pending: once the next batch's first REQUEST SENSE returned it.
 
 The E9/D4 parameter blocks for gray/150 and color/600 are byte-identical to the captures (read length
 0x300000 and 0x20000 respectively). For profile …0010 (color/300), ScanSnap Home sends a D4 that
@@ -274,7 +279,8 @@ anyway. Other combinations are derived (see [Open questions](#open-questions)).
 | Sense | Meaning | Source |
 |---|---|---|
 | EOM bit, info = residual length | end of page | capture |
-| 3/80/01 | paper jam / cannot feed | live (crumpled sheet, simulated jam) |
+| 3/80/01 | paper jam / cannot feed | live (crumpled sheet, simulated jam); session capture (sheet held back, on a read) |
+| 3/80/02 | cover open | session capture (E0 with the cover open) |
 | 3/80/03 | feeder empty | capture, live |
 | 3/80/33 | D5 without a preceding 0x0610 ("Wi-Fi control error") | live |
 | 5/26/00 | E9/D4 without out length in the SCSI header | live |
@@ -375,7 +381,7 @@ Each item corresponds to an `# UNVERIFIED:` marker in the code (location in pare
 1. **Parameter blocks other than gray/150 and color/600** (`scanner.mode_block`, `scanner.read_len`):
    derived; read length 0x20000 used for everything without a capture. Accepted live: color/300, gray/150.
 2. **Sense texts 3/80/xx** (`scsi.MEDIUM_ERRORS`): written from memory after SANE's `fujitsu.c`
-   backend, not looked up. Only 01, 03 and 33 are confirmed.
+   backend, not looked up. Only 01, 02, 03 and 33 are confirmed.
 3. **0x12 and 0x30** (`control.cmd12`, `control.state`): meaning unknown, only reproduced in the
    order ScanSnap Home uses.
 4. **E7 and INQUIRY VPD f0** (`scsi.open_session`): content not analysed.
